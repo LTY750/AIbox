@@ -147,7 +147,7 @@
     "@storybook/addon-docs": "^10.2.15",
     "@storybook/react-vite": "^10.2.15",
     "@svgr/webpack": "^8.0.1",
-    "@tabler/icons-react": "^3.31.0",
+    "@tabler/icons-react": "^3.46.0",
     "@tanstack/react-query": "^5.74.4",
     "@tanstack/react-router": "^1.114.23",
     "@tanstack/router-devtools": "^1.114.23",
