@@ -204,3 +204,6 @@ tmp_*.*
 
 # Local Codex session artifacts
 .codex/
+
+# Temporary Git metadata used by restricted workspaces
+.git-sync/
