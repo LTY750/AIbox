@@ -231,7 +231,7 @@
     "immer": "^10.1.1",
     "javascript-obfuscator": "^4.0.2",
     "jotai": "^2.1.0",
-    "jotai-immer": "^0.4.1",
+    "jotai-immer": "^0.4.3",
     "jotai-optics": "^0.3.0",
     "js-base64": "^3.7.7",
     "js-tiktoken": "^1.0.7",
