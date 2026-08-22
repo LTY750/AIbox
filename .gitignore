@@ -178,8 +178,6 @@ electron-builder.env
 # .vscode
 
 
-**/routeTree.gen.ts
-
 .env.sentry-build-plugin
 
 temp.md
