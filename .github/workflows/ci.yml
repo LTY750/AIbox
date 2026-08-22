@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Basic quality gate: no signing secrets required, runs on any repository.
+# Release/signing automation (Android keystore, macOS notarization, Windows
+# AzureSignTool) is intentionally out of scope here and documented in
+# docs/technical/build-and-deployment.md ("CI/CD 流水线").
+jobs:
+  quality:
+    name: lint / typecheck / test / build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Type check
+        run: pnpm run check
+
+      - name: Test
+        run: pnpm run test
+
+      - name: Build renderer (web target)
+        run: pnpm run build:web

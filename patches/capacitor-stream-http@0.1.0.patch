@@ -1,0 +1,1569 @@
+diff --git a/android/src/main/AndroidManifest.xml b/android/src/main/AndroidManifest.xml
+index ae8d561..fc47ee9 100644
+--- a/android/src/main/AndroidManifest.xml
++++ b/android/src/main/AndroidManifest.xml
+@@ -2,4 +2,16 @@
+     <!-- Required for HTTP requests -->
+     <uses-permission android:name="android.permission.INTERNET" />
+     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
++    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
++    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
++    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
++    <uses-permission android:name="android.permission.WAKE_LOCK" />
++
++    <application>
++        <service
++            android:name=".StreamHttpForegroundService"
++            android:exported="false"
++            android:foregroundServiceType="dataSync"
++            android:stopWithTask="false" />
++    </application>
+ </manifest>
+diff --git a/android/src/main/java/com/chatbox/plugins/streamhttp/StreamHttpForegroundService.java b/android/src/main/java/com/chatbox/plugins/streamhttp/StreamHttpForegroundService.java
+new file mode 100644
+index 0000000..de2622a
+--- /dev/null
++++ b/android/src/main/java/com/chatbox/plugins/streamhttp/StreamHttpForegroundService.java
+@@ -0,0 +1,227 @@
++package com.chatbox.plugins.streamhttp;
++
++import android.app.Notification;
++import android.app.NotificationChannel;
++import android.app.NotificationManager;
++import android.app.PendingIntent;
++import android.app.Service;
++import android.content.Context;
++import android.content.Intent;
++import android.content.pm.ApplicationInfo;
++import android.os.Build;
++import android.os.Handler;
++import android.os.IBinder;
++import android.os.Looper;
++import android.os.PowerManager;
++
++import java.lang.ref.WeakReference;
++
++/**
++ * Keeps native HTTP streams alive while the Capacitor Activity is backgrounded.
++ *
++ * Request configuration lives in StreamHttpStreamManager, so the Intent only
++ * contains a generated stream ID and never exposes API keys or request bodies.
++ */
++public final class StreamHttpForegroundService extends Service {
++    static final String ACTION_START = "com.chatbox.plugins.streamhttp.action.START";
++    private static final String ACTION_CANCEL_ALL = "com.chatbox.plugins.streamhttp.action.CANCEL_ALL";
++    private static final String EXTRA_STREAM_ID = "streamId";
++    private static final String CHANNEL_ID = "chatbox_streaming";
++    private static final int NOTIFICATION_ID = 74_001;
++    private static final long WAKE_LOCK_RENEWAL_MS = 9 * 60 * 1000L;
++    private static final long WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L;
++
++    private static volatile WeakReference<StreamHttpForegroundService> currentService = new WeakReference<>(null);
++
++    private final Handler handler = new Handler(Looper.getMainLooper());
++    private PowerManager.WakeLock wakeLock;
++    private boolean destroyed;
++    private volatile int latestStartId;
++
++    public static void start(Context context, String streamId) {
++        Intent intent = new Intent(context, StreamHttpForegroundService.class)
++            .setAction(ACTION_START)
++            .putExtra(EXTRA_STREAM_ID, streamId);
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
++            context.startForegroundService(intent);
++        } else {
++            context.startService(intent);
++        }
++    }
++
++    static void refresh() {
++        StreamHttpForegroundService service = currentService.get();
++        if (service != null) {
++            service.requestRefresh();
++        }
++    }
++
++    /**
++     * Stream completion happens on worker threads. Keep foreground-service
++     * transitions on the main looper so a completion cannot race a new start.
++     */
++    private void requestRefresh() {
++        handler.post(this::refreshForegroundState);
++    }
++
++    @Override
++    public void onCreate() {
++        super.onCreate();
++        currentService = new WeakReference<>(this);
++        createNotificationChannel();
++    }
++
++    @Override
++    public int onStartCommand(Intent intent, int flags, int startId) {
++        latestStartId = Math.max(latestStartId, startId);
++        // Android requires a foreground service to publish its notification promptly.
++        ensureForeground();
++
++        String action = intent == null ? null : intent.getAction();
++        if (ACTION_CANCEL_ALL.equals(action)) {
++            StreamHttpStreamManager.getInstance().cancelAll();
++        } else if (ACTION_START.equals(action)) {
++            String streamId = intent.getStringExtra(EXTRA_STREAM_ID);
++            if (streamId != null) {
++                StreamHttpStreamManager.getInstance().start(streamId);
++            }
++        }
++        refreshForegroundState();
++        return START_NOT_STICKY;
++    }
++
++    @Override
++    public IBinder onBind(Intent intent) {
++        return null;
++    }
++
++    @Override
++    public void onTaskRemoved(Intent rootIntent) {
++        // Keep the service alive after the Activity task is backgrounded or removed.
++        super.onTaskRemoved(rootIntent);
++    }
++
++    @Override
++    public void onDestroy() {
++        destroyed = true;
++        handler.removeCallbacksAndMessages(null);
++        releaseWakeLock();
++        StreamHttpForegroundService existing = currentService.get();
++        if (existing == this) {
++            currentService = new WeakReference<>(null);
++        }
++        StreamHttpStreamManager.getInstance().onServiceDestroyed();
++        super.onDestroy();
++    }
++
++    private void refreshForegroundState() {
++        if (destroyed) {
++            return;
++        }
++        if (StreamHttpStreamManager.getInstance().getActiveCount() == 0) {
++            handler.removeCallbacksAndMessages(null);
++            releaseWakeLock();
++            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
++                stopForeground(STOP_FOREGROUND_REMOVE);
++            } else {
++                stopForeground(true);
++            }
++            stopSelfResult(latestStartId);
++            return;
++        }
++        ensureForeground();
++    }
++
++    private void ensureForeground() {
++        if (destroyed) {
++            return;
++        }
++        int activeCount = Math.max(1, StreamHttpStreamManager.getInstance().getActiveCount());
++        Notification notification = buildNotification(activeCount);
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
++            startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
++        } else {
++            startForeground(NOTIFICATION_ID, notification);
++        }
++        acquireWakeLock();
++    }
++
++    private Notification buildNotification(int activeCount) {
++        Intent cancelIntent = new Intent(this, StreamHttpForegroundService.class).setAction(ACTION_CANCEL_ALL);
++        int pendingIntentFlags = PendingIntent.FLAG_UPDATE_CURRENT;
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
++            pendingIntentFlags |= PendingIntent.FLAG_IMMUTABLE;
++        }
++        PendingIntent cancelPendingIntent = PendingIntent.getService(this, 0, cancelIntent, pendingIntentFlags);
++
++        String appName = getApplicationLabel();
++        String content = activeCount == 1 ? "Generating a response" : "Generating " + activeCount + " responses";
++        Notification.Builder builder;
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
++            builder = new Notification.Builder(this, CHANNEL_ID);
++        } else {
++            builder = new Notification.Builder(this);
++        }
++        builder
++            .setSmallIcon(android.R.drawable.stat_sys_upload)
++            .setContentTitle(appName)
++            .setContentText(content)
++            .setCategory(Notification.CATEGORY_SERVICE)
++            .setOngoing(true)
++            .setOnlyAlertOnce(true)
++            .setShowWhen(false)
++            .addAction(new Notification.Action.Builder(android.R.drawable.ic_menu_close_clear_cancel, "Stop", cancelPendingIntent).build());
++        return builder.build();
++    }
++
++    private void createNotificationChannel() {
++        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
++            return;
++        }
++        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Response generation", NotificationManager.IMPORTANCE_LOW);
++        channel.setDescription("Keeps an AI response running while Chatbox is in the background");
++        channel.setShowBadge(false);
++        NotificationManager manager = getSystemService(NotificationManager.class);
++        if (manager != null) {
++            manager.createNotificationChannel(channel);
++        }
++    }
++
++    private String getApplicationLabel() {
++        ApplicationInfo applicationInfo = getApplicationInfo();
++        CharSequence label = getPackageManager().getApplicationLabel(applicationInfo);
++        return label == null ? "Chatbox" : label.toString();
++    }
++
++    private void acquireWakeLock() {
++        if (wakeLock == null) {
++            PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
++            if (powerManager == null) {
++                return;
++            }
++            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "StreamHttp:streaming");
++            wakeLock.setReferenceCounted(false);
++        }
++        if (!wakeLock.isHeld()) {
++            wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS);
++        }
++        handler.removeCallbacksAndMessages(null);
++        handler.postDelayed(this::renewWakeLock, WAKE_LOCK_RENEWAL_MS);
++    }
++
++    private void renewWakeLock() {
++        if (destroyed || StreamHttpStreamManager.getInstance().getActiveCount() == 0) {
++            return;
++        }
++        if (wakeLock != null && wakeLock.isHeld()) {
++            wakeLock.release();
++        }
++        acquireWakeLock();
++    }
++
++    private void releaseWakeLock() {
++        if (wakeLock != null && wakeLock.isHeld()) {
++            wakeLock.release();
++        }
++    }
++}
+diff --git a/android/src/main/java/com/chatbox/plugins/streamhttp/StreamHttpPlugin.java b/android/src/main/java/com/chatbox/plugins/streamhttp/StreamHttpPlugin.java
+index 19a911c..29881c0 100644
+--- a/android/src/main/java/com/chatbox/plugins/streamhttp/StreamHttpPlugin.java
++++ b/android/src/main/java/com/chatbox/plugins/streamhttp/StreamHttpPlugin.java
+@@ -6,211 +6,124 @@ import com.getcapacitor.PluginCall;
+ import com.getcapacitor.PluginMethod;
+ import com.getcapacitor.annotation.CapacitorPlugin;
+ 
+-import java.io.BufferedReader;
+-import java.io.IOException;
+-import java.io.InputStream;
+-import java.io.InputStreamReader;
+-import java.io.OutputStream;
+-import java.net.HttpURLConnection;
+-import java.net.URL;
+-import java.util.HashMap;
+ import java.util.Iterator;
++import java.util.LinkedHashMap;
+ import java.util.Map;
+-import java.util.UUID;
+-import java.util.concurrent.ExecutorService;
+-import java.util.concurrent.Executors;
+-
+-import android.util.Log;
+ 
++/**
++ * Capacitor bridge for StreamHttpForegroundService.
++ *
++ * The plugin deliberately does not own active HTTP connections. Capacitor can
++ * destroy and recreate a Plugin with its Activity, while the foreground service
++ * must continue running and make buffered chunks available to the new bridge.
++ */
+ @CapacitorPlugin(name = "StreamHttp")
+ public class StreamHttpPlugin extends Plugin {
+-    private static final String TAG = "StreamHttpPlugin";
+-    private final Map<String, HttpURLConnection> activeConnections = new HashMap<>();
+-    private final Map<String, Thread> activeThreads = new HashMap<>();
+-    private final ExecutorService executor = Executors.newCachedThreadPool();
++    private final StreamHttpStreamManager streamManager = StreamHttpStreamManager.getInstance();
++    private StreamHttpStreamManager.EventListener eventListener;
++
++    @Override
++    public void load() {
++        eventListener = event -> notifyListeners(event.type.eventName(), event.toJSObject());
++        streamManager.setEventListener(eventListener);
++    }
+ 
+     @PluginMethod
+     public void startStream(PluginCall call) {
+-        String urlString = call.getString("url");
++        String url = call.getString("url");
++        if (url == null || url.trim().isEmpty()) {
++            call.reject("URL is required");
++            return;
++        }
++
+         String method = call.getString("method", "GET");
+         JSObject headers = call.getObject("headers", new JSObject());
+         String body = call.getString("body");
++        String streamId = streamManager.create(new StreamHttpStreamManager.StreamRequest(url, method, headersToMap(headers), body));
+ 
+-        if (urlString == null) {
+-            call.reject("URL is required");
++        try {
++            StreamHttpForegroundService.start(getContext().getApplicationContext(), streamId);
++        } catch (RuntimeException exception) {
++            streamManager.failToStart(streamId);
++            call.reject("Unable to start the background streaming service");
+             return;
+         }
+ 
+-        String streamId = UUID.randomUUID().toString();
+-        
+-        executor.execute(() -> {
+-            try {
+-                URL url = new URL(urlString);
+-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+-                
+-                // Store connection for potential cancellation
+-                synchronized (activeConnections) {
+-                    activeConnections.put(streamId, connection);
+-                    activeThreads.put(streamId, Thread.currentThread());
+-                }
+-
+-                // Set request method
+-                connection.setRequestMethod(method);
+-                
+-                // Set headers
+-                Iterator<String> keys = headers.keys();
+-                while (keys.hasNext()) {
+-                    String key = keys.next();
+-                    String value = headers.getString(key);
+-                    if (value != null) {
+-                        connection.setRequestProperty(key, value);
+-                    }
+-                }
+-
+-                // Set timeouts
+-                connection.setConnectTimeout(30000); // 30 seconds
+-                connection.setReadTimeout(30000); // 30 seconds
+-                
+-                // Enable streaming mode for better performance
+-                connection.setChunkedStreamingMode(0);
+-                
+-                // Write body if present
+-                if (body != null && !body.isEmpty() && !method.equals("GET")) {
+-                    connection.setDoOutput(true);
+-                    try (OutputStream os = connection.getOutputStream()) {
+-                        byte[] input = body.getBytes("utf-8");
+-                        os.write(input, 0, input.length);
+-                    }
+-                }
+-
+-                // Get response code
+-                int responseCode = connection.getResponseCode();
+-                Log.d(TAG, "Response code: " + responseCode);
+-
+-                // Read response stream
+-                InputStream inputStream;
+-                if (responseCode >= 200 && responseCode < 300) {
+-                    inputStream = connection.getInputStream();
+-                } else {
+-                    inputStream = connection.getErrorStream();
+-                }
+-
+-                if (inputStream != null) {
+-                    BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "utf-8"));
+-                    SSEParser sseParser = new SSEParser();
+-                    String line;
+-                    
+-                    while ((line = reader.readLine()) != null) {
+-                        // Check if stream was cancelled
+-                        if (!activeConnections.containsKey(streamId)) {
+-                            break;
+-                        }
+-                        
+-                        // Process line through SSE parser
+-                        String event = sseParser.processLine(line);
+-                        if (event != null) {
+-                            // Complete SSE event ready, send it
+-                            JSObject chunkData = new JSObject();
+-                            chunkData.put("id", streamId);
+-                            chunkData.put("chunk", event);
+-                            notifyListeners("chunk", chunkData);
+-                        }
+-                    }
+-                    
+-                    // Process empty line at the end to flush last event
+-                    String lastEvent = sseParser.processLine("");
+-                    if (lastEvent != null) {
+-                        JSObject chunkData = new JSObject();
+-                        chunkData.put("id", streamId);
+-                        chunkData.put("chunk", lastEvent);
+-                        notifyListeners("chunk", chunkData);
+-                    }
+-                    
+-                    // Send any remaining data
+-                    String remaining = sseParser.flush();
+-                    if (remaining != null && !remaining.isEmpty()) {
+-                        JSObject chunkData = new JSObject();
+-                        chunkData.put("id", streamId);
+-                        chunkData.put("chunk", remaining);
+-                        notifyListeners("chunk", chunkData);
+-                    }
+-                    
+-                    reader.close();
+-                }
+-
+-                // Send end event
+-                JSObject endData = new JSObject();
+-                endData.put("id", streamId);
+-                notifyListeners("end", endData);
+-
+-            } catch (IOException e) {
+-                Log.e(TAG, "Stream error: " + e.getMessage(), e);
+-                
+-                // Send error event
+-                JSObject errorData = new JSObject();
+-                errorData.put("id", streamId);
+-                errorData.put("error", e.getMessage());
+-                notifyListeners("error", errorData);
+-            } finally {
+-                // Clean up
+-                synchronized (activeConnections) {
+-                    HttpURLConnection connection = activeConnections.remove(streamId);
+-                    if (connection != null) {
+-                        connection.disconnect();
+-                    }
+-                    activeThreads.remove(streamId);
+-                }
+-            }
+-        });
+-
+-        // Return stream ID immediately
+-        JSObject ret = new JSObject();
+-        ret.put("id", streamId);
+-        call.resolve(ret);
++        JSObject result = new JSObject();
++        result.put("id", streamId);
++        call.resolve(result);
+     }
+ 
+     @PluginMethod
+     public void cancelStream(PluginCall call) {
+         String streamId = call.getString("id");
+-        
+-        if (streamId == null) {
++        if (streamId == null || streamId.trim().isEmpty()) {
+             call.reject("Stream ID is required");
+             return;
+         }
++        streamManager.cancel(streamId);
++        call.resolve();
++    }
+ 
+-        synchronized (activeConnections) {
+-            // Cancel the connection
+-            HttpURLConnection connection = activeConnections.remove(streamId);
+-            if (connection != null) {
+-                connection.disconnect();
+-            }
+-            
+-            // Interrupt the thread if it's still running
+-            Thread thread = activeThreads.remove(streamId);
+-            if (thread != null) {
+-                thread.interrupt();
+-            }
++    /** Returns the current task state before replaying missed data in batches. */
++    @PluginMethod
++    public void attachStream(PluginCall call) {
++        String streamId = call.getString("id");
++        if (streamId == null || streamId.trim().isEmpty()) {
++            call.reject("Stream ID is required");
++            return;
+         }
++        call.resolve(streamManager.attach(streamId, sequenceOption(call, "lastSequence")));
++    }
+ 
+-        call.resolve();
++    @PluginMethod
++    public void getStreamState(PluginCall call) {
++        String streamId = call.getString("id");
++        if (streamId == null || streamId.trim().isEmpty()) {
++            call.reject("Stream ID is required");
++            return;
++        }
++        call.resolve(streamManager.getState(streamId));
++    }
++
++    /**
++     * Returns chunks emitted after afterSequence. Batches are capped so a large
++     * response cannot exceed Android bridge message limits.
++     */
++    @PluginMethod
++    public void replayChunks(PluginCall call) {
++        String streamId = call.getString("id");
++        if (streamId == null || streamId.trim().isEmpty()) {
++            call.reject("Stream ID is required");
++            return;
++        }
++        call.resolve(streamManager.replay(streamId, sequenceOption(call, "afterSequence")).toJSObject());
+     }
+-    
++
+     @Override
+     protected void handleOnDestroy() {
+-        // Clean up all active connections when plugin is destroyed
+-        synchronized (activeConnections) {
+-            for (HttpURLConnection connection : activeConnections.values()) {
+-                connection.disconnect();
+-            }
+-            activeConnections.clear();
+-            
+-            for (Thread thread : activeThreads.values()) {
+-                thread.interrupt();
+-            }
+-            activeThreads.clear();
++        if (eventListener != null) {
++            streamManager.clearEventListener(eventListener);
++            eventListener = null;
+         }
+-        
+-        executor.shutdown();
+         super.handleOnDestroy();
+     }
+-}
+\ No newline at end of file
++
++    private static Map<String, String> headersToMap(JSObject headers) {
++        Map<String, String> result = new LinkedHashMap<>();
++        Iterator<String> keys = headers.keys();
++        while (keys.hasNext()) {
++            String key = keys.next();
++            String value = headers.optString(key, null);
++            if (value != null) {
++                result.put(key, value);
++            }
++        }
++        return result;
++    }
++
++    private static long sequenceOption(PluginCall call, String name) {
++        Object value = call.getData().opt(name);
++        return value instanceof Number ? Math.max(0L, ((Number) value).longValue()) : 0L;
++    }
++}
+diff --git a/android/src/main/java/com/chatbox/plugins/streamhttp/StreamHttpStreamManager.java b/android/src/main/java/com/chatbox/plugins/streamhttp/StreamHttpStreamManager.java
+new file mode 100644
+index 0000000..2b3618d
+--- /dev/null
++++ b/android/src/main/java/com/chatbox/plugins/streamhttp/StreamHttpStreamManager.java
+@@ -0,0 +1,784 @@
++package com.chatbox.plugins.streamhttp;
++
++import com.getcapacitor.JSArray;
++import com.getcapacitor.JSObject;
++
++import java.io.BufferedReader;
++import java.io.ByteArrayOutputStream;
++import java.io.IOException;
++import java.io.InputStream;
++import java.io.InputStreamReader;
++import java.io.OutputStream;
++import java.net.HttpURLConnection;
++import java.net.URL;
++import java.nio.charset.StandardCharsets;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Locale;
++import java.util.Map;
++import java.util.UUID;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.Future;
++
++/**
++ * Owns native streaming work independently from a Capacitor Plugin instance.
++ *
++ * The plugin can be recreated while an Activity is in the background. Keeping
++ * sessions here lets a new plugin instance replay data that was produced while
++ * the WebView was paused.
++ */
++final class StreamHttpStreamManager {
++    private static final int CONNECT_TIMEOUT_MS = 30_000;
++    private static final int MAX_BUFFERED_BYTES_PER_STREAM = 8 * 1024 * 1024;
++    private static final int MAX_REPLAY_BYTES = 512 * 1024;
++    private static final int MAX_REPLAY_CHUNKS = 512;
++    private static final int MAX_ERROR_BODY_BYTES = 64 * 1024;
++    private static final int MAX_TERMINAL_SESSIONS = 32;
++    private static final long TERMINAL_SESSION_TTL_MS = 15 * 60 * 1000L;
++
++    private static final StreamHttpStreamManager INSTANCE = new StreamHttpStreamManager();
++
++    static StreamHttpStreamManager getInstance() {
++        return INSTANCE;
++    }
++
++    interface EventListener {
++        void onEvent(StreamEvent event);
++    }
++
++    enum State {
++        PENDING("pending"),
++        RUNNING("running"),
++        COMPLETED("completed"),
++        FAILED("failed"),
++        CANCELLED("cancelled"),
++        MISSING("missing");
++
++        private final String value;
++
++        State(String value) {
++            this.value = value;
++        }
++
++        String value() {
++            return value;
++        }
++
++        boolean isActive() {
++            return this == PENDING || this == RUNNING;
++        }
++    }
++
++    static final class StreamRequest {
++        final String url;
++        final String method;
++        final Map<String, String> headers;
++        final String body;
++
++        StreamRequest(String url, String method, Map<String, String> headers, String body) {
++            this.url = url;
++            this.method = method;
++            this.headers = Collections.unmodifiableMap(new LinkedHashMap<>(headers));
++            this.body = body;
++        }
++    }
++
++    static final class StreamEvent {
++        enum Type {
++            CHUNK("chunk"),
++            END("end"),
++            ERROR("error");
++
++            private final String eventName;
++
++            Type(String eventName) {
++                this.eventName = eventName;
++            }
++
++            String eventName() {
++                return eventName;
++            }
++        }
++
++        final Type type;
++        final String id;
++        final long sequence;
++        final String chunk;
++        final String error;
++        final String errorBody;
++        final boolean cancelled;
++        final boolean cancelledByNotification;
++        final int status;
++        final Map<String, String> headers;
++
++        StreamEvent(
++            Type type,
++            String id,
++            long sequence,
++            String chunk,
++            String error,
++            String errorBody,
++            boolean cancelled,
++            boolean cancelledByNotification,
++            int status,
++            Map<String, String> headers
++        ) {
++            this.type = type;
++            this.id = id;
++            this.sequence = sequence;
++            this.chunk = chunk;
++            this.error = error;
++            this.errorBody = errorBody;
++            this.cancelled = cancelled;
++            this.cancelledByNotification = cancelledByNotification;
++            this.status = status;
++            this.headers = headers == null ? Collections.emptyMap() : Collections.unmodifiableMap(new LinkedHashMap<>(headers));
++        }
++
++        JSObject toJSObject() {
++            JSObject result = new JSObject();
++            result.put("id", id);
++            result.put("sequence", sequence);
++            if (chunk != null) {
++                result.put("chunk", chunk);
++            }
++            if (error != null) {
++                result.put("error", error);
++            }
++            if (errorBody != null) {
++                result.put("errorBody", errorBody);
++            }
++            if (cancelled) {
++                result.put("cancelled", true);
++            }
++            if (cancelledByNotification) {
++                result.put("cancelledByNotification", true);
++            }
++            if (status > 0) {
++                result.put("status", status);
++            }
++            if (!headers.isEmpty()) {
++                result.put("headers", toHeadersObject(headers));
++            }
++            return result;
++        }
++    }
++
++    static final class ReplayResult {
++        final List<StreamEvent> chunks;
++        final JSObject state;
++        final boolean hasMore;
++
++        ReplayResult(List<StreamEvent> chunks, JSObject state, boolean hasMore) {
++            this.chunks = chunks;
++            this.state = state;
++            this.hasMore = hasMore;
++        }
++
++        JSObject toJSObject() {
++            JSObject result = new JSObject();
++            JSArray chunksArray = new JSArray();
++            for (StreamEvent chunk : chunks) {
++                chunksArray.put(chunk.toJSObject());
++            }
++            result.put("chunks", chunksArray);
++            result.put("state", state);
++            result.put("hasMore", hasMore);
++            return result;
++        }
++    }
++
++    private static final class StreamSession {
++        final Object lock = new Object();
++        final String id;
++        StreamRequest request;
++        final long createdAt = System.currentTimeMillis();
++        final List<StreamEvent> bufferedChunks = new ArrayList<>();
++
++        State state = State.PENDING;
++        HttpURLConnection connection;
++        Future<?> future;
++        boolean cancellationRequested;
++        boolean cancelledByNotification;
++        boolean bufferTruncated;
++        long lastSequence;
++        int bufferedBytes;
++        int status;
++        Map<String, String> responseHeaders = Collections.emptyMap();
++        String error;
++        String errorBody;
++        long completedAt;
++        StreamEvent terminalEvent;
++
++        StreamSession(String id, StreamRequest request) {
++            this.id = id;
++            this.request = request;
++        }
++    }
++
++    private final Map<String, StreamSession> sessions = new ConcurrentHashMap<>();
++    private final ExecutorService executor = Executors.newCachedThreadPool();
++    private volatile EventListener eventListener;
++
++    private StreamHttpStreamManager() {}
++
++    String create(StreamRequest request) {
++        trimTerminalSessions();
++        String id = UUID.randomUUID().toString();
++        sessions.put(id, new StreamSession(id, request));
++        return id;
++    }
++
++    void setEventListener(EventListener listener) {
++        eventListener = listener;
++    }
++
++    void clearEventListener(EventListener listener) {
++        if (eventListener == listener) {
++            eventListener = null;
++        }
++    }
++
++    void start(String id) {
++        StreamSession session = sessions.get(id);
++        if (session == null) {
++            return;
++        }
++
++        synchronized (session.lock) {
++            if (session.state != State.PENDING) {
++                return;
++            }
++            session.state = State.RUNNING;
++        }
++
++        Future<?> future = executor.submit(() -> execute(session));
++        synchronized (session.lock) {
++            session.future = future;
++        }
++        StreamHttpForegroundService.refresh();
++    }
++
++    void failToStart(String id) {
++        StreamSession session = sessions.get(id);
++        if (session != null) {
++            finishFailed(session, "Unable to start the background streaming service", null);
++        }
++    }
++
++    void cancel(String id) {
++        cancel(id, false);
++    }
++
++    private void cancel(String id, boolean cancelledByNotification) {
++        StreamSession session = sessions.get(id);
++        if (session == null) {
++            return;
++        }
++
++        HttpURLConnection connection;
++        Future<?> future;
++        synchronized (session.lock) {
++            if (!session.state.isActive()) {
++                return;
++            }
++            session.cancellationRequested = true;
++            session.cancelledByNotification = session.cancelledByNotification || cancelledByNotification;
++            connection = session.connection;
++            future = session.future;
++        }
++
++        if (connection != null) {
++            connection.disconnect();
++        }
++        if (future != null) {
++            future.cancel(true);
++        }
++        finishCancelled(session);
++    }
++
++    void cancelAll() {
++        for (String id : new ArrayList<>(sessions.keySet())) {
++            cancel(id, true);
++        }
++    }
++
++    int getActiveCount() {
++        int count = 0;
++        for (StreamSession session : sessions.values()) {
++            synchronized (session.lock) {
++                if (session.state.isActive()) {
++                    count++;
++                }
++            }
++        }
++        return count;
++    }
++
++    JSObject attach(String id, long lastSequence) {
++        StreamSession session = sessions.get(id);
++        if (session == null) {
++            return missingState(id);
++        }
++        synchronized (session.lock) {
++            // Keep replay data until the session expires. The renderer can be
++            // reclaimed after it has enqueued a chunk but before its message
++            // storage write finishes, so delivery is not a durable checkpoint.
++            return stateLocked(session, false);
++        }
++    }
++
++    JSObject getState(String id) {
++        StreamSession session = sessions.get(id);
++        if (session == null) {
++            return missingState(id);
++        }
++        synchronized (session.lock) {
++            return stateLocked(session, false);
++        }
++    }
++
++    ReplayResult replay(String id, long afterSequence) {
++        StreamSession session = sessions.get(id);
++        if (session == null) {
++            return new ReplayResult(Collections.emptyList(), missingState(id), false);
++        }
++
++        synchronized (session.lock) {
++            List<StreamEvent> replayed = new ArrayList<>();
++            int replayBytes = 0;
++            boolean hasMore = false;
++            for (StreamEvent event : session.bufferedChunks) {
++                if (event.sequence <= afterSequence) {
++                    continue;
++                }
++                int eventBytes = byteLength(event.chunk);
++                boolean exceedsChunkLimit = replayed.size() >= MAX_REPLAY_CHUNKS;
++                boolean exceedsByteLimit = !replayed.isEmpty() && replayBytes + eventBytes > MAX_REPLAY_BYTES;
++                if (exceedsChunkLimit || exceedsByteLimit) {
++                    hasMore = true;
++                    break;
++                }
++                replayed.add(event);
++                replayBytes += eventBytes;
++            }
++            return new ReplayResult(replayed, stateLocked(session, hasMore), hasMore);
++        }
++    }
++
++    void onServiceDestroyed() {
++        if (getActiveCount() == 0) {
++            return;
++        }
++        for (StreamSession session : sessions.values()) {
++            synchronized (session.lock) {
++                if (!session.state.isActive()) {
++                    continue;
++                }
++            }
++            finishFailed(session, "The background streaming service stopped", null);
++        }
++    }
++
++    private void execute(StreamSession session) {
++        HttpURLConnection connection = null;
++        try {
++            StreamRequest request;
++            synchronized (session.lock) {
++                request = session.request;
++                if (request == null || session.cancellationRequested || !session.state.isActive()) {
++                    return;
++                }
++            }
++
++            URL url = new URL(request.url);
++            String protocol = url.getProtocol();
++            if (!"https".equalsIgnoreCase(protocol) && !"http".equalsIgnoreCase(protocol)) {
++                throw new IOException("Unsupported URL scheme");
++            }
++
++            connection = (HttpURLConnection) url.openConnection();
++            synchronized (session.lock) {
++                if (session.cancellationRequested || !session.state.isActive()) {
++                    return;
++                }
++                session.connection = connection;
++            }
++
++            configureConnection(connection, request);
++            synchronized (session.lock) {
++                // The connection is configured; terminal recovery never needs request credentials.
++                session.request = null;
++            }
++            int responseCode = connection.getResponseCode();
++            Map<String, String> responseHeaders = readResponseHeaders(connection);
++            synchronized (session.lock) {
++                session.status = responseCode;
++                session.responseHeaders = responseHeaders;
++            }
++
++            if (responseCode < 200 || responseCode >= 300) {
++                finishFailed(session, "HTTP " + responseCode, readErrorBody(connection.getErrorStream()));
++                return;
++            }
++
++            InputStream inputStream = connection.getInputStream();
++            if (inputStream != null) {
++                readStream(session, inputStream);
++            }
++
++            if (isCancellationRequested(session)) {
++                finishCancelled(session);
++            } else {
++                finishCompleted(session);
++            }
++        } catch (IOException exception) {
++            if (isCancellationRequested(session)) {
++                finishCancelled(session);
++            } else {
++                finishFailed(session, "Network request failed", null);
++            }
++        } catch (Exception exception) {
++            if (isCancellationRequested(session)) {
++                finishCancelled(session);
++            } else {
++                finishFailed(session, "Unable to process the streaming response", null);
++            }
++        } finally {
++            if (connection != null) {
++                connection.disconnect();
++            }
++            synchronized (session.lock) {
++                if (session.connection == connection) {
++                    session.connection = null;
++                }
++            }
++            StreamHttpForegroundService.refresh();
++        }
++    }
++
++    private void configureConnection(HttpURLConnection connection, StreamRequest request) throws IOException {
++        connection.setRequestMethod(request.method);
++        connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
++        // Streaming responses may legitimately pause for more than 30 seconds.
++        connection.setReadTimeout(0);
++        connection.setDoInput(true);
++
++        for (Map.Entry<String, String> header : request.headers.entrySet()) {
++            String name = header.getKey();
++            String value = header.getValue();
++            if (name == null || name.trim().isEmpty() || value == null || "content-length".equalsIgnoreCase(name)) {
++                continue;
++            }
++            connection.setRequestProperty(name, value);
++        }
++
++        boolean mayHaveBody = request.body != null && !"GET".equalsIgnoreCase(request.method) && !"HEAD".equalsIgnoreCase(request.method);
++        if (!mayHaveBody) {
++            return;
++        }
++
++        byte[] payload = request.body.getBytes(StandardCharsets.UTF_8);
++        connection.setDoOutput(true);
++        connection.setFixedLengthStreamingMode(payload.length);
++        try (OutputStream output = connection.getOutputStream()) {
++            output.write(payload);
++        }
++    }
++
++    private void readStream(StreamSession session, InputStream inputStream) throws IOException {
++        try (
++            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))
++        ) {
++            SSEParser parser = new SSEParser();
++            String line;
++            while ((line = reader.readLine()) != null) {
++                if (isCancellationRequested(session)) {
++                    return;
++                }
++                String event = parser.processLine(line);
++                if (event != null) {
++                    emitChunk(session, event);
++                }
++            }
++
++            String lastEvent = parser.processLine("");
++            if (lastEvent != null) {
++                emitChunk(session, lastEvent);
++            }
++            String remaining = parser.flush();
++            if (remaining != null && !remaining.isEmpty()) {
++                emitChunk(session, remaining);
++            }
++        }
++    }
++
++    private void emitChunk(StreamSession session, String chunk) {
++        int start = 0;
++        while (start < chunk.length()) {
++            int end = nextChunkBoundary(chunk, start, MAX_REPLAY_BYTES);
++            emitChunkPart(session, chunk.substring(start, end));
++            start = end;
++        }
++    }
++
++    /**
++     * Keep every bridge event within the replay cap. Chunk boundaries are
++     * transparent to the JavaScript ReadableStream, so splitting a large SSE
++     * event cannot change the provider response seen by its parser.
++     */
++    private static int nextChunkBoundary(String value, int start, int maxBytes) {
++        int index = start;
++        int bytes = 0;
++        while (index < value.length()) {
++            int codePoint = value.codePointAt(index);
++            int codePointBytes = codePoint <= 0x7F ? 1 : codePoint <= 0x7FF ? 2 : codePoint <= 0xFFFF ? 3 : 4;
++            if (bytes > 0 && bytes + codePointBytes > maxBytes) {
++                break;
++            }
++            bytes += codePointBytes;
++            index += Character.charCount(codePoint);
++        }
++        // maxBytes is positive and every code point is at most four bytes.
++        return index > start ? index : Math.min(value.length(), start + 1);
++    }
++
++    private void emitChunkPart(StreamSession session, String chunk) {
++        StreamEvent event;
++        synchronized (session.lock) {
++            if (!session.state.isActive() || session.cancellationRequested) {
++                return;
++            }
++            event = new StreamEvent(
++                StreamEvent.Type.CHUNK,
++                session.id,
++                ++session.lastSequence,
++                chunk,
++                null,
++                null,
++                false,
++                false,
++                session.status,
++                session.responseHeaders
++            );
++            bufferChunkLocked(session, event);
++        }
++        dispatch(event);
++    }
++
++    private void finishCompleted(StreamSession session) {
++        finishTerminal(session, State.COMPLETED, StreamEvent.Type.END, null, null, false, false);
++    }
++
++    private void finishCancelled(StreamSession session) {
++        boolean cancelledByNotification;
++        synchronized (session.lock) {
++            cancelledByNotification = session.cancelledByNotification;
++        }
++        finishTerminal(session, State.CANCELLED, StreamEvent.Type.END, null, null, true, cancelledByNotification);
++    }
++
++    private void finishFailed(StreamSession session, String error, String errorBody) {
++        finishTerminal(session, State.FAILED, StreamEvent.Type.ERROR, error, errorBody, false, false);
++    }
++
++    private void finishTerminal(
++        StreamSession session,
++        State state,
++        StreamEvent.Type eventType,
++        String error,
++        String errorBody,
++        boolean cancelled,
++        boolean cancelledByNotification
++    ) {
++        StreamEvent event;
++        synchronized (session.lock) {
++            if (!session.state.isActive()) {
++                return;
++            }
++            session.state = state;
++            session.error = error;
++            session.errorBody = errorBody;
++            session.request = null;
++            session.completedAt = System.currentTimeMillis();
++            event = new StreamEvent(
++                eventType,
++                session.id,
++                ++session.lastSequence,
++                null,
++                error,
++                errorBody,
++                cancelled,
++                cancelledByNotification,
++                session.status,
++                session.responseHeaders
++            );
++            session.terminalEvent = event;
++        }
++        dispatch(event);
++        StreamHttpForegroundService.refresh();
++    }
++
++    private void bufferChunkLocked(StreamSession session, StreamEvent event) {
++        int eventBytes = byteLength(event.chunk);
++        while (!session.bufferedChunks.isEmpty() && session.bufferedBytes + eventBytes > MAX_BUFFERED_BYTES_PER_STREAM) {
++            StreamEvent removed = session.bufferedChunks.remove(0);
++            session.bufferedBytes -= byteLength(removed.chunk);
++            session.bufferTruncated = true;
++        }
++        if (eventBytes > MAX_BUFFERED_BYTES_PER_STREAM) {
++            session.bufferTruncated = true;
++            return;
++        }
++        session.bufferedChunks.add(event);
++        session.bufferedBytes += eventBytes;
++    }
++
++    private boolean isCancellationRequested(StreamSession session) {
++        synchronized (session.lock) {
++            return session.cancellationRequested || session.state == State.CANCELLED;
++        }
++    }
++
++    private void dispatch(StreamEvent event) {
++        EventListener listener = eventListener;
++        if (listener != null) {
++            try {
++                listener.onEvent(event);
++            } catch (RuntimeException ignored) {
++                // The replay buffer remains the source of truth if the bridge is being recreated.
++            }
++        }
++    }
++
++    private JSObject stateLocked(StreamSession session, boolean hasMore) {
++        JSObject result = new JSObject();
++        result.put("id", session.id);
++        result.put("state", session.state.value());
++        result.put("lastSequence", session.lastSequence);
++        if (session.status > 0) {
++            result.put("status", session.status);
++        }
++        if (!session.responseHeaders.isEmpty()) {
++            result.put("headers", toHeadersObject(session.responseHeaders));
++        }
++        if (session.error != null) {
++            result.put("error", session.error);
++        }
++        if (session.errorBody != null) {
++            result.put("errorBody", session.errorBody);
++        }
++        if (session.state == State.CANCELLED) {
++            result.put("cancelled", true);
++        }
++        if (session.cancelledByNotification) {
++            result.put("cancelledByNotification", true);
++        }
++        if (session.terminalEvent != null) {
++            result.put("terminalSequence", session.terminalEvent.sequence);
++        }
++        if (!session.bufferedChunks.isEmpty()) {
++            result.put("firstBufferedSequence", session.bufferedChunks.get(0).sequence);
++        }
++        if (session.bufferTruncated) {
++            result.put("bufferTruncated", true);
++        }
++        if (hasMore) {
++            result.put("hasMore", true);
++        }
++        return result;
++    }
++
++    private JSObject missingState(String id) {
++        JSObject result = new JSObject();
++        result.put("id", id);
++        result.put("state", State.MISSING.value());
++        result.put("lastSequence", 0);
++        return result;
++    }
++
++    private static Map<String, String> readResponseHeaders(HttpURLConnection connection) {
++        Map<String, String> headers = new LinkedHashMap<>();
++        Map<String, List<String>> rawHeaders = connection.getHeaderFields();
++        if (rawHeaders == null) {
++            return headers;
++        }
++        for (Map.Entry<String, List<String>> entry : rawHeaders.entrySet()) {
++            String name = entry.getKey();
++            if (name == null || isSensitiveHeader(name)) {
++                continue;
++            }
++            List<String> values = entry.getValue();
++            if (values == null || values.isEmpty()) {
++                continue;
++            }
++            headers.put(name, String.join(", ", values));
++        }
++        return headers;
++    }
++
++    private static boolean isSensitiveHeader(String name) {
++        String normalized = name.toLowerCase(Locale.US);
++        return "set-cookie".equals(normalized) || "authorization".equals(normalized) || "proxy-authorization".equals(normalized);
++    }
++
++    private static String readErrorBody(InputStream errorStream) {
++        if (errorStream == null) {
++            return null;
++        }
++        try (InputStream input = errorStream; ByteArrayOutputStream output = new ByteArrayOutputStream()) {
++            byte[] buffer = new byte[4096];
++            int total = 0;
++            int read;
++            while ((read = input.read(buffer)) != -1 && total < MAX_ERROR_BODY_BYTES) {
++                int length = Math.min(read, MAX_ERROR_BODY_BYTES - total);
++                output.write(buffer, 0, length);
++                total += length;
++            }
++            return output.toString(StandardCharsets.UTF_8.name());
++        } catch (IOException ignored) {
++            return null;
++        }
++    }
++
++    private static int byteLength(String value) {
++        return value == null ? 0 : value.getBytes(StandardCharsets.UTF_8).length;
++    }
++
++    private static JSObject toHeadersObject(Map<String, String> headers) {
++        JSObject result = new JSObject();
++        for (Map.Entry<String, String> header : headers.entrySet()) {
++            result.put(header.getKey(), header.getValue());
++        }
++        return result;
++    }
++
++    private void trimTerminalSessions() {
++        long now = System.currentTimeMillis();
++        List<StreamSession> terminalSessions = new ArrayList<>();
++        for (StreamSession session : sessions.values()) {
++            synchronized (session.lock) {
++                if (!session.state.isActive()) {
++                    if (session.completedAt > 0 && now - session.completedAt > TERMINAL_SESSION_TTL_MS) {
++                        sessions.remove(session.id, session);
++                    } else {
++                        terminalSessions.add(session);
++                    }
++                }
++            }
++        }
++        if (terminalSessions.size() <= MAX_TERMINAL_SESSIONS) {
++            return;
++        }
++        terminalSessions.sort((left, right) -> Long.compare(left.completedAt, right.completedAt));
++        int removeCount = terminalSessions.size() - MAX_TERMINAL_SESSIONS;
++        for (int index = 0; index < removeCount; index++) {
++            StreamSession session = terminalSessions.get(index);
++            sessions.remove(session.id, session);
++        }
++    }
++}
+diff --git a/dist/esm/definitions.d.ts b/dist/esm/definitions.d.ts
+index ab47277..4be3c1b 100644
+--- a/dist/esm/definitions.d.ts
++++ b/dist/esm/definitions.d.ts
+@@ -1,49 +1,72 @@
+ export interface StartStreamOptions {
+-    /**
+-     * The URL to request
+-     */
+-    url: string;
+-    /**
+-     * HTTP method (GET, POST, etc.)
+-     */
+-    method: string;
+-    /**
+-     * Optional request headers
+-     */
+-    headers?: Record<string, string>;
+-    /**
+-     * Optional request body
+-     */
+-    body?: string;
++  /** The URL to request. */
++  url: string
++  /** HTTP method (GET, POST, and so on). */
++  method: string
++  /** Optional request headers. */
++  headers?: Record<string, string>
++  /** Optional request body. */
++  body?: string
+ }
++
++export type StreamStateName = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'missing'
++
++export interface StreamState {
++  id: string
++  state: StreamStateName
++  /** Includes the terminal event when the stream has stopped. */
++  lastSequence: number
++  terminalSequence?: number
++  firstBufferedSequence?: number
++  bufferTruncated?: boolean
++  cancelled?: boolean
++  cancelledByNotification?: boolean
++  status?: number
++  headers?: Record<string, string>
++  error?: string
++  errorBody?: string
++}
++
++export interface StreamChunk {
++  id: string
++  sequence: number
++  chunk: string
++  status?: number
++  headers?: Record<string, string>
++}
++
++export interface StreamEvent {
++  id: string
++  sequence: number
++  chunk?: string
++  error?: string
++  errorBody?: string
++  cancelled?: boolean
++  cancelledByNotification?: boolean
++  status?: number
++  headers?: Record<string, string>
++}
++
++export interface ReplayChunksResult {
++  chunks: StreamChunk[]
++  state: StreamState
++  hasMore: boolean
++}
++
+ export interface StreamHttpPlugin {
+-    /**
+-     * Start a new HTTP stream request
+-     * @param options Stream configuration options
+-     * @returns Promise with stream ID
+-     */
+-    startStream(options: StartStreamOptions): Promise<{
+-        id: string;
+-    }>;
+-    /**
+-     * Cancel an active stream
+-     * @param options Object containing the stream ID to cancel
+-     * @returns Promise that resolves when stream is cancelled
+-     */
+-    cancelStream(options: {
+-        id: string;
+-    }): Promise<void>;
+-    /**
+-     * Add a listener for stream events
+-     * @param eventName The event to listen for (chunk, end, or error)
+-     * @param listenerFunc Callback function for the event
+-     * @returns Promise with remove function
+-     */
+-    addListener(eventName: 'chunk' | 'end' | 'error', listenerFunc: (data: {
+-        id: string;
+-        chunk?: string;
+-        error?: string;
+-    }) => void): Promise<{
+-        remove: () => void;
+-    }>;
++  /** Start a new HTTP stream request and return its durable task identifier. */
++  startStream(options: StartStreamOptions): Promise<{ id: string }>
++  /** Cancel an active stream. */
++  cancelStream(options: { id: string }): Promise<void>
++  /** Attach a renderer checkpoint and return the current task state. */
++  attachStream(options: { id: string; lastSequence?: number }): Promise<StreamState>
++  /** Read the current durable task state without attaching a renderer. */
++  getStreamState(options: { id: string }): Promise<StreamState>
++  /** Replay buffered chunks after a sequence checkpoint. */
++  replayChunks(options: { id: string; afterSequence?: number }): Promise<ReplayChunksResult>
++  /** Listen for live chunks and terminal events. */
++  addListener(
++    eventName: 'chunk' | 'end' | 'error',
++    listenerFunc: (data: StreamEvent) => void
++  ): Promise<{ remove: () => void }>
+ }
+diff --git a/dist/esm/web.d.ts b/dist/esm/web.d.ts
+index 4e945a2..15c8178 100644
+--- a/dist/esm/web.d.ts
++++ b/dist/esm/web.d.ts
+@@ -1,5 +1,5 @@
+ import { WebPlugin } from '@capacitor/core';
+-import type { StreamHttpPlugin, StartStreamOptions } from './definitions';
++import type { StreamHttpPlugin, StartStreamOptions, StreamState, ReplayChunksResult } from './definitions';
+ export declare class StreamHttpWeb extends WebPlugin implements StreamHttpPlugin {
+     startStream(_options: StartStreamOptions): Promise<{
+         id: string;
+@@ -7,4 +7,15 @@ export declare class StreamHttpWeb extends WebPlugin implements StreamHttpPlugin
+     cancelStream(_options: {
+         id: string;
+     }): Promise<void>;
++    attachStream(_options: {
++        id: string;
++        lastSequence?: number;
++    }): Promise<StreamState>;
++    getStreamState(_options: {
++        id: string;
++    }): Promise<StreamState>;
++    replayChunks(_options: {
++        id: string;
++        afterSequence?: number;
++    }): Promise<ReplayChunksResult>;
+ }
+diff --git a/dist/esm/web.js b/dist/esm/web.js
+index ce72f13..1c62b77 100644
+--- a/dist/esm/web.js
++++ b/dist/esm/web.js
+@@ -8,5 +8,17 @@ export class StreamHttpWeb extends WebPlugin {
+         console.warn('StreamHttp plugin is not implemented on web');
+         throw new Error('StreamHttp plugin is not implemented on web');
+     }
++    async attachStream(_options) {
++        console.warn('StreamHttp plugin is not implemented on web');
++        throw new Error('StreamHttp plugin is not implemented on web');
++    }
++    async getStreamState(_options) {
++        console.warn('StreamHttp plugin is not implemented on web');
++        throw new Error('StreamHttp plugin is not implemented on web');
++    }
++    async replayChunks(_options) {
++        console.warn('StreamHttp plugin is not implemented on web');
++        throw new Error('StreamHttp plugin is not implemented on web');
++    }
+ }
+-//# sourceMappingURL=web.js.map
+\ No newline at end of file
++//# sourceMappingURL=web.js.map
+diff --git a/dist/plugin.cjs.js b/dist/plugin.cjs.js
+index f41c71f..410a2cd 100644
+--- a/dist/plugin.cjs.js
++++ b/dist/plugin.cjs.js
+@@ -15,6 +15,18 @@ class StreamHttpWeb extends core.WebPlugin {
+         console.warn('StreamHttp plugin is not implemented on web');
+         throw new Error('StreamHttp plugin is not implemented on web');
+     }
++    async attachStream(_options) {
++        console.warn('StreamHttp plugin is not implemented on web');
++        throw new Error('StreamHttp plugin is not implemented on web');
++    }
++    async getStreamState(_options) {
++        console.warn('StreamHttp plugin is not implemented on web');
++        throw new Error('StreamHttp plugin is not implemented on web');
++    }
++    async replayChunks(_options) {
++        console.warn('StreamHttp plugin is not implemented on web');
++        throw new Error('StreamHttp plugin is not implemented on web');
++    }
+ }
+ 
+ var web = /*#__PURE__*/Object.freeze({
+diff --git a/dist/plugin.js b/dist/plugin.js
+index 92bda41..bb84d0e 100644
+--- a/dist/plugin.js
++++ b/dist/plugin.js
+@@ -14,6 +14,18 @@ var capacitorStreamHttp = (function (exports, core) {
+             console.warn('StreamHttp plugin is not implemented on web');
+             throw new Error('StreamHttp plugin is not implemented on web');
+         }
++        async attachStream(_options) {
++            console.warn('StreamHttp plugin is not implemented on web');
++            throw new Error('StreamHttp plugin is not implemented on web');
++        }
++        async getStreamState(_options) {
++            console.warn('StreamHttp plugin is not implemented on web');
++            throw new Error('StreamHttp plugin is not implemented on web');
++        }
++        async replayChunks(_options) {
++            console.warn('StreamHttp plugin is not implemented on web');
++            throw new Error('StreamHttp plugin is not implemented on web');
++        }
+     }
+ 
+     var web = /*#__PURE__*/Object.freeze({

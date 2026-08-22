@@ -1,0 +1,84 @@
+apply plugin: 'com.android.application'
+
+def releaseKeystore = System.getenv('CHATBOX_ANDROID_KEYSTORE') ?: findProperty('CHATBOX_ANDROID_KEYSTORE')
+def releaseStorePassword = System.getenv('CHATBOX_ANDROID_STORE_PASSWORD') ?: findProperty('CHATBOX_ANDROID_STORE_PASSWORD')
+def releaseKeyAlias = System.getenv('CHATBOX_ANDROID_KEY_ALIAS') ?: findProperty('CHATBOX_ANDROID_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('CHATBOX_ANDROID_KEY_PASSWORD') ?: findProperty('CHATBOX_ANDROID_KEY_PASSWORD')
+def releaseSigningConfigured = [releaseKeystore, releaseStorePassword, releaseKeyAlias, releaseKeyPassword].every {
+    it != null && !it.toString().trim().isEmpty()
+}
+
+android {
+    namespace "xyz.chatboxapp.chatbox"
+    compileSdk rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "xyz.chatboxapp.chatbox.debug"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 467
+        versionName "1.22.3-debug"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            release {
+                storeFile file(releaseKeystore)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (releaseSigningConfigured) {
+                signingConfig signingConfigs.release
+            }
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    def buildsRelease = taskGraph.allTasks.any { task ->
+        task.project == project && task.name.toLowerCase().contains('release')
+    }
+    if (buildsRelease && !releaseSigningConfigured) {
+        throw new GradleException('Release signing is not configured. Set all CHATBOX_ANDROID_* signing properties outside source control.')
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
