@@ -50,7 +50,7 @@ Regenerate renderer/native assets with `pnpm run mobile:sync:android`. Keep mach
 
 Use the repository-pinned toolchain:
 
-- Node.js `>=22.13.0 <23.0.0` (`.node-version` currently selects the supported Node 22 line).
+- Node.js `>=24.15.0 <25.0.0` (`.node-version` currently selects the supported Node 24 line).
 - pnpm `10.33.0` via Corepack; do not use npm or Yarn for dependency changes.
 - JDK 21 (LTS). AGP 8.7.2 only requires 17, but the app module and most Capacitor plugin modules declare a Java 21 toolchain (`@capacitor/filesystem` requests a Java 21 compiler); a JDK 17-only machine fails at `:capacitor-filesystem:compileDebugJavaWithJavac`.
 - Android SDK Platform/Target 35, with minimum Android API 23.
@@ -60,7 +60,7 @@ Install dependencies from the repository root:
 ```text
 corepack enable
 corepack prepare pnpm@10.33.0 --activate
-pnpm install --frozen-lockfile
+corepack pnpm install --frozen-lockfile
 ```
 
 Only update `pnpm-lock.yaml` when dependency declarations or patches intentionally change.
@@ -71,10 +71,10 @@ The normal validation sequence is:
 
 ```text
 pnpm install --frozen-lockfile
-pnpm run check
-pnpm run lint
-pnpm run test
-pnpm run mobile:sync:android
+corepack pnpm run check
+corepack pnpm run lint
+corepack pnpm run test
+corepack pnpm run mobile:sync:android
 ```
 
 Use the smallest relevant checks while iterating, then run the full applicable set before finishing. Useful commands include:

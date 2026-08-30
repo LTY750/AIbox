@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import path from 'path'
 import { discoverAgentSkills, discoverClaudeSkills, discoverSkills } from '../discovery'
 
@@ -29,9 +29,12 @@ import type { Dirent } from 'fs'
 import fs from 'fs'
 import { parseSkillFile } from '../parser'
 
+// vi.mocked resolves the overloaded readdirSync to its last signature (buffer encoding + withFileTypes),
+// but discovery.ts calls the string-encoded withFileTypes variant, so retype the mock accordingly.
+type ReaddirSyncMock = Mock<(path: string, options: { withFileTypes: true }) => Dirent[]>
 const mockedExistsSync = vi.mocked(fs.existsSync)
 const mockedMkdirSync = vi.mocked(fs.mkdirSync)
-const mockedReaddirSync = vi.mocked(fs.readdirSync)
+const mockedReaddirSync = vi.mocked(fs.readdirSync) as unknown as ReaddirSyncMock
 const mockedParseSkillFile = vi.mocked(parseSkillFile)
 const mockedStatSync = vi.mocked(fs.statSync)
 const mockedRealpathSync = vi.mocked(fs.realpathSync)
@@ -39,6 +42,8 @@ const mockedRealpathSync = vi.mocked(fs.realpathSync)
 function makeDirent(name: string, isDir: boolean): Dirent {
   return {
     name,
+    parentPath: '/skills',
+    path: '/skills',
     isDirectory: () => isDir,
     isFile: () => !isDir,
     isBlockDevice: () => false,
@@ -46,8 +51,7 @@ function makeDirent(name: string, isDir: boolean): Dirent {
     isFIFO: () => false,
     isSocket: () => false,
     isSymbolicLink: () => false,
-    path: '/skills',
-  } as Dirent
+  }
 }
 
 describe('discoverSkills', () => {
@@ -66,7 +70,7 @@ describe('discoverSkills', () => {
 
   it('should discover valid skills from directory', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('my-skill', true)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('my-skill', true)])
     mockedParseSkillFile.mockReturnValue({
       metadata: { name: 'my-skill', description: 'Custom skill' },
       body: 'Custom body content',
@@ -83,7 +87,7 @@ describe('discoverSkills', () => {
 
   it('should skip non-directory entries', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('readme.md', false)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('readme.md', false)])
 
     const result = discoverSkills('/skills')
 
@@ -95,7 +99,7 @@ describe('discoverSkills', () => {
       if (p === '/skills') return true
       return false
     })
-    mockedReaddirSync.mockReturnValue([makeDirent('no-skill-md', true)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('no-skill-md', true)])
 
     const result = discoverSkills('/skills')
 
@@ -104,7 +108,7 @@ describe('discoverSkills', () => {
 
   it('should handle duplicate skill names by keeping first occurrence', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('dup-skill', true), makeDirent('dup-skill-2', true)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('dup-skill', true), makeDirent('dup-skill-2', true)])
     mockedParseSkillFile
       .mockReturnValueOnce({
         metadata: { name: 'dup-skill', description: 'First' },
@@ -133,7 +137,7 @@ describe('discoverSkills', () => {
 
   it('should skip skills where parser returns null', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('bad-skill', true)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('bad-skill', true)])
     mockedParseSkillFile.mockReturnValue(null)
 
     const result = discoverSkills('/skills')
@@ -159,7 +163,7 @@ describe('discoverClaudeSkills', () => {
 
   it('should discover a skill with valid SKILL.md', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('my-skill', true)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('my-skill', true)])
     mockedStatSync.mockReturnValue({ isDirectory: () => true } as fs.Stats)
     mockedRealpathSync.mockReturnValue('/claude/skills/my-skill')
     mockedParseSkillFile.mockReturnValue({
@@ -182,7 +186,7 @@ describe('discoverClaudeSkills', () => {
     Object.assign(symlinkDirent, { isSymbolicLink: () => true })
 
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([symlinkDirent] as Dirent[])
+    mockedReaddirSync.mockReturnValue([symlinkDirent])
     mockedStatSync.mockReturnValue({ isDirectory: () => true } as fs.Stats)
     mockedRealpathSync.mockReturnValue('/real/path/linked-skill')
     mockedParseSkillFile.mockReturnValue({
@@ -199,7 +203,7 @@ describe('discoverClaudeSkills', () => {
 
   it('should deduplicate by realpath (two entries resolving to same path)', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('skill-a', true), makeDirent('skill-b', true)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('skill-a', true), makeDirent('skill-b', true)])
     mockedStatSync.mockReturnValue({ isDirectory: () => true } as fs.Stats)
     // Both resolve to the same realpath
     mockedRealpathSync.mockReturnValue('/real/path/same-skill')
@@ -217,7 +221,7 @@ describe('discoverClaudeSkills', () => {
 
   it('should skip broken symlinks (statSync throws)', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('broken-link', true), makeDirent('good-skill', true)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('broken-link', true), makeDirent('good-skill', true)])
     mockedStatSync
       .mockImplementationOnce(() => {
         throw new Error('ENOENT: broken symlink')
@@ -237,7 +241,7 @@ describe('discoverClaudeSkills', () => {
 
   it('should normalize names (frontmatter "Agent Browser" in dir "agent-browser")', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('agent-browser', true)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('agent-browser', true)])
     mockedStatSync.mockReturnValue({ isDirectory: () => true } as fs.Stats)
     mockedRealpathSync.mockReturnValue('/claude/skills/agent-browser')
     mockedParseSkillFile.mockReturnValue({
@@ -253,7 +257,7 @@ describe('discoverClaudeSkills', () => {
 
   it('should skip skills whose normalized name is in excludeNames', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('web-search', true), makeDirent('code-runner', true)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('web-search', true), makeDirent('code-runner', true)])
     mockedStatSync.mockReturnValue({ isDirectory: () => true } as fs.Stats)
     mockedRealpathSync.mockImplementation((p) => p as string)
     mockedParseSkillFile
@@ -275,7 +279,7 @@ describe('discoverClaudeSkills', () => {
 
   it('should set source.type to claude-code', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('my-skill', true)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('my-skill', true)])
     mockedStatSync.mockReturnValue({ isDirectory: () => true } as fs.Stats)
     mockedRealpathSync.mockReturnValue('/real/path/my-skill')
     mockedParseSkillFile.mockReturnValue({
@@ -294,7 +298,7 @@ describe('discoverClaudeSkills', () => {
 
   it('should skip entries where parser returns null', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('unparseable', true)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('unparseable', true)])
     mockedStatSync.mockReturnValue({ isDirectory: () => true } as fs.Stats)
     mockedRealpathSync.mockReturnValue('/claude/skills/unparseable')
     mockedParseSkillFile.mockReturnValue(null)
@@ -306,7 +310,7 @@ describe('discoverClaudeSkills', () => {
 
   it('should skip non-directory entries (statSync reports file)', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('readme.md', false)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('readme.md', false)])
     mockedStatSync.mockReturnValue({ isDirectory: () => false } as fs.Stats)
 
     const result = discoverClaudeSkills('/claude/skills', new Set())
@@ -316,7 +320,7 @@ describe('discoverClaudeSkills', () => {
 
   it('should skip skills with un-normalizable names', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('!!!!', true)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('!!!!', true)])
     mockedStatSync.mockReturnValue({ isDirectory: () => true } as fs.Stats)
     mockedRealpathSync.mockReturnValue('/claude/skills/!!!!')
     mockedExistsSync.mockReturnValue(true)
@@ -338,7 +342,7 @@ describe('discoverAgentSkills', () => {
 
   it('should tag discovered skills with source.type "agents"', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('my-skill', true)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('my-skill', true)])
     mockedStatSync.mockReturnValue({ isDirectory: () => true } as fs.Stats)
     mockedRealpathSync.mockReturnValue('/agents/skills/my-skill')
     mockedParseSkillFile.mockReturnValue({
@@ -357,7 +361,7 @@ describe('discoverAgentSkills', () => {
 
   it('should exclude names already claimed by earlier sources', () => {
     mockedExistsSync.mockReturnValue(true)
-    mockedReaddirSync.mockReturnValue([makeDirent('my-skill', true)] as Dirent[])
+    mockedReaddirSync.mockReturnValue([makeDirent('my-skill', true)])
     mockedStatSync.mockReturnValue({ isDirectory: () => true } as fs.Stats)
     mockedRealpathSync.mockReturnValue('/agents/skills/my-skill')
     mockedParseSkillFile.mockReturnValue({

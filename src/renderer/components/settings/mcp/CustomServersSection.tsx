@@ -1,4 +1,4 @@
-import { ActionIcon, Anchor, Badge, Flex, Paper, SimpleGrid, Switch, Text } from '@mantine/core'
+import { ActionIcon, Anchor, Badge, Box, Button, Flex, Paper, SimpleGrid, Switch, Text } from '@mantine/core'
 import { spotlight } from '@mantine/spotlight'
 import { IconClipboard, IconPlus } from '@tabler/icons-react'
 import { type FC, useCallback, useEffect, useState } from 'react'
@@ -34,34 +34,37 @@ const ServerCard: FC<{
         ? t('On')
         : t('Off')
   return (
-    <Paper shadow="xs" radius="md" withBorder p="sm">
-      <Flex justify="space-between" align="center">
-        <Text size="sm" fw={600}>
-          {config.name}
-        </Text>
-        <Switch
-          size="xs"
-          checked={config.enabled}
-          onChange={(e) => onEnabledChange(config.id, e.currentTarget.checked)}
-          disabled={!props.mcpEnabled}
-        />
-      </Flex>
-      <Flex justify="space-between" align="center" mt="lg">
-        <Flex gap="xs">
-          <Badge size="sm" variant="light" color="chatbox-brand">
-            {config.transport.type}
-          </Badge>
-          <Badge
-            size="sm"
-            variant="light"
-            color={status?.error ? 'red' : status?.state === 'running' ? 'green' : 'gray'}
-          >
-            {statusLabel}
-          </Badge>
+    <Paper shadow="xs" radius="lg" withBorder p="sm">
+      <Flex justify="space-between" align="flex-start" gap="sm">
+        <Box style={{ minWidth: 0, flex: 1 }}>
+          <Text size="sm" fw={600} lineClamp={1}>
+            {config.name}
+          </Text>
+          <Flex gap="xs" mt="xs" wrap="wrap">
+            <Badge size="sm" variant="light" color="chatbox-brand">
+              {config.transport.type}
+            </Badge>
+            <Badge
+              size="sm"
+              variant="light"
+              color={status?.error ? 'red' : status?.state === 'running' ? 'green' : 'gray'}
+            >
+              {statusLabel}
+            </Badge>
+          </Flex>
+        </Box>
+        <Flex align="center" gap="xs" style={{ flexShrink: 0 }}>
+          <Anchor size="xs" c="chatbox-brand" onClick={() => triggerEdit(config)}>
+            {t('Edit')}
+          </Anchor>
+          <Switch
+            size="xs"
+            aria-label={String(t('Enable remote MCP'))}
+            checked={config.enabled}
+            onChange={(e) => onEnabledChange(config.id, e.currentTarget.checked)}
+            disabled={!props.mcpEnabled}
+          />
         </Flex>
-        <Anchor size="xs" c="chatbox-brand" onClick={() => triggerEdit(config)}>
-          {t('Edit')}
-        </Anchor>
       </Flex>
     </Paper>
   )
@@ -164,26 +167,38 @@ const CustomServersSection: FC<Props> = (props) => {
           </Tooltip>
         )}
       </Flex>
-      <SimpleGrid type="container" cols={{ base: 1, '450px': 2, '800px': 3, '1200px': 4 }}>
-        <Paper
-          tabIndex={-1}
-          shadow="xs"
-          radius="md"
-          withBorder
-          bd="1px dashed var(--chatbox-border-primary)"
-          p="sm"
-          className="cursor-pointer"
-          onClick={platform.type === 'mobile' ? () => triggerAddServer() : spotlight.open}
+      {platform.type === 'mobile' ? (
+        <Button
+          fullWidth
+          variant="outline"
+          leftSection={<ScalableIcon icon={IconPlus} size={18} />}
+          onClick={() => triggerAddServer()}
         >
-          <Flex direction="column" justify="center" align="center" h="100%" gap={4}>
-            <ActionIcon variant="filled" size="sm">
-              <ScalableIcon icon={IconPlus} />
-            </ActionIcon>
-            <Text size="xs" c="chatbox-brand">
-              {t('Add Server')}
-            </Text>
-          </Flex>
-        </Paper>
+          {t('Add Server')}
+        </Button>
+      ) : null}
+      <SimpleGrid type="container" cols={{ base: 1, '450px': 2, '800px': 3, '1200px': 4 }}>
+        {platform.type !== 'mobile' && (
+          <Paper
+            tabIndex={-1}
+            shadow="xs"
+            radius="lg"
+            withBorder
+            bd="1px dashed var(--chatbox-border-primary)"
+            p="sm"
+            className="cursor-pointer"
+            onClick={spotlight.open}
+          >
+            <Flex direction="column" justify="center" align="center" mih={80} gap={4}>
+              <ActionIcon variant="filled" size="sm">
+                <ScalableIcon icon={IconPlus} />
+              </ActionIcon>
+              <Text size="xs" c="chatbox-brand">
+                {t('Add Server')}
+              </Text>
+            </Flex>
+          </Paper>
+        )}
         {remoteServers.map((server) => (
           <ServerCard
             key={server.id}

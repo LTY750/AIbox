@@ -1,4 +1,4 @@
-import { Box, Stack, Switch, Text, Title } from '@mantine/core'
+import { Box, Flex, Stack, Switch, Text, Title } from '@mantine/core'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { zodValidator } from '@tanstack/zod-adapter'
 import { useEffect, useState } from 'react'
@@ -49,25 +49,31 @@ export function RouteComponent() {
   }, [searchParams.install, navigate])
 
   return (
-    <Box p="md">
+    <Stack p="md" gap="xl">
       <Title order={5}>{t('MCP Settings')}</Title>
-      <Stack gap="xs" mt="md">
-        <Switch
-          label={t('Enable remote MCP')}
-          description={t('Allow configured remote MCP servers to connect and provide tools to models.')}
-          checked={mcpSettings.enabled}
-          onChange={(event) => setMcpEnabled(event.currentTarget.checked)}
-        />
+      <Stack gap="sm">
+        <Flex align="center" justify="space-between" gap="md">
+          <Text size="sm">{t('Enable remote MCP')}</Text>
+          <Switch
+            size="sm"
+            aria-label={String(t('Enable remote MCP'))}
+            checked={mcpSettings.enabled}
+            onChange={(event) => setMcpEnabled(event.currentTarget.checked)}
+          />
+        </Flex>
+        <Text size="xs" c="chatbox-tertiary">
+          {t('Allow configured remote MCP servers to connect and provide tools to models.')}
+        </Text>
         {platform.type === 'mobile' && (
-          <Text size="xs" c="chatbox-tertiary">
+          <Text size="xs" c="chatbox-tertiary" mt="xs">
             {t('Mobile supports remote HTTPS MCP servers only. Local stdio servers are unavailable.')}
           </Text>
         )}
       </Stack>
-      <Box className="mt-8">{platform.type !== 'mobile' && <BuiltinServersSection />}</Box>
-      <Box className="mt-8">
+      {platform.type !== 'mobile' && <BuiltinServersSection />}
+      <Box>
         <CustomServersSection installConfig={installConfig} />
       </Box>
-    </Box>
+    </Stack>
   )
 }

@@ -1,4 +1,3 @@
-const { execSync } = require('child_process')
 const fs = require('fs')
 const path = require('path')
 const { dependencies } = require('../../package.json')
@@ -116,29 +115,18 @@ if (dependencies) {
     console.debug(colors.gray(`- With binding.gyp: ${nativeDepsByBindingGyp.join(', ') || 'none'}`))
     console.debug(colors.gray(`- With .node files: ${nativeDepsByNodeFiles.join(', ') || 'none'}`))
     
-    try {
-        // Find the reason for why the dependency is installed. If it is installed
-        // because of a devDependency then that is okay. Warn when it is installed
-        // because of a dependency
-        // Note: pnpm ls --json returns an array (one entry per workspace package)
-        const lsResult = JSON.parse(
-            execSync(`pnpm ls ${allNativeDeps.join(' ')} --json`).toString()
-        )
-        const rootResult = Array.isArray(lsResult)
-            ? lsResult.find((item) => item.path === process.cwd()) ?? lsResult[0]
-            : lsResult
-        const dependenciesObject = rootResult?.dependencies ?? {}
-        const rootDependencies = Object.keys(dependenciesObject)
-        const filteredRootDependencies = rootDependencies.filter((rootDependency) =>
-            dependenciesKeys.includes(rootDependency) && !excludePackages.includes(rootDependency)
-        )
-        if (filteredRootDependencies.length > 0) {
-            const plural = filteredRootDependencies.length > 1
-            console.log(`
+    // Do not invoke pnpm from its own lifecycle hook. The manifest already tells
+    // us whether an installed native package is a root production dependency.
+    const filteredRootDependencies = allNativeDeps.filter(
+        (rootDependency) => dependenciesKeys.includes(rootDependency) && !excludePackages.includes(rootDependency)
+    )
+    if (filteredRootDependencies.length > 0) {
+        const plural = filteredRootDependencies.length > 1
+        console.log(`
  ${colors.bgYellow(colors.bold('Webpack does not work with native dependencies.'))}
 ${colors.bold(filteredRootDependencies.join(', '))} ${
-                plural ? 'are native dependencies' : 'is a native dependency'
-            } and should be installed inside of the "./release/app" folder.
+            plural ? 'are native dependencies' : 'is a native dependency'
+        } and should be installed inside of the "./release/app" folder.
  First, uninstall the packages from "./package.json":
 ${colors.bgGreen(colors.bold('pnpm remove your-package'))}
  ${colors.bold('Then, instead of installing the package to the root "./package.json":')}
@@ -148,9 +136,6 @@ ${colors.bgGreen(colors.bold('cd ./release/app && pnpm add your-package'))}
  Read more about native dependencies at:
 ${colors.bold('https://electron-react-boilerplate.js.org/docs/adding-dependencies/#module-structure')}
  `)
-            process.exit(1)
-        }
-    } catch (e) {
-        console.log('Native dependencies could not be checked:', e.message)
+        process.exit(1)
     }
 }

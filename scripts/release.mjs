@@ -13,8 +13,8 @@ if (!commands[target]) {
   process.exit(2)
 }
 
-const packageManager = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
-const child = spawn(packageManager, commands[target], { stdio: 'inherit', shell: false })
+const corepack = process.platform === 'win32' ? 'corepack.cmd' : 'corepack'
+const child = spawn(corepack, ['pnpm', ...commands[target]], { stdio: 'inherit', shell: false })
 child.on('exit', (code, signal) => {
   if (signal) process.kill(process.pid, signal)
   process.exit(code ?? 1)

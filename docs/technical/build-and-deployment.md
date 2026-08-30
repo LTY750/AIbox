@@ -181,7 +181,7 @@ alpha 通道沿用原行为，不注入签名 secrets，因此会跳过 Windows 
 
 移动端使用 **Capacitor** 将 renderer 代码打包为原生应用。当前工作区只维护 Android 流程：
 
-1. `pnpm run mobile:sync:android` — 使用 `CHATBOX_BUILD_TARGET=mobile_app` 和 `CHATBOX_BUILD_PLATFORM=android` 编译 renderer，并执行 `npx cap sync android`
+1. `pnpm run mobile:sync:android` — 使用 `CHATBOX_BUILD_TARGET=mobile_app` 和 `CHATBOX_BUILD_PLATFORM=android` 编译 renderer，并执行 `corepack pnpm exec cap sync android`
 2. 在 Android Studio 或 `android/gradlew.bat` 中运行、签名和生成 APK
 
 Release Android 构建启用 Android Gradle Plugin 的 R8 压缩与混淆（`minifyEnabled true`、`shrinkResources true`）；debug 构建保持未压缩，便于调试。FileProvider 仅暴露应用专属的 cache/external-files 子目录。
@@ -223,7 +223,8 @@ lint、TypeScript 检查、测试和 Web renderer 构建。该 workflow 不执�
 
 发布 workflow 接入后的关键变更：
 - 每个 job 前置 `pnpm/action-setup@v4` 步骤
-- `setup-node` 使用 `cache: pnpm`
+- `setup-node` 从根目录 `.node-version` 读取固定的 Node 版本，并使用 `cache: pnpm`
+- pnpm 版本由根 `package.json#packageManager` 固定为 `10.33.0`
 - 依赖安装使用 `pnpm install --frozen-lockfile`
 - macOS job 额外设置 `USE_HARD_LINKS: 'false'` 和签名校验步骤
 

@@ -1307,5 +1307,8 @@
   "File {{filename}} queued for cloud parsing": "File {{filename}} queued for cloud parsing",
   "{{count}} file(s) queued for cloud parsing": "{{count}} file(s) queued for cloud parsing",
   "Retry with cloud parser": "Retry with cloud parser",
-  "Cloud parsing sends files to the configured parser service. Please be cautious with sensitive files.": "Cloud parsing sends files to the configured parser service. Please be cautious with sensitive files."
+  "Cloud parsing sends files to the configured parser service. Please be cautious with sensitive files.": "Cloud parsing sends files to the configured parser service. Please be cautious with sensitive files.",
+  "Allow configured remote MCP servers to connect and provide tools to models.": "Allow configured remote MCP servers to connect and provide tools to models.",
+  "Enable remote MCP": "Enable remote MCP",
+  "Mobile supports remote HTTPS MCP servers only. Local stdio servers are unavailable.": "Mobile supports remote HTTPS MCP servers only. Local stdio servers are unavailable."
 }

@@ -16,7 +16,7 @@ import { IconEye, IconEyeOff } from '@tabler/icons-react'
 import pTimeout from 'p-timeout'
 import { type CSSProperties, type FC, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Modal } from '@/components/layout/Overlay'
+import { AdaptiveModal } from '@/components/common/AdaptiveModal'
 import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
 import { MCPServer } from '@/packages/mcp/controller'
 import type { MCPServerConfig } from '@/packages/mcp/types'
@@ -218,7 +218,7 @@ interface Props {
 export const ConfigModal: FC<Props> = (props) => {
   const { t } = useTranslation()
   return (
-    <Modal
+    <AdaptiveModal
       size="lg"
       opened={!!props.config}
       onClose={props.onClose}
@@ -229,6 +229,6 @@ export const ConfigModal: FC<Props> = (props) => {
       {props.mode && props.config && (
         <ConfigForm mode={props.mode} config={props.config} onSave={props.onSave} onDelete={props.onDelete} />
       )}
-    </Modal>
+    </AdaptiveModal>
   )
 }

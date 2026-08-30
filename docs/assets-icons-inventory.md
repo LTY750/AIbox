@@ -57,7 +57,7 @@ Electron Builder 配置(`electron-builder.yml`)关键项:
 
 ## 2. Mobile(Android + iOS)——`resources/`
 
-由 `pnpm mobile:assets`(`npx capacitor-assets generate --ios --android`)从 `resources/` 生成两端的图标和启动屏。**与 `assets/` 完全独立。**
+由 `pnpm mobile:assets`(`corepack pnpm exec capacitor-assets generate --ios --android`)从 `resources/` 生成两端的图标和启动屏。**与 `assets/` 完全独立。**
 
 | 源文件 (1024 / 2732) | 生成目标 | 平台 |
 |------|------|------|

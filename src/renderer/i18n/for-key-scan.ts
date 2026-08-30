@@ -1,5 +1,5 @@
 /**
- * This file exists solely to help i18next-parser extract translation keys
+ * This file exists solely to help the i18next extractor find translation keys
  * that are used dynamically and therefore cannot be discovered from string
  * literals at the callsite.
  *

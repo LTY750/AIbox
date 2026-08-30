@@ -33,8 +33,8 @@ AIbox Mobile 是基于 Chatbox 共享渲染层和 Capacitor 的移动端工作�
 
 | 工具 | 要求 | 来源 |
 | --- | --- | --- |
-| Node.js | `22.14.x`（`22.13 <= version < 23`） | `.node-version`、`package.json#engines`；pnpm 会拒绝不兼容版本 |
-| pnpm | `10.33.0`（至少 `10.17`） | `package.json#packageManager` |
+| Node.js | `24.15.x`（`24.15 <= version < 25`） | `.node-version`、`package.json#engines`；pnpm 会拒绝不兼容版本 |
+| pnpm | `10.33.0` | `package.json#packageManager`；通过 Corepack 运行 |
 | JDK | 21（LTS） | AGP 8.7.2 最低 17，但 app 与绝大多数 Capacitor 插件模块声明 Java 21 工具链，实测 JDK 17 会在 `:capacitor-filesystem` 编译失败 |
 | Android Studio | 建议使用最新版稳定版 | 用于 SDK、模拟器和原生调试 |
 | Android SDK | Platform 35、Build Tools 35；可运行 Android API 23 及以上设备 | `android/variables.gradle` |
@@ -50,10 +50,10 @@ AIbox Mobile 是基于 Chatbox 共享渲染层和 Capacitor 的移动端工作�
 ```bash
 corepack enable
 corepack prepare pnpm@10.33.0 --activate
-pnpm install --frozen-lockfile
+corepack pnpm install --frozen-lockfile
 ```
 
-如果本机已安装匹配版本的 pnpm，只需执行最后一条命令即可。
+不要使用未受 Corepack 管理的全局 pnpm；可用 `corepack pnpm --version` 确认版本为 `10.33.0`。
 
 ### 2. 同步 Android 工程
 
@@ -64,7 +64,7 @@ pnpm run mobile:sync:android
 该命令会完成两步：
 
 1. 使用 `CHATBOX_BUILD_TARGET=mobile_app` 和 `CHATBOX_BUILD_PLATFORM=android` 构建 renderer。
-2. 将构建产物同步到 `android/`（`npx cap sync android`）。
+2. 将构建产物同步到 `android/`（`corepack pnpm exec cap sync android`）。
 
 ### 3. 在 Android Studio 中运行
 
@@ -150,7 +150,7 @@ src/renderer + src/shared
         │ electron-vite build
         ▼
 release/app/dist/renderer
-        │ npx cap sync android
+        │ corepack pnpm exec cap sync android
         ▼
 android/app/src/main/assets/public
         │ Gradle / Android Studio

@@ -16,5 +16,5 @@ message contents should be treated as local plaintext at rest. Mobile SQLite
 schema is managed by the versioned migration runner in
 `src/renderer/storage/sqliteMigrations.ts`.
 
-Build flow: `electron-vite build` produces the renderer, `npx cap sync android`
+Build flow: `electron-vite build` produces the renderer, `corepack pnpm exec cap sync android`
 copies it to the Capacitor project, and Gradle creates the APK.
