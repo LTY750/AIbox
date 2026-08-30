@@ -17,14 +17,15 @@ AIbox Mobile 是基于 Chatbox 共享渲染层和 Capacitor 的移动端工作�
 - 接入多个 AI 服务商和模型，支持流式回复、Markdown、LaTeX 与代码高亮。
 - 在设备本地保存设置和会话；移动端使用 SQLite 存储，API Key 等敏感值使用 Android Keystore 加密保存。
 - 支持移动端文件选择、内容读取、导出和系统分享，并适配安全区与软键盘行为。
-- 支持深链接和 Android 原生 HTTP/流式请求，减少 WebView 环境下的跨域限制。
+- 支持深链接（`chatbox://provider/import?config=`，`chatbox-dev://` 自动归一化）：桌面端由 Electron 主进程处理，Android 端经 Manifest intent-filter + Capacitor App 插件 `appUrlOpen` 事件接线。
+- 支持 Android 原生 HTTP/流式请求，减少 WebView 环境下的跨域限制。
 - 复用桌面端的会话、模型、国际化和主题代码，平台差异集中在 `src/renderer/platform/`。
 
 ### 移动端限制
 
 以下能力目前只在桌面端启用，Android 端不会显示对应入口：
 
-- MCP 本地进程、知识库、Agent Mode、Skills 和本地代码执行。
+- MCP 在所有平台仅支持远程 HTTPS；本地 stdio MCP 不可用。Android 上的知识库、Agent Mode、Skills 和本地代码执行仍不可用。
 - 依赖桌面 OAuth 回调服务器的登录方式。
 - Electron 主进程、桌面沙箱和自动更新能力。
 
@@ -32,9 +33,9 @@ AIbox Mobile 是基于 Chatbox 共享渲染层和 Capacitor 的移动端工作�
 
 | 工具 | 要求 | 来源 |
 | --- | --- | --- |
-| Node.js | `22.14.x`（`22.13 <= version < 23`） | `.node-version`、`package.json#engines` |
+| Node.js | `22.14.x`（`22.13 <= version < 23`） | `.node-version`、`package.json#engines`；pnpm 会拒绝不兼容版本 |
 | pnpm | `10.33.0`（至少 `10.17`） | `package.json#packageManager` |
-| JDK | 17 | Android Gradle Plugin 8.7.2 |
+| JDK | 21（LTS） | AGP 8.7.2 最低 17，但 app 与绝大多数 Capacitor 插件模块声明 Java 21 工具链，实测 JDK 17 会在 `:capacitor-filesystem` 编译失败 |
 | Android Studio | 建议使用最新版稳定版 | 用于 SDK、模拟器和原生调试 |
 | Android SDK | Platform 35、Build Tools 35；可运行 Android API 23 及以上设备 | `android/variables.gradle` |
 
@@ -182,7 +183,7 @@ APK
 
 ### `Unsupported class file major version` 或 Gradle JDK 错误
 
-将 `JAVA_HOME` 和 Android Studio 的 Gradle JDK 都设置为 JDK 17，再重新运行 `pnpm run mobile:sync:android`。
+将 `JAVA_HOME` 和 Android Studio 的 Gradle JDK 都设置为 **JDK 21**，再重新运行 `pnpm run mobile:sync:android`。不要设置为 JDK 17：app 模块和大多数 Capacitor 插件模块声明了 Java 21 编译工具链（`@capacitor/filesystem` 直接请求 Java 21 编译器），仅装 JDK 17 时会在 `:capacitor-filesystem:compileDebugJavaWithJavac` 处必然失败。
 
 ### Android 页面仍是旧版本
 

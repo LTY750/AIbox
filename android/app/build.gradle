@@ -12,11 +12,15 @@ android {
     namespace "xyz.chatboxapp.chatbox"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "xyz.chatboxapp.chatbox.debug"
+        // Keep applicationId aligned with capacitor.config.ts appId and
+        // package.json productName. The namespace intentionally stays the
+        // upstream one to avoid moving Java packages; only the install
+        // identity is rebranded.
+        applicationId "com.aibox.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 467
-        versionName "1.22.3-debug"
+        versionCode 1
+        versionName "0.0.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -36,7 +40,10 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
+            // Enable the Android Gradle plugin's R8 shrinking and obfuscation
+            // for release artifacts. Debug builds remain unminified.
+            minifyEnabled true
+            shrinkResources true
             if (releaseSigningConfigured) {
                 signingConfig signingConfigs.release
             }

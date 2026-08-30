@@ -99,16 +99,15 @@ const httpMcpServer: MCPServerConfig = {
   },
 }
 
-const stdioMcpServer: MCPServerConfig = {
-  id: 'story-stdio-mcp',
-  name: 'Local Git Tools',
+const remoteMcpServer: MCPServerConfig = {
+  id: 'story-remote-mcp',
+  name: 'Remote Git Tools',
   enabled: false,
   transport: {
-    type: 'stdio',
-    command: 'uvx',
-    args: ['mcp-server-git'],
-    env: {
-      GIT_AUTHOR_NAME: 'Storybook',
+    type: 'http',
+    url: 'https://mcp.example.com/git',
+    headers: {
+      Authorization: 'Bearer story-token',
     },
   },
 }
@@ -323,7 +322,7 @@ export const CustomMcpServersStates: StoryObj = {
       title="CustomServersSection"
       description="Actual custom MCP grid with add-server tile, existing server cards, and install-config modal state."
     >
-      <CustomServersSection installConfig={stdioMcpServer} />
+      <CustomServersSection installConfig={remoteMcpServer} />
     </SettingsSurface>
   ),
 }
@@ -464,7 +463,7 @@ function SeedSettingsManagement() {
     mcp: {
       ...state.mcp,
       enabledBuiltinServers: ['fetch'],
-      servers: [httpMcpServer, stdioMcpServer],
+      servers: [httpMcpServer, remoteMcpServer],
     },
     skills: {
       enabledSkillNames: ['chatbox-product-info', 'repo-code-review', 'claude-imported-workflow'],

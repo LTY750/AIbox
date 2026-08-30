@@ -432,7 +432,7 @@ export class IOSFilterWriter extends FilterWriter {
 export class AndroidFilterWriter extends FilterWriter {
   protected getWriteConfig(filename: string): FileWriteConfig {
     return {
-      path: `chatbox_ai_exports/${filename}`,
+      path: `aibox_exports/${filename}`,
       directory: Directory.Documents,
       recursive: true,
     }
@@ -950,7 +950,7 @@ export class AndroidFilterWriter extends FilterWriter {
   }
 
   private getCachePath(filename: string): string {
-    return `chatbox_temp_exports/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${filename}`
+    return `aibox_temp_exports/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${filename}`
   }
 
   private prepareCacheDownloadPath(path: string): Promise<WriteFileResult> {

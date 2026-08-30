@@ -1,7 +1,9 @@
 # Key Decisions
 
-1. Use `pnpm` with `node-linker=hoisted` because electron-builder expects a
-   conventional flattened `node_modules` layout.
+1. Use `pnpm` with `node-linker=isolated` for stable, workspace-local installs.
+   The electron-builder `beforePack` hook stages a conventional flattened
+   production tree in `release/app/node_modules` before packaging. Routine
+   workspace installs perform only a non-forced ABI check.
 2. Keep mobile credentials outside the settings row and redact them from bulk
    storage reads and backups.
 3. Use Capacitor for the mobile shell while preserving the shared Platform

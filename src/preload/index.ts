@@ -36,11 +36,6 @@ const electronHandler: ElectronIPC = {
     ipcRenderer.on('update-downloaded', callback)
     return () => ipcRenderer.off('update-downloaded', callback)
   },
-  addMcpStdioTransportEventListener: (transportId: string, event: string, callback?: (...args: any[]) => void) => {
-    ipcRenderer.on(`mcp:stdio-transport:${transportId}:${event}`, (_event, ...args) => {
-      callback?.(...args)
-    })
-  },
   onNavigate: (callback: (path: string) => void) => {
     const listener = (_event: unknown, path: string) => {
       callback(path)

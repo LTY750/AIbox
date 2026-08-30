@@ -8,6 +8,9 @@ const mockDatabase = vi.hoisted(() => ({
   execute: vi.fn(),
   run: vi.fn(),
   query: vi.fn(),
+  beginTransaction: vi.fn(),
+  commitTransaction: vi.fn(),
+  rollbackTransaction: vi.fn(),
 }))
 
 const mockConnection = vi.hoisted(() => ({
@@ -81,6 +84,9 @@ describe('SQLiteImageGenerationStorage', () => {
     mockDatabase.open.mockResolvedValue(undefined)
     mockDatabase.execute.mockResolvedValue({ changes: { changes: 0 } })
     mockDatabase.run.mockResolvedValue({ changes: { changes: 1 } })
+    mockDatabase.beginTransaction.mockResolvedValue({ changes: { changes: 0 } })
+    mockDatabase.commitTransaction.mockResolvedValue({ changes: { changes: 0 } })
+    mockDatabase.rollbackTransaction.mockResolvedValue({ changes: { changes: 0 } })
     mockDatabase.query.mockImplementation((statement: string) => {
       if (statement.trim().toLowerCase() === 'pragma user_version') {
         return Promise.resolve({ values: [{ user_version: 2 }] })
@@ -134,6 +140,7 @@ describe('SQLiteImageGenerationStorage', () => {
   it('preserves the CLI source when updating a record', async () => {
     const storage = new SQLiteImageGenerationStorage()
     const record = makeRecord()
+    await storage.initialize()
     mockDatabase.query.mockResolvedValueOnce({ values: [makeRow(record)] })
 
     await expect(storage.update(record.id, { status: 'generating' })).resolves.toMatchObject({

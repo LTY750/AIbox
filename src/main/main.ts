@@ -18,6 +18,7 @@ import './legacy-database-migration'
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 
+import { lookup as dnsLookup } from 'node:dns/promises'
 import fs from 'node:fs'
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeTheme, session, shell, Tray } from 'electron'
 import electronDebug from 'electron-debug'
@@ -36,7 +37,6 @@ import { handleDeepLink } from './deeplinks'
 import { parseFile } from './file-parser'
 import { isQuitForInstallRequested } from './installer-command'
 import Locale from './locales'
-import * as mcpIpc from './mcp/ipc-stdio-transport'
 import MenuBuilder from './menu'
 import { registerOAuthHandlers } from './oauth'
 import * as proxy from './proxy'
@@ -45,10 +45,16 @@ import { registerSandboxHandlers } from './sandbox'
 import { registerSkillsHandlers } from './skills'
 import {
   delStoreBlob,
+  deleteStoreValue,
   getConfig,
+  getAllStoreKeys,
+  getAllStoreValues,
   getSettings,
   getStoreBlob,
+  getStoreValue,
   listStoreBlobKeys,
+  setAllStoreValues,
+  setStoreValue,
   setStoreBlob,
   store,
 } from './store-node'
@@ -632,7 +638,6 @@ if (quitForInstallRequested) {
         } catch (e) {
           log.error('shortcut: failed to unregister', e)
         }
-        mcpIpc.closeAllTransports()
         destroyTray()
       })
       app.on('before-quit', () => {
@@ -680,25 +685,25 @@ app.on('open-url', async (_event, url) => {
 // --------- IPC 监听 ---------
 
 ipcMain.handle('getStoreValue', (event, key) => {
-  return store.get(key)
+  return getStoreValue(key)
 })
 ipcMain.handle('setStoreValue', (event, key, dataJson) => {
   // 仅在传输层用 JSON 序列化，存储层用原生数据，避免存储层 JSON 损坏后无法自动处理的情况
   const data = JSON.parse(dataJson)
-  return store.set(key, data)
+  return setStoreValue(key, data)
 })
 ipcMain.handle('delStoreValue', (event, key) => {
-  return store.delete(key)
+  return deleteStoreValue(key)
 })
 ipcMain.handle('getAllStoreValues', (event) => {
-  return JSON.stringify(store.store)
+  return JSON.stringify(getAllStoreValues())
 })
 ipcMain.handle('getAllStoreKeys', (event) => {
-  return Object.keys(store.store)
+  return getAllStoreKeys()
 })
 ipcMain.handle('setAllStoreValues', (event, dataJson) => {
   const data = JSON.parse(dataJson)
-  store.store = { ...store.store, ...data }
+  setAllStoreValues(data)
 })
 
 ipcMain.handle('getStoreBlob', async (event, key) => {
@@ -785,6 +790,14 @@ ipcMain.handle('getConfig', (event) => {
 
 ipcMain.handle('getSettings', (event) => {
   return getSettings()
+})
+
+ipcMain.handle('resolveHostname', async (_event, hostname: unknown) => {
+  if (typeof hostname !== 'string' || hostname.length === 0 || hostname.length > 253) {
+    throw new Error('Invalid hostname.')
+  }
+  const addresses = await dnsLookup(hostname, { all: true, verbatim: true })
+  return addresses.map(({ address, family }) => ({ address, family }))
 })
 
 ipcMain.handle('shouldShowAboutDialogWhenStartUp', (event) => {

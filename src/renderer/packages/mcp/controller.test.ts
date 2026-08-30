@@ -12,6 +12,21 @@ describe('MCPServer HTTP transport', () => {
     vi.unstubAllGlobals()
   })
 
+  it('refuses legacy stdio configuration without starting a local process', async () => {
+    const server = new MCPServer({
+      type: 'stdio',
+      command: 'local-mcp-server',
+      args: [],
+    })
+
+    await server.start()
+
+    expect(server.status).toEqual({
+      state: 'idle',
+      error: 'Only remote HTTPS MCP servers are supported.',
+    })
+  })
+
   it('connects to a 2025-11-25 server that does not support GET SSE', async () => {
     const requests: RecordedRequest[] = []
     vi.stubGlobal(
@@ -98,7 +113,7 @@ describe('MCPServer HTTP transport', () => {
     expect(Object.keys(server.getAvailableTools())).toEqual(['echo'])
     const echoResult = await server
       .getAvailableTools()
-      .echo.execute?.({ text: 'hello' }, { toolCallId: 'echo-call', messages: [] })
+      .echo.execute?.({ text: 'hello' }, { toolCallId: 'echo-call', messages: [], approved: true } as never)
     expect(echoResult).toEqual({
       content: [{ type: 'text', text: 'hello' }],
       isError: false,
@@ -156,6 +171,6 @@ describe('MCPServer HTTP transport', () => {
     expect(server.status.error).toContain(
       "Streamable HTTP connection failed: Server's protocol version is not supported: 2099-01-01"
     )
-    expect(server.status.error).toContain('Legacy SSE fallback failed: MCP SSE Transport Error: 405 Method Not Allowed')
+    expect(server.status.error).toContain('Legacy SSE fallback failed: SSE error: Non-200 status code (405)')
   })
 })

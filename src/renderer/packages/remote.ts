@@ -474,49 +474,6 @@ export async function uploadAndCreateUserFile(licenseKey: string, file: File) {
   return storageKey
 }
 
-export async function parseUserLinkPro(params: { licenseKey: string; url: string; abortSignal?: AbortSignal }) {
-  type Response = {
-    data: {
-      uuid: string
-      title: string
-      content: string
-    }
-  }
-  const { licenseKey, url, abortSignal } = params
-  const afetch = await getAfetch()
-  const res = await afetch(
-    `${getAPIOrigin()}/api/links/parse`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: licenseKey,
-        'Content-Type': 'application/json',
-        ...(await getChatboxHeaders()),
-      },
-      body: JSON.stringify({
-        licenseKey,
-        url,
-        returnContent: true,
-      }),
-      signal: abortSignal,
-    },
-    {
-      parseChatboxRemoteError: true,
-      retry: 2,
-    }
-  )
-  const json: Response = await res.json()
-  const storageKey = `parseUrl-${url}_${json['data']['uuid']}.txt`
-  if (json['data']['content']) {
-    await platform.setStoreBlob(storageKey, json['data']['content'])
-  }
-  return {
-    key: json['data']['uuid'],
-    title: json['data']['title'],
-    storageKey,
-  }
-}
-
 export async function parseUserLinkFree(params: { url: string }) {
   type Response = {
     title: string
@@ -533,24 +490,6 @@ export async function parseUserLinkFree(params: { url: string }) {
   })
   const json: Response = await res.json()
   return json
-}
-
-/**
- * Request seam for the Chatbox `build-in` web search provider. Mirrors
- * `getLicenseRequestOptions`: injects an afetch `fetchFn` (Chatbox error parsing + retry),
- * the API origin, and the Chatbox platform headers into the shared `searchNativeWeb` call.
- */
-export async function getChatboxWebSearchRequestOptions(): Promise<{
-  chatboxApiOrigin: string
-  fetchFn: typeof fetch
-  headers: Record<string, string>
-}> {
-  const afetch = await getAfetch()
-  return {
-    chatboxApiOrigin: getAPIOrigin(),
-    fetchFn: (input, init) => afetch(input, init, { parseChatboxRemoteError: true, retry: 2 }),
-    headers: await getChatboxHeaders(),
-  }
 }
 
 async function getLicenseRequestOptions(): Promise<NativeLicenseRequestOptions> {

@@ -16,7 +16,7 @@ overrides:
 
 patchedDependencies:
   capacitor-stream-http@0.1.0:
-    hash: ee231734aa70bfb59bf98a97828b5c3bdf634eb4da09f6e70ef110fb190d8e0d
+    hash: c0318b604af89789dc3546ced2dfb12663bfd423ac6190493e66292dad776665
     path: patches/capacitor-stream-http@0.1.0.patch
   fflate@0.8.3:
     hash: d911137eb72db9dddccc301e63a76bbc221a180ce91960f39a925726bf3bcba5
@@ -53,6 +53,9 @@ importers:
       '@sentry/node':
         specifier: ^9.28.1
         version: 9.47.1
+      adm-zip:
+        specifier: ^0.4.16
+        version: 0.4.16
       auto-launch:
         specifier: ^5.0.6
         version: 5.0.6
@@ -147,6 +150,9 @@ importers:
       '@ai-sdk/provider':
         specifier: ^3.0.14
         version: 3.0.14
+      '@ai-sdk/provider-utils':
+        specifier: ^4.0.40
+        version: 4.0.40(zod@4.3.6)
       '@babel/core':
         specifier: ^7.28.0
         version: 7.29.0
@@ -279,6 +285,9 @@ importers:
       '@mui/material':
         specifier: ^5.11.11
         version: 5.18.0(@emotion/react@11.14.0(@types/react@18.3.31)(react@18.3.1))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@18.3.31)(react@18.3.1))(@types/react@18.3.31)(react@18.3.1))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@mui/system':
+        specifier: ^5.18.0
+        version: 5.18.0(@emotion/react@11.14.0(@types/react@18.3.31)(react@18.3.1))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@18.3.31)(react@18.3.1))(@types/react@18.3.31)(react@18.3.1))(@types/react@18.3.31)(react@18.3.1)
       '@openrouter/ai-sdk-provider':
         specifier: ^2.0.0
         version: 2.1.1(ai@6.0.67(zod@4.3.6))(zod@4.3.6)
@@ -357,12 +366,21 @@ importers:
       '@types/epub':
         specifier: ^0.0.11
         version: 0.0.11
+      '@types/fs-extra':
+        specifier: ^9.0.13
+        version: 9.0.13
       '@types/gtag.js':
         specifier: ^0.0.13
         version: 0.0.13
+      '@types/hast':
+        specifier: ^3.0.4
+        version: 3.0.4
       '@types/highlight.js':
         specifier: ^10.1.0
         version: 10.1.0
+      '@types/json-schema':
+        specifier: ^7.0.15
+        version: 7.0.15
       '@types/katex':
         specifier: ^0.16.2
         version: 0.16.8
@@ -458,7 +476,7 @@ importers:
         version: 4.0.3(@capacitor/core@7.4.5)
       capacitor-stream-http:
         specifier: ^0.1.0
-        version: 0.1.0(patch_hash=ee231734aa70bfb59bf98a97828b5c3bdf634eb4da09f6e70ef110fb190d8e0d)(@capacitor/core@7.4.5)
+        version: 0.1.0(patch_hash=c0318b604af89789dc3546ced2dfb12663bfd423ac6190493e66292dad776665)(@capacitor/core@7.4.5)
       chalk:
         specifier: ^4.1.2
         version: 4.1.2
@@ -492,6 +510,9 @@ importers:
       css-minimizer-webpack-plugin:
         specifier: ^5.0.0
         version: 5.0.1(esbuild@0.27.2)(webpack@5.104.1)
+      date-fns:
+        specifier: ^3.6.0
+        version: 3.6.0
       dayjs:
         specifier: ^1.11.13
         version: 1.11.19
@@ -501,6 +522,9 @@ importers:
       detect-port:
         specifier: ^1.5.1
         version: 1.6.1
+      dompurify:
+        specifier: ^3.3.1
+        version: 3.3.1
       dotenv:
         specifier: ^16.3.1
         version: 16.6.1
@@ -579,6 +603,9 @@ importers:
       jsdom:
         specifier: ^26.1.0
         version: 26.1.0
+      katex:
+        specifier: ^0.16.28
+        version: 0.16.28
       lint-staged:
         specifier: ^16.1.2
         version: 16.2.7
@@ -711,6 +738,9 @@ importers:
       sonner:
         specifier: ^2.0.3
         version: 2.0.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      source-map-support:
+        specifier: ^0.5.21
+        version: 0.5.21
       store:
         specifier: ^2.0.12
         version: 2.0.12
@@ -21443,7 +21473,7 @@ snapshots:
     dependencies:
       '@capacitor/core': 7.4.5
 
-  capacitor-stream-http@0.1.0(patch_hash=ee231734aa70bfb59bf98a97828b5c3bdf634eb4da09f6e70ef110fb190d8e0d)(@capacitor/core@7.4.5):
+  capacitor-stream-http@0.1.0(patch_hash=c0318b604af89789dc3546ced2dfb12663bfd423ac6190493e66292dad776665)(@capacitor/core@7.4.5):
     dependencies:
       '@capacitor/core': 7.4.5
 

@@ -386,6 +386,12 @@ async function parseFileWithLocalFallback(
     if (NON_RECOVERABLE_LOCAL_PARSER_ERROR_CODES.has(errorCode)) {
       throw error
     }
+    // A cloud parser can produce a terminal user-facing result. Do not retry
+    // the same fallback recursively when it returns empty content or needs a
+    // missing credential.
+    if (errorCode === EMPTY_ATTACHMENT_CONTENT_ERROR || errorCode === 'llama_parse_api_key_required') {
+      throw error
+    }
 
     // Cloud parsing cannot recover from a full client-side storage database.
     // Preserve the original exception for a sanitized Sentry report at the outer boundary.

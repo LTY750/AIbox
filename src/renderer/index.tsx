@@ -5,7 +5,7 @@ function loadApplication() {
   void import('./app').catch((error) => {
     console.error('Failed to load the application:', error)
     const logRoot = document.getElementById('log-root')
-    if (logRoot) logRoot.textContent = 'Failed to start Chatbox.'
+    if (logRoot) logRoot.textContent = 'Failed to start AIbox Mobile.'
   })
 }
 

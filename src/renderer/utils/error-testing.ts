@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/react'
 import { getLogger } from '../lib/utils'
 
 const log = getLogger('ErrorTesting')
@@ -32,11 +31,11 @@ export const errorTestingUtils = {
     }
   },
 
-  // Test Sentry directly
+  // Test local diagnostic capture
   testSentryCapture: () => {
-    Sentry.captureMessage('Test Sentry message capture - this is intentional for testing', 'info')
-    Sentry.captureException(new Error('Test Sentry exception capture - this is intentional for testing'))
-    log.info('Sentry test messages sent')
+    log.info('Local diagnostic test message')
+    log.error('Local diagnostic test exception', new Error('Intentional local diagnostic test'))
+    log.info('Local diagnostic test messages recorded')
   },
 
   // Test console error interception

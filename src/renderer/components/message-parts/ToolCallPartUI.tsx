@@ -1334,6 +1334,8 @@ const PausedToolCallDetails: FC<{ part: MessageToolCallPart } & ToolCallActionCo
           ? t('Approval required before modifying files.')
           : pauseReason?.type === 'app_action_approval'
             ? pauseReason.title
+            : pauseReason?.type === 'mcp_tool_approval'
+              ? t('Approval required before calling a remote MCP tool.')
             : t('Tool execution is paused.')
   const payload =
     pauseReason?.type === 'user_exec_approval'
@@ -1342,6 +1344,8 @@ const PausedToolCallDetails: FC<{ part: MessageToolCallPart } & ToolCallActionCo
         ? `${pauseReason.title}\n\n${pauseReason.preview}`
         : pauseReason?.type === 'app_action_approval'
           ? pauseReason.preview
+          : pauseReason?.type === 'mcp_tool_approval'
+            ? `${pauseReason.serverName} / ${pauseReason.toolName}\n\n${pauseReason.preview}`
           : stringifyToolPayload(part.args)
   const handleDontAskAgain = (scope: 'session' | 'global') => {
     if (!sessionId || !messageId || pauseReason?.type !== 'tool_call_limit') return

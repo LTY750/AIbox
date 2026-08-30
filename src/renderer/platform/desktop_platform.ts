@@ -133,6 +133,10 @@ export default class DesktopPlatform implements Platform {
     return this.ipc.invoke('getSettings')
   }
 
+  public async resolveHostname(hostname: string): Promise<ReadonlyArray<{ address: string; family: number }>> {
+    return this.ipc.invoke('resolveHostname', hostname)
+  }
+
   private needStoreInFile(key: string): boolean {
     return key === 'configs' || key === 'settings' || key === 'configVersion'
   }

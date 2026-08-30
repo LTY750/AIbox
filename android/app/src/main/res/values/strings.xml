@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Chatbox Debug</string>
-    <string name="title_activity_main">Chatbox Debug</string>
-    <string name="package_name">xyz.chatboxapp.chatbox.debug</string>
-    <string name="custom_url_scheme">xyz.chatboxapp.chatbox.debug</string>
+    <string name="app_name">AIbox Mobile</string>
+    <string name="title_activity_main">AIbox Mobile</string>
+    <string name="package_name">com.aibox.mobile</string>
+    <string name="custom_url_scheme">chatbox</string>
 </resources>

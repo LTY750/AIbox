@@ -40,7 +40,7 @@ export const BuiltinServersSection: FC = () => {
   return (
     <>
       <Text size="sm" fw={600} mb={4}>
-        Chatbox {t('Builtin MCP Servers')}
+        {t('Builtin MCP Servers')}
       </Text>
       <Text size="xs" c="chatbox-tertiary" mb={12}>
         {t('One-click MCP servers for Chatbox AI subscribers')}

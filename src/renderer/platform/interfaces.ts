@@ -77,6 +77,9 @@ export interface Platform extends Storage {
   getConfig(): Promise<Config>
   getSettings(): Promise<Settings>
 
+  /** Resolve a hostname in the native process for SSRF checks (desktop only). */
+  resolveHostname?(hostname: string): Promise<ReadonlyArray<{ address: string; family: number }>>
+
   // Blob 存储
 
   getStoreBlob(key: string): Promise<string | null>

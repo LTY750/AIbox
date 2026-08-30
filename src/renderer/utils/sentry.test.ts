@@ -1,17 +1,20 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
+
+const { logError } = vi.hoisted(() => ({
+  logError: vi.fn(),
+}))
+
+vi.mock('@/lib/utils', () => ({
+  getLogger: vi.fn(() => ({
+    debug: vi.fn(),
+    error: logError,
+    info: vi.fn(),
+    log: vi.fn(),
+    warn: vi.fn(),
+  })),
+}))
+
 import { reportError } from './sentry'
-
-const { captureException, setExtra, setTag } = vi.hoisted(() => ({
-  captureException: vi.fn(),
-  setExtra: vi.fn(),
-  setTag: vi.fn(),
-}))
-
-vi.mock('@sentry/react', () => ({
-  captureException,
-  withScope: (callback: (scope: { setExtra: typeof setExtra; setTag: typeof setTag }) => void) =>
-    callback({ setExtra, setTag }),
-}))
 
 describe('reportError', () => {
   beforeEach(() => {
@@ -30,18 +33,23 @@ describe('reportError', () => {
       tags: { provider: 'openai' },
     })
 
-    expect(captureException).toHaveBeenCalledWith(error)
-    expect(setTag).toHaveBeenCalledWith('error_domain', 'session')
-    expect(setTag).toHaveBeenCalledWith('error_operation', 'generation')
-    expect(setTag).toHaveBeenCalledWith('error_priority', 'high')
-    expect(setTag).toHaveBeenCalledWith('error_handled', 'false')
-    expect(setTag).toHaveBeenCalledWith('provider', 'openai')
-    expect(setExtra).toHaveBeenCalledWith('retryCount', 2)
+    expect(logError).toHaveBeenCalledWith('local_error_report', expect.any(String))
+    const payload = JSON.parse(logError.mock.calls[0][1] as string)
+    expect(payload).toMatchObject({
+      domain: 'session',
+      operation: 'generation',
+      priority: 'high',
+      handled: false,
+      tags: { provider: 'openai' },
+      extras: { retryCount: 2 },
+      error: { name: 'Error', message: 'boom' },
+    })
   })
 
   test('normalizes non-Error values', () => {
     reportError('failed', { domain: 'application', operation: 'startup' })
 
-    expect(captureException).toHaveBeenCalledWith(expect.objectContaining({ message: 'failed' }))
+    const payload = JSON.parse(logError.mock.calls[0][1] as string)
+    expect(payload.error).toMatchObject({ name: 'Error', message: 'failed' })
   })
 })

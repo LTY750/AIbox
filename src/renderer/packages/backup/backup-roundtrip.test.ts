@@ -251,10 +251,11 @@ describe('ZIP backup round trip', () => {
       metaStorage: new MemoryMetaStorage(),
     })
     expect(imported.warnings).toHaveLength(1)
-    expect(destination.values.get(BackupStorageKey.Settings)).toEqual({
+    expect(destination.values.get(BackupStorageKey.Settings)).toMatchObject({
       defaultAssistantAvatarKey: 'picture:kept',
       providers: { custom: { apiHost: 'https://example.com' } },
     })
+    expect(destination.values.get(BackupStorageKey.Settings)).not.toHaveProperty('licenseKey')
     expect(destination.values.get(BackupStorageKey.MyCopilots)).toEqual([
       {
         id: 'copilot-1',

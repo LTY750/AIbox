@@ -2,17 +2,17 @@
 
 > Last updated: 2026-07
 
-本文档描述 Chatbox Pro 的工具（Tool）与外部集成系统的产品设计。关于整体架构和进程模型，请参阅 [`./architecture.md`](./architecture.md)。
+本文档描述 AIbox Mobile 的工具（Tool）与外部集成系统的产品设计。关于整体架构和进程模型，请参阅 [`./architecture.md`](./architecture.md)。共享代码中的 Chatbox AI provider 术语仅用于兼容该服务的登录和模型路由。
 
 ---
 
 ## 系统概览
 
-Chatbox Pro 的工具系统为 AI 模型提供外部能力调用，使模型不仅能生成文本，还能执行搜索、读取文件、查询知识库、调用第三方服务等操作。当前工具系统由三个独立层次组成：
+AIbox Mobile 的工具系统为 AI 模型提供外部能力调用，使模型不仅能生成文本，还能执行搜索、读取文件、查询知识库、调用第三方服务等操作。当前工具系统由三个独立层次组成：
 
 | 层次 | 位置 | 职责 |
 |------|------|------|
-| MCP 服务器 | Main 进程 + Renderer 控制器 | 管理外部 MCP 服务器连接，提供第三方工具 |
+| MCP 服务器 | Renderer 控制器 + 平台 HTTP bridge | 管理远程 MCP 服务器连接，提供第三方工具 |
 | 内置工具集（Toolsets） | `src/renderer/packages/model-calls/toolsets/` | 文件读取、知识库查询、网页搜索等内置工具 |
 | Web Search 引擎 | `src/renderer/packages/web-search/` | 多搜索供应商的抽象层与执行器 |
 
@@ -24,15 +24,15 @@ Chatbox Pro 的工具系统为 AI 模型提供外部能力调用，使模型不�
 
 ### 设计动机
 
-[Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 是一种开放协议，允许 AI 模型通过标准化接口调用外部工具。Chatbox Pro 集成 MCP 的目的是让用户可以自由扩展 AI 的能力边界——无需修改应用代码即可接入新工具。
+[Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 是一种开放协议，允许 AI 模型通过标准化接口调用外部工具。AIbox Mobile 集成 MCP 的目的是让用户可以自由扩展 AI 的能力边界，而无需修改应用代码即可接入新工具。
 
 ### 传输层架构
 
-MCP 支持两种传输方式，分别解决不同部署场景：
+所有平台只支持远程 HTTPS MCP，不提供本地 stdio 进程入口。持久化 schema 暂时保留 `stdio` 结构用于读取旧设置，但加载后会强制禁用；运行时、设置列表、配置导入和备份均不会执行或传播这类条目。
 
-**Stdio 传输**：通过 Main 进程管理子进程。由于浏览器环境无法直接启动子进程，采用 IPC 代理模式——Renderer 侧的 `IPCStdioTransport`（`src/renderer/packages/mcp/ipc-stdio-transport.ts`）通过 Electron IPC 调用 Main 进程中的 `StdioClientTransport`（`src/main/mcp/ipc-stdio-transport.ts`），Main 进程负责子进程的生命周期管理、stderr 日志采集和编码检测。
+**HTTP 传输**：优先尝试 Streamable HTTP，失败后自动降级为 SSE（Server-Sent Events）。桌面/Web 使用标准 `fetch`，Android 通过 Capacitor 原生 HTTP bridge 发出请求以避开 WebView CORS 限制。
 
-**HTTP 传输**：直接从 Renderer 发起 HTTP 请求。优先尝试 Streamable HTTP 协议，失败后自动降级为 SSE（Server-Sent Events）。此模式不依赖 Main 进程，因此在 Web 端和移动端同样可用。
+**远程 MCP 安全边界**：设置页只显示 HTTP/SSE，拒绝明文 HTTP、URL 用户信息、localhost、私有/保留 IP、`.local`/`.internal`/`.lan` 主机以及危险或超长 header。客户端跟随 MCP 会话请求时还会限制在已配置的 server origin 内。Android 上的 MCP URL、headers 和各类 provider credential 使用 Android Keystore；原生安全存储不可用时只保留在当前 WebView 进程内存中，绝不降级写入 SQLite、localStorage 或备份。普通设置快照和无密钥备份只包含脱敏结构。
 
 ### 服务器管理
 
@@ -42,10 +42,18 @@ MCP 支持两种传输方式，分别解决不同部署场景：
 - **状态订阅**：通过 Emittery 事件系统暴露服务器状态（idle / starting / running / stopping），UI 可实时反映连接状况
 - **工具聚合**：`getAvailableTools()` 遍历所有运行中的服务器，将其工具合并到统一的 `ToolSet` 中；工具名通过 `mcp__<serverName>__<toolName>` 格式命名以避免冲突
 - **错误容忍**：单个 MCP 工具执行失败时返回错误信息而非抛出异常，避免中断整个对话流程
+- **工具安全**：工具默认暂停并显示审批卡片；参数中检测到已知 key、Bearer/JWT/sk- 等 credential-like 值时直接阻止调用；工具返回值和连接错误会脱敏后再进入会话历史
+- **并发一致性**：按 server id 串行化启停和更新，应用进入后台或全局 MCP 开关关闭时停止所有连接
+
+### 设置与配置导入
+
+设置 → MCP 提供全局启用开关、服务器启停和单个工具开关。可从剪贴板导入常见的 `mcpServers` JSON，包括魔塔社区常用的顶层 `mcpServers` 和嵌套 `transport` 结构；每个条目只接受远程 URL，非法或本地 stdio 条目会跳过，剪贴板原文不会写入日志。保存前可测试连接并查看工具列表。
+
+MCP 工具只有在以下条件同时满足时才会注入模型请求：全局开关开启、服务器运行、工具未禁用，以及模型声明支持 MCP/tool use。模型能力测试使用本地合成工具，只有检测到真实 tool-call、工具执行成功并在最终文本使用返回 marker 时才通过，不会因模型仅声称“使用了工具”而通过。
 
 ### 内置 MCP 服务器
 
-Chatbox Pro 预置了一组云端 MCP 服务器（`src/renderer/packages/mcp/builtin.ts`），通过 HTTP 传输连接到 `mcp.chatboxai.app`：
+桌面端为兼容现有 Chatbox AI 账户提供了一组云端 MCP 服务器（`src/renderer/packages/mcp/builtin.ts`），通过 HTTP 传输连接到 `mcp.chatboxai.app`。Android 只显示和连接用户配置的远程服务器：
 
 - **Fetch**：网页内容抓取与 HTML 转 Markdown
 - **Sequential Thinking**：结构化思维推理辅助
@@ -63,12 +71,8 @@ Web Search 采用抽象基类模式（`src/renderer/packages/web-search/base.ts`
 
 | 供应商 | 文件 | 网页搜索 | 读取网页（parseLink） | 特点 |
 |--------|------|---------|----------------------|------|
-| Chatbox Search | `chatbox-search.ts` | ✓ | ✓ | 内置搜索，需许可证密钥（任意 tier 均可使用 parse_link） |
-| Bing | `bing.ts` | ✓ | ✗ | 免费使用，国际覆盖 |
-| Bing News | `bing-news.ts` | ✓ | ✗ | 新闻专项搜索，非中文环境自动启用 |
 | Tavily | `tavily.ts` | ✓ | ✓（调用 `/extract`） | 高质量 AI 搜索，需用户自备 API Key |
-| BoCha | `bocha.ts` | ✓ | ✗ | 国内搜索 API |
-| Querit | `querit.ts` | ✓ | ✗ | 多源聚合搜索 |
+| BoCha | `bocha.ts` | ✓ | ✗ | 国内搜索 API，需用户自备 API Key |
 
 每个供应商通过 `supportsParseLink` 实例标志声明自己是否实现了 `parseLink`。基类默认返回 `false`，需要的子类用 `override supportsParseLink = true` 显式声明。
 
@@ -128,17 +132,16 @@ Web Search 采用抽象基类模式（`src/renderer/packages/web-search/base.ts`
 - **web_search**：调用上述 Web Search 系统执行搜索
 - **parse_link**：抓取并解析指定 URL 的可读内容
 
-`parse_link` 在 `execute` 中按所选搜索提供方分派：
+`parse_link` 只在 Tavily 支持时注入，并在 `execute` 中按所选搜索提供方分派：
 
 | 提供方 | 执行路径 | 失败模式 |
 |--------|---------|---------|
-| `build-in` (Chatbox AI) | 检查 `licenseKey` → 调用 `remote.parseUserLinkPro` | 缺 license 抛 `chatbox_search_license_key_required`（后端不限制 tier，任意 license 均可调用） |
 | `tavily` | `getParseLinkProvider().parseLink()` → Tavily `/extract` API | 缺 API key 抛 `tavily_api_key_required`；提取空抛 `parse_link_failed` |
-| 其他（`bing` / `bocha` / `querit`） | 不会注入 `parse_link`，模型看不到此工具 | — |
+| `bocha` | 不会注入 `parse_link`，模型看不到此工具 | — |
 
 错误抛出采用 AI/用户双层结构：`Error.message`（传给 `ChatboxAIAPIError` 构造器的第一参数）携带技术原因供 AI 推理（例如 "Tavily extract API returned no results for {url}"），`detail.i18nKey` 则给用户渲染本地化的友好提示。
 
-工具的 `execute` 函数同时透传 `abortSignal`，使内置和第三方两条路径在用户取消工具执行时都能中止底层 HTTP 请求。`remote.parseUserLinkPro` 接收可选的 `abortSignal`，并通过 `afetch` 的 `RequestInit.signal` 透传到底层 fetch。
+工具的 `execute` 函数同时透传 `abortSignal`，使第三方 provider 在用户取消工具执行时可以中止底层 HTTP 请求。
 
 ### 工具错误的用户可见渲染
 

@@ -182,7 +182,7 @@ export default function Sidebar() {
             >
               <Image src={icon} w={20} h={20} />
               <Text span c="chatbox-secondary" size="xl" lh={1.2} fw="700" truncate>
-                Chatbox
+                AIbox Mobile
               </Text>
               {/* Desktop shows the version in the bottom About link, so only surface it here on mobile */}
               {isSmallScreen && /\d/.test(versionHook.version) && (

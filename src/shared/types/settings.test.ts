@@ -34,6 +34,49 @@ describe('SettingsSchema RAG default models', () => {
   })
 })
 
+describe('SettingsSchema document parser credentials', () => {
+  test('accepts redacted mobile credential sections', () => {
+    const parsed = SettingsSchema.parse({
+      ...defaultSettings(),
+      extension: {
+        ...defaultSettings().extension,
+        documentParser: {
+          type: 'llamaparse',
+          llamaParse: {},
+          mineru: {},
+          textin: {},
+        },
+      },
+    })
+
+    expect(parsed.extension.documentParser?.llamaParse?.apiKey).toBeUndefined()
+    expect(parsed.extension.documentParser?.mineru?.apiToken).toBeUndefined()
+    expect(parsed.extension.documentParser?.textin).toEqual({})
+  })
+
+  test('recovers from malformed persisted parser credentials', () => {
+    const parsed = SettingsSchema.parse({
+      ...defaultSettings(),
+      extension: {
+        ...defaultSettings().extension,
+        documentParser: {
+          type: 'llamaparse',
+          llamaParse: { apiKey: null },
+          mineru: { apiToken: 123 },
+          textin: { appId: {}, secretCode: false },
+        },
+      },
+    })
+
+    expect(parsed.extension.documentParser?.llamaParse?.apiKey).toBeUndefined()
+    expect(parsed.extension.documentParser?.mineru?.apiToken).toBeUndefined()
+    expect(parsed.extension.documentParser?.textin).toEqual({
+      appId: undefined,
+      secretCode: undefined,
+    })
+  })
+})
+
 describe('SettingsSchema background image opacity', () => {
   test('uses the original opacity for existing settings', () => {
     const legacySettings: Record<string, unknown> = { ...defaultSettings() }

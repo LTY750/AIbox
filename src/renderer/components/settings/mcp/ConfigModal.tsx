@@ -1,7 +1,20 @@
-import { Anchor, Badge, Button, Group, Kbd, Paper, Radio, Stack, Text, Textarea, TextInput } from '@mantine/core'
+import {
+  ActionIcon,
+  Anchor,
+  Button,
+  Group,
+  Paper,
+  PasswordInput,
+  Stack,
+  Switch,
+  Text,
+  Textarea,
+  TextInput,
+} from '@mantine/core'
 import { useForm } from '@mantine/form'
+import { IconEye, IconEyeOff } from '@tabler/icons-react'
 import pTimeout from 'p-timeout'
-import { type FC, useRef, useState } from 'react'
+import { type CSSProperties, type FC, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Modal } from '@/components/layout/Overlay'
 import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
@@ -16,7 +29,11 @@ interface ConnectionTestingResult {
   error?: Error
 }
 
-const TestingResult: FC<{ result: ConnectionTestingResult }> = ({ result }) => {
+const TestingResult: FC<{
+  disabledTools: string[]
+  onToolEnabledChange: (name: string, enabled: boolean) => void
+  result: ConnectionTestingResult
+}> = ({ disabledTools, onToolEnabledChange, result }) => {
   const { t } = useTranslation()
   if (result.error) {
     return (
@@ -24,11 +41,6 @@ const TestingResult: FC<{ result: ConnectionTestingResult }> = ({ result }) => {
         <Text size="sm" c="chatbox-error" className="whitespace-pre-line overflow-x-auto">
           {result.error.message}
         </Text>
-        {result.error.message.includes('ENOENT') && result.config.transport.type === 'stdio' && (
-          <Text size="sm" c="chatbox-primary" mt="sm">
-            {t('Make sure you have the following command installed:')} <Kbd>{result.config.transport.command}</Kbd>
-          </Text>
-        )}
       </Paper>
     )
   }
@@ -37,13 +49,18 @@ const TestingResult: FC<{ result: ConnectionTestingResult }> = ({ result }) => {
       <Text fw="bold" mb="sm">
         {t('Tools')}
       </Text>
-      <Group gap="xs">
+      <Stack gap="xs">
         {result.tools.map((tool) => (
-          <Badge key={tool.name} color="blue" variant="outline" size="md" className="!lowercase">
-            {tool.name}
-          </Badge>
+          <Switch
+            key={tool.name}
+            size="sm"
+            label={tool.name}
+            description={tool.description}
+            checked={!disabledTools.includes(tool.name)}
+            onChange={(event) => onToolEnabledChange(tool.name, event.currentTarget.checked)}
+          />
         ))}
-      </Group>
+      </Stack>
     </Paper>
   )
 }
@@ -58,6 +75,7 @@ const ConfigForm: FC<{
   const formRef = useRef<HTMLFormElement>(null)
   const [testing, setTesting] = useState(false)
   const [testingResult, setTestingResult] = useState<ConnectionTestingResult | null>()
+  const [showHeaders, setShowHeaders] = useState(false)
   const testingAbortController = useRef<AbortController | null>(null)
 
   const form = useForm<MCPServerConfigFormValues>({
@@ -69,13 +87,13 @@ const ConfigForm: FC<{
     if (formRef.current && !formRef.current.reportValidity()) {
       return
     }
-    const config = getConfigFromFormValues(form.getValues())
-    console.debug('Testing connection with config', config)
     setTesting(true)
     setTestingResult(null)
-    trackEvent('test_mcp_server_connection', { type: config.transport.type })
+    let server: MCPServer | undefined
     try {
-      const server = new MCPServer(config.transport)
+      const config = getConfigFromFormValues(form.getValues())
+      trackEvent('test_mcp_server_connection', { type: config.transport.type })
+      server = new MCPServer(config)
       testingAbortController.current = new AbortController()
       await pTimeout(server.start(), {
         milliseconds: 5 * 60_000,
@@ -94,64 +112,61 @@ const ConfigForm: FC<{
       if (testingAbortController.current?.signal.aborted) {
         return
       }
-      setTestingResult({ config, error: err as Error, tools: [] })
+      setTestingResult({ config: props.config, error: err as Error, tools: [] })
     } finally {
+      await server?.stop().catch(() => undefined)
       setTesting(false)
     }
   }
 
   const handleSubmit = (values: typeof form.values) => {
-    console.debug('form onSubmit', values)
-    trackEvent('save_mcp_server', { type: values.transport.type, name: values.name })
-    return props.onSave(getConfigFromFormValues(values))
+    try {
+      trackEvent('save_mcp_server', { type: values.transport.type })
+      return props.onSave(getConfigFromFormValues(values))
+    } catch (error) {
+      setTestingResult({ config: props.config, error: error as Error, tools: [] })
+    }
+  }
+
+  const handleToolEnabledChange = (name: string, enabled: boolean) => {
+    const disabledTools = new Set(form.getValues().disabledTools ?? [])
+    if (enabled) disabledTools.delete(name)
+    else disabledTools.add(name)
+    form.setFieldValue('disabledTools', [...disabledTools])
   }
 
   return (
     <form ref={formRef} onSubmit={form.onSubmit(handleSubmit)}>
       <Stack gap="md">
         <TextInput label={t('Name')} data-autofocus required {...form.getInputProps('name')} />
-        <Radio.Group
+        <PasswordInput
+          label="URL"
           required
-          label={t('Type')}
-          {...form.getInputProps('transport.type')}
-          labelProps={{ fw: 600, mb: 'xs' }}
-        >
-          <Group>
-            <Radio variant="outline" size="sm" value="http" label={t('Remote (http/sse)')} />
-            <Radio variant="outline" size="sm" value="stdio" label={t('Local (stdio)')} />
-          </Group>
-        </Radio.Group>
-        {form.values.transport.type === 'stdio' && (
-          <>
-            <Textarea
-              label={t('Command')}
-              placeholder="npx mcp-server arg1 arg2..."
-              required
-              autosize
-              minRows={1}
-              {...form.getInputProps('transport.command')}
-            />
-            <Textarea
-              label={t('Environment Variables')}
-              placeholder="KEY=VALUE"
-              autosize
-              minRows={3}
-              {...form.getInputProps('transport.env')}
-            />
-          </>
-        )}
-        {form.values.transport.type === 'http' && (
-          <>
-            <TextInput label="URL" required placeholder="https://..." {...form.getInputProps('transport.url')} />
-            <Textarea
-              label="HTTP Header"
-              placeholder="NAME=VALUE"
-              autosize
-              minRows={3}
-              {...form.getInputProps('transport.headers')}
-            />
-          </>
-        )}
+          placeholder="https://..."
+          visibilityToggleButtonProps={{ 'aria-label': t('Show') }}
+          {...form.getInputProps('transport.url')}
+        />
+        <Textarea
+          label="HTTP Header"
+          placeholder="NAME=VALUE"
+          autosize
+          minRows={3}
+          rightSection={
+            <ActionIcon
+              variant="subtle"
+              aria-label={showHeaders ? t('Hide') : t('Show')}
+              onClick={() => setShowHeaders((visible) => !visible)}
+            >
+              {showHeaders ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+            </ActionIcon>
+          }
+          styles={{
+            input: {
+              WebkitTextSecurity: showHeaders ? 'none' : 'disc',
+            } as CSSProperties,
+          }}
+          {...form.getInputProps('transport.headers')}
+        />
         <Group justify="space-between">
           {props.mode === 'edit' ? (
             <Anchor c="chatbox-error" onClick={() => props.onDelete(props.config.id)}>
@@ -180,7 +195,13 @@ const ConfigForm: FC<{
             )}
           </Group>
         </Group>
-        {testingResult && <TestingResult result={testingResult} />}
+        {testingResult && (
+          <TestingResult
+            result={testingResult}
+            disabledTools={form.values.disabledTools ?? []}
+            onToolEnabledChange={handleToolEnabledChange}
+          />
+        )}
       </Stack>
     </form>
   )

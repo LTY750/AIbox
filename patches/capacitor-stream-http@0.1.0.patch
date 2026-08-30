@@ -563,7 +563,7 @@ new file mode 100644
 index 0000000..2b3618d
 --- /dev/null
 +++ b/android/src/main/java/com/chatbox/plugins/streamhttp/StreamHttpStreamManager.java
-@@ -0,0 +1,784 @@
+@@ -0,0 +1,786 @@
 +package com.chatbox.plugins.streamhttp;
 +
 +import com.getcapacitor.JSArray;
@@ -1033,6 +1033,8 @@ index 0000000..2b3618d
 +        // Streaming responses may legitimately pause for more than 30 seconds.
 +        connection.setReadTimeout(0);
 +        connection.setDoInput(true);
++        // MCP credentials must never follow a redirect to another endpoint.
++        connection.setInstanceFollowRedirects(false);
 +
 +        for (Map.Entry<String, String> header : request.headers.entrySet()) {
 +            String name = header.getKey();

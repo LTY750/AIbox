@@ -31,7 +31,7 @@ vi.mock('@/variables', () => ({
 }))
 vi.mock('../platform', () => ({ default: { getVersion: vi.fn(async () => '1.0.0'), type: 'mobile' } }))
 
-describe('Sentry consent and replay policy', () => {
+describe('local diagnostic initialization policy', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
@@ -46,18 +46,13 @@ describe('Sentry consent and replay policy', () => {
     expect(sentryInitMock).not.toHaveBeenCalled()
   })
 
-  it('keeps session replay disabled after the user has consented', async () => {
+  it('never initializes the remote Sentry SDK even when reporting is enabled', async () => {
     initSettingsStoreMock.mockResolvedValue({ allowReportingAndTracking: true })
     getSettingsMock.mockReturnValue({ allowReportingAndTracking: true })
     const { initSentry } = await import('./sentry_init')
 
-    await expect(initSentry()).resolves.toBe(true)
-    expect(sentryInitMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sendDefaultPii: false,
-        replaysSessionSampleRate: 0,
-        replaysOnErrorSampleRate: 0,
-      })
-    )
+    await expect(initSentry()).resolves.toBe(false)
+    expect(sentryInitMock).not.toHaveBeenCalled()
+    expect(sentryCloseMock).not.toHaveBeenCalled()
   })
 })

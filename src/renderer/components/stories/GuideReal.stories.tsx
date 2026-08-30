@@ -295,18 +295,18 @@ function toolPart(toolName: GuideToolName, toolCallId: string, result?: Record<s
 const userMessage: GuideUIMessage = {
   id: 'guide-user-message',
   role: 'user',
-  content: 'I am new to AI tools. Please help me set up Chatbox.',
-  parts: [{ type: 'text', text: 'I am new to AI tools. Please help me set up Chatbox.' }],
+  content: 'I am new to AI tools. Please help me set up AIbox Mobile.',
+  parts: [{ type: 'text', text: 'I am new to AI tools. Please help me set up AIbox Mobile.' }],
 }
 
 const assistantGreetingMessage: GuideUIMessage = {
   id: 'guide-assistant-greeting',
   role: 'assistant',
-  content: 'Welcome to Chatbox. First, tell me about your AI experience.',
+  content: 'Welcome to AIbox Mobile. First, tell me about your AI experience.',
   parts: [
     {
       type: 'text',
-      text: 'Welcome to Chatbox. First, tell me about your AI experience.',
+      text: 'Welcome to AIbox Mobile. First, tell me about your AI experience.',
     },
     toolPart('show_user_type_cards', 'guide-user-type-cards'),
     toolPart('show_suggested_questions', 'guide-suggested-questions'),

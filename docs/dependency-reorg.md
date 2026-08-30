@@ -38,5 +38,5 @@
 
 ## 后续操作
 
-- 运行 `npm install` 以更新本地安装目录和锁文件。
-- 如需验证，可执行 `npm run build`/`npm start` 确认依赖拆分未影响构建与运行。
+- 运行 `pnpm install --frozen-lockfile` 以按仓库锁文件安装依赖。
+- 如需验证，可执行 `pnpm run build`/`pnpm start` 确认依赖拆分未影响构建与运行。

@@ -172,7 +172,7 @@ export function SettingsRoot() {
                 c={item.key === key ? 'chatbox-brand' : 'chatbox-secondary'}
                 bg={item.key === key ? 'var(--chatbox-background-brand-secondary)' : 'transparent'}
                 className={clsx(
-                  ' cursor-pointer select-none rounded-lg',
+                  'settings-nav-item cursor-pointer select-none rounded-lg',
                   item.key === key ? '' : 'hover:!bg-chatbox-background-gray-secondary'
                 )}
               >
@@ -228,7 +228,7 @@ export function SettingsRoot() {
         </Stack>
       )}
       {!(isSmallScreen && routerState.location.pathname === '/settings') && (
-        <Box flex="1 1 80%" className="overflow-auto">
+        <Box key={routerState.location.pathname} flex="1 1 80%" className="settings-route-content overflow-auto">
           <Outlet />
         </Box>
       )}

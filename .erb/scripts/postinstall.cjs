@@ -2,12 +2,13 @@
  * Root postinstall script.
  * 
  * NOTE: We intentionally do NOT run electron-builder install-app-deps here.
- * With pnpm workspaces, electron-builder install-app-deps corrupts the shared
- * node_modules by running pnpm install --production in release/app.
+ * Development dependencies are managed by the workspace install; the
+ * electron-builder beforePack hook stages the production app tree separately.
  * 
- * Native module rebuilding is handled by:
- * 1. release/app/postinstall runs electron-rebuild for native deps in release/app
- * 2. The build process handles the rest
+ * Native dependencies are checked through release/app's rebuild script and by
+ * electron-builder after the beforePack hook stages production dependencies.
+ * The rebuild script intentionally omits --force so matching modules are left
+ * untouched during routine workspace installs.
  */
 const { execSync } = require('child_process')
 const fs = require('fs')

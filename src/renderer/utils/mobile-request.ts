@@ -73,9 +73,11 @@ function isLockedStreamCancelError(error: unknown): boolean {
 }
 
 function isStreamingRequest(url: string, method: string, headers: Headers, body?: RequestInit['body']): boolean {
-  if (method.toUpperCase() !== 'POST') return false
-
-  if (headers.get('accept')?.toLowerCase().includes('text/event-stream')) return true
+  const normalizedMethod = method.toUpperCase()
+  if (headers.get('accept')?.toLowerCase().includes('text/event-stream')) {
+    return normalizedMethod === 'GET' || normalizedMethod === 'POST'
+  }
+  if (normalizedMethod !== 'POST') return false
 
   try {
     const parsedUrl = new URL(url)
@@ -125,7 +127,9 @@ export async function handleMobileRequest(
   headers: Headers,
   body?: RequestInit['body'],
   signal?: AbortSignal,
-  responseType?: MobileResponseType
+  responseType?: MobileResponseType,
+  waitForStreamMetadata = false,
+  disableRedirects = false
 ): Promise<Response> {
   // Fix: Convert Headers to plain object without using .entries()
   const headerObj: Record<string, string> = {}
@@ -146,6 +150,7 @@ export async function handleMobileRequest(
       headers: streamHeaders,
       body: body as string,
     })
+    const nativeStream = getNativeStreamHandle(stream)
 
     // Handle abort signal for stream cancellation.
     if (signal) {
@@ -156,15 +161,30 @@ export async function handleMobileRequest(
       else signal.addEventListener('abort', onAbort, { once: true })
     }
 
+    let status = 200
+    let responseHeaders: HeadersInit = {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+    }
+    if (waitForStreamMetadata && nativeStream) {
+      let state = await nativeStream.ready
+      const deadline = Date.now() + 15_000
+      while (state.status === undefined && (state.state === 'pending' || state.state === 'running')) {
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+        if (Date.now() >= deadline) break
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        state = await nativeStream.getState()
+      }
+      if (state.status && state.status >= 100 && state.status <= 599) status = state.status
+      if (state.headers && Object.keys(state.headers).length > 0) responseHeaders = state.headers
+    }
+
     // HTTP failures are emitted by the durable native stream with their status
     // and response body. Do not fall back to a one-shot WebView/native request:
     // that would lose the foreground-service ownership required in background.
     return new Response(stream, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-      },
+      status,
+      headers: responseHeaders,
     })
   }
 
@@ -185,6 +205,7 @@ export async function handleMobileRequest(
     data: requestData,
     dataType,
     responseType: responseType || 'text',
+    ...(disableRedirects ? { disableRedirects: true } : {}),
   })
 
   const isBinaryResponse = responseType === 'arraybuffer' || responseType === 'blob'

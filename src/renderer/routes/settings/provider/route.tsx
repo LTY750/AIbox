@@ -147,7 +147,7 @@ export function RouteComponent() {
         <ProviderList providers={providers} onAddProvider={handleOpenSpotlight} />
       )}
       {!(isSmallScreen && routerState.location.pathname === '/settings/provider') && (
-        <Box flex="1 1 75%" p="md" className="overflow-auto">
+        <Box key={routerState.location.pathname} flex="1 1 75%" p="md" className="settings-route-content overflow-auto">
           <Outlet />
         </Box>
       )}

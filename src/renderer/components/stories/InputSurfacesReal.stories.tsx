@@ -488,13 +488,11 @@ function SeedInputSettings() {
         servers: [
           {
             id: 'storybook-mcp',
-            name: 'Local filesystem',
+            name: 'Remote filesystem',
             enabled: true,
             transport: {
-              type: 'stdio',
-              command: 'npx',
-              args: ['-y', '@modelcontextprotocol/server-filesystem'],
-              env: {},
+              type: 'http',
+              url: 'https://mcp.example.com/filesystem',
             },
           },
         ],

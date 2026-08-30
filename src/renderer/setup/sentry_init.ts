@@ -1,83 +1,13 @@
-import * as Sentry from '@sentry/react'
-import { createSentryEventProcessor } from '@shared/utils/sentry_policy'
-import { initSettingsStore, settingsStore } from '@/stores/settingsStore'
-import { CHATBOX_BUILD_PLATFORM, CHATBOX_BUILD_TARGET, NODE_ENV } from '@/variables'
-import platform from '../platform'
+import { initSettingsStore } from '@/stores/settingsStore'
 
-const processSentryEvent = createSentryEventProcessor({
-  normalSampleRate: 0.1,
-  source: 'renderer',
-})
-
-let sentryInitPromise: Promise<boolean> | undefined
-
-async function initializeSentry(): Promise<boolean> {
-  try {
-    const settings = await initSettingsStore()
-    if (!settings.allowReportingAndTracking) {
-      return false
-    }
-
-    const version = await platform.getVersion().catch(() => 'unknown')
-    if (!settingsStore.getState().allowReportingAndTracking) {
-      return false
-    }
-    Sentry.init({
-      dsn: 'https://eca691c5e01ebfa05958fca1fcb487a9@sentry.midway.run/697',
-      environment: NODE_ENV,
-      // Do not let the SDK attach IP addresses, cookies, or other default PII.
-      // The event processor below remains a second redaction boundary.
-      sendDefaultPii: false,
-      sampleRate: 1.0,
-      tracesSampleRate: 0.1,
-      // Session Replay is disabled until a separately reviewed, explicit
-      // consent flow exists. Error events remain subject to beforeSend policy.
-      replaysSessionSampleRate: 0,
-      replaysOnErrorSampleRate: 0,
-      release: version,
-      initialScope: {
-        tags: {
-          platform: platform.type,
-          app_version: version,
-          build_target: CHATBOX_BUILD_TARGET,
-          build_platform: CHATBOX_BUILD_PLATFORM,
-          error_source: 'renderer',
-        },
-      },
-      beforeBreadcrumb(breadcrumb) {
-        // Console output is already persisted in local app logs and can contain user data.
-        return breadcrumb.category === 'console' ? null : breadcrumb
-      },
-      beforeSend(event, hint) {
-        if (!settingsStore.getState().allowReportingAndTracking) {
-          return null
-        }
-        return processSentryEvent(event, hint)
-      },
-    })
-    return true
-  } catch (e) {
-    console.error('Failed to initialize Sentry:', e)
-    return false
-  }
+/**
+ * Historical entry point retained so startup imports remain backwards
+ * compatible. Error diagnostics are local-only; there is no remote DSN or SDK
+ * initialization in any build target.
+ */
+export async function initSentry(): Promise<boolean> {
+  await initSettingsStore()
+  return false
 }
 
-export function initSentry(): Promise<boolean> {
-  sentryInitPromise ??= initializeSentry()
-  return sentryInitPromise
-}
-
-settingsStore.subscribe((settings, previousSettings) => {
-  if (settings.allowReportingAndTracking === previousSettings.allowReportingAndTracking) {
-    return
-  }
-
-  sentryInitPromise = undefined
-  if (settings.allowReportingAndTracking) {
-    void initSentry()
-  } else {
-    void Sentry.close(2000)
-  }
-})
-
-export default Sentry
+export default undefined

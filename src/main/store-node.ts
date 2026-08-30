@@ -1,4 +1,4 @@
-import { app, powerMonitor } from 'electron'
+import { app, powerMonitor, safeStorage } from 'electron'
 import Store from 'electron-store'
 import * as fs from 'fs-extra'
 import path from 'path'
@@ -35,12 +35,217 @@ interface StoreType {
   configVersion: number
   settings: Settings
   configs: Config
+  secureSettings?: string
   lastShownAboutDialogVersion: string // 上次启动时自动弹出关于对话框的应用版本
 }
 export const store = new Store<StoreType>({
   clearInvalidConfig: true, // 当配置JSON不合法时，清空配置
 })
 logger.info('init store, config path:', store.path)
+
+const SECURE_SETTINGS_STORE_KEY = 'secureSettings'
+const BLOCKED_SETTINGS_PATH_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype'])
+const SENSITIVE_SETTINGS_FIELDS = new Set([
+  'apikey',
+  'accesskey',
+  'secretkey',
+  'sessiontoken',
+  'accesstoken',
+  'refreshtoken',
+  'apitoken',
+  'secretcode',
+  'licensekey',
+  'licenseinstances',
+  'lastselectedlicensebyuser',
+  'vibedroppublishkey',
+  'authorization',
+])
+
+interface SensitiveSettingEntry {
+  path: string[]
+  value: unknown
+}
+
+interface EncryptedSettingsPayload {
+  version: 1
+  entries: SensitiveSettingEntry[]
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isContainer(value: unknown): value is Record<string, unknown> | unknown[] {
+  return Array.isArray(value) || isRecord(value)
+}
+
+function isArrayIndex(segment: string | undefined): boolean {
+  return segment !== undefined && /^(0|[1-9]\d*)$/.test(segment)
+}
+
+function isSensitiveSettingsField(key: string, path: string[]): boolean {
+  const normalized = key.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replaceAll('-', '').toLowerCase()
+  if (SENSITIVE_SETTINGS_FIELDS.has(normalized)) return true
+  return (
+    path[0] === 'mcp' &&
+    path[1] === 'servers' &&
+    path.at(-1) === 'transport' &&
+    (key === 'url' || key === 'headers')
+  )
+}
+
+function splitSensitiveSettings(value: unknown, path: string[] = [], entries: SensitiveSettingEntry[] = []): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item, index) => splitSensitiveSettings(item, [...path, String(index)], entries))
+  }
+  if (!isRecord(value)) return value
+
+  const sanitized = Object.create(null) as Record<string, unknown>
+  for (const [key, child] of Object.entries(value)) {
+    if (isSensitiveSettingsField(key, path)) {
+      entries.push({ path: [...path, key], value: structuredClone(child) })
+      continue
+    }
+    sanitized[key] = splitSensitiveSettings(child, [...path, key], entries)
+  }
+  return sanitized
+}
+
+function setSafeSettingsPath(target: Record<string, unknown>, path: string[], value: unknown): void {
+  if (path.length === 0 || path.some((segment) => BLOCKED_SETTINGS_PATH_SEGMENTS.has(segment))) return
+  let cursor: Record<string, unknown> | unknown[] = target
+  for (let index = 0; index < path.length - 1; index += 1) {
+    const segment = path[index]
+    const cursorRecord = cursor as Record<string, unknown>
+    const child = Object.hasOwn(cursorRecord, segment) ? cursorRecord[segment] : undefined
+    if (!isContainer(child)) {
+      const next = (isArrayIndex(path[index + 1]) ? [] : Object.create(null)) as Record<string, unknown> | unknown[]
+      Object.defineProperty(cursorRecord, segment, {
+        configurable: true,
+        enumerable: true,
+        value: next,
+        writable: true,
+      })
+      cursor = next
+    } else {
+      cursor = child
+    }
+  }
+  const leaf = path[path.length - 1]
+  if (leaf && !BLOCKED_SETTINGS_PATH_SEGMENTS.has(leaf)) {
+    Object.defineProperty(cursor as Record<string, unknown>, leaf, {
+      configurable: true,
+      enumerable: true,
+      value,
+      writable: true,
+    })
+  }
+}
+
+function isSafeStorageAvailable(): boolean {
+  try {
+    return app.isReady() && safeStorage.isEncryptionAvailable()
+  } catch {
+    return false
+  }
+}
+
+function encryptSettingsEntries(entries: SensitiveSettingEntry[]): string | undefined {
+  if (entries.length === 0) return undefined
+  if (!isSafeStorageAvailable()) {
+    throw new Error('Electron secure storage is unavailable; settings were not saved.')
+  }
+  const payload: EncryptedSettingsPayload = { version: 1, entries }
+  return safeStorage.encryptString(JSON.stringify(payload)).toString('base64')
+}
+
+function decryptSettingsEntries(encoded: string): SensitiveSettingEntry[] {
+  if (!isSafeStorageAvailable()) {
+    throw new Error('Electron secure storage is unavailable; settings cannot be read.')
+  }
+  const payload = JSON.parse(
+    safeStorage.decryptString(Buffer.from(encoded, 'base64'))
+  ) as Partial<EncryptedSettingsPayload>
+  if (payload.version !== 1 || !Array.isArray(payload.entries)) {
+    throw new Error('Encrypted settings payload is invalid.')
+  }
+  return payload.entries.filter(
+    (entry): entry is SensitiveSettingEntry =>
+      isRecord(entry) &&
+      Array.isArray(entry.path) &&
+      entry.path.every((segment) => typeof segment === 'string') &&
+      !entry.path.some((segment) => BLOCKED_SETTINGS_PATH_SEGMENTS.has(segment))
+  )
+}
+
+function restoreSensitiveSettings(settings: unknown, entries: SensitiveSettingEntry[]): unknown {
+  if (!isRecord(settings)) return settings
+  const restored = structuredClone(settings) as Record<string, unknown>
+  for (const entry of entries) setSafeSettingsPath(restored, entry.path, structuredClone(entry.value))
+  return restored
+}
+
+export function setStoreValue(key: string, value: unknown): void {
+  if (key !== 'settings') {
+    store.set(key, value)
+    return
+  }
+
+  const entries: SensitiveSettingEntry[] = []
+  const sanitized = splitSensitiveSettings(value, [], entries)
+  const encrypted = encryptSettingsEntries(entries)
+  store.set(key, sanitized)
+  if (encrypted) store.set(SECURE_SETTINGS_STORE_KEY, encrypted)
+  else store.delete(SECURE_SETTINGS_STORE_KEY)
+}
+
+export function getStoreValue(key: string): unknown {
+  const value = store.get(key)
+  if (key !== 'settings' || !isRecord(value)) return value
+
+  const encrypted = store.get(SECURE_SETTINGS_STORE_KEY)
+  if (typeof encrypted === 'string' && encrypted) {
+    return restoreSensitiveSettings(value, decryptSettingsEntries(encrypted))
+  }
+
+  // Migrate settings written by pre-safeStorage versions as soon as the
+  // Electron keychain is available. Do not create new plaintext settings.
+  const entries: SensitiveSettingEntry[] = []
+  const sanitized = splitSensitiveSettings(value, [], entries)
+  if (entries.length > 0 && isSafeStorageAvailable()) {
+    setStoreValue(key, value)
+    return restoreSensitiveSettings(sanitized, entries)
+  }
+  if (entries.length > 0 && app.isReady()) {
+    throw new Error('Electron secure storage is unavailable; settings cannot be read.')
+  }
+  return value
+}
+
+export function deleteStoreValue(key: string): void {
+  store.delete(key as keyof StoreType)
+  if (key === 'settings') store.delete(SECURE_SETTINGS_STORE_KEY)
+}
+
+export function getAllStoreValues(): Record<string, unknown> {
+  const values = Object.create(null) as Record<string, unknown>
+  for (const [key, value] of Object.entries(store.store)) {
+    if (key === SECURE_SETTINGS_STORE_KEY) continue
+    values[key] = key === 'settings' ? splitSensitiveSettings(value) : value
+  }
+  return values
+}
+
+export function getAllStoreKeys(): string[] {
+  return Object.keys(store.store).filter((key) => key !== SECURE_SETTINGS_STORE_KEY)
+}
+
+export function setAllStoreValues(values: Record<string, unknown>): void {
+  for (const [key, value] of Object.entries(values)) {
+    if (key === SECURE_SETTINGS_STORE_KEY) continue
+    setStoreValue(key, value)
+  }
+}
 
 // 3) 启动自动备份，每10分钟备份一次，并自动清理多余的备份文件
 autoBackup()
@@ -67,8 +272,7 @@ async function autoBackup() {
 }
 
 export function getSettings(): Settings {
-  const settings = store.get<'settings'>('settings', defaults.settings())
-  return settings
+  return (getStoreValue('settings') as Settings | undefined) ?? defaults.settings()
 }
 
 export function getConfig(): Config {

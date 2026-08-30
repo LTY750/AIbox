@@ -1,5 +1,6 @@
 import { v4 as uuid } from 'uuid'
 import { z } from 'zod'
+import { normalizeMcpHeaders, validateRemoteMcpUrl } from '@/packages/mcp/security'
 import type { MCPServerConfig } from '@/packages/mcp/types'
 
 const envUtils = {
@@ -24,182 +25,111 @@ const envUtils = {
   },
 }
 
-export type MCPServerConfigFormValues = MCPServerConfig<
-  | {
-      type: 'stdio'
-      command: string
-      env?: string
-    }
-  | {
-      type: 'http'
-      url: string
-      headers?: string
-    }
->
-
-// MCP stdio transports spawn argv directly, so only parse argument boundaries and quotes without shell expansion.
-function parseCommandLine(commandLine: string): string[] {
-  const args: string[] = []
-  let current = ''
-  let quote: "'" | '"' | undefined
-  let tokenStarted = false
-
-  for (let index = 0; index < commandLine.length; index++) {
-    const char = commandLine[index]
-    const next = commandLine[index + 1]
-
-    if (quote === "'") {
-      if (char === quote) {
-        quote = undefined
-      } else {
-        current += char
-      }
-      tokenStarted = true
-      continue
-    }
-
-    if (quote === '"') {
-      if (char === quote) {
-        quote = undefined
-      } else if (char === '\\' && (next === '\\' || next === '"')) {
-        current += next
-        index++
-      } else {
-        current += char
-      }
-      tokenStarted = true
-      continue
-    }
-
-    if (char === "'" || char === '"') {
-      quote = char
-      tokenStarted = true
-    } else if (char === '\\' && next && (/\s/.test(next) || next === '\\' || next === "'" || next === '"')) {
-      current += next
-      tokenStarted = true
-      index++
-    } else if (/\s/.test(char)) {
-      if (tokenStarted) {
-        args.push(current)
-        current = ''
-        tokenStarted = false
-      }
-    } else {
-      current += char
-      tokenStarted = true
-    }
-  }
-
-  if (tokenStarted) {
-    args.push(current)
-  }
-  return args
-}
-
-function quoteCommandArg(arg: string): string {
-  if (/^[\w@%+=:,./-]+$/.test(arg)) {
-    return arg
-  }
-  return `'${arg.replace(/'/g, String.raw`'\''`)}'`
-}
+export type MCPServerConfigFormValues = MCPServerConfig<{
+  type: 'http'
+  url: string
+  headers?: string
+}>
 
 export function getConfigFromFormValues(values: MCPServerConfigFormValues): MCPServerConfig {
-  let transport: MCPServerConfig['transport']
-  if (values.transport.type === 'stdio') {
-    const [command, ...args] = parseCommandLine(values.transport.command)
-    transport = {
-      type: 'stdio',
-      command,
-      args,
-      env: values.transport.env ? envUtils.parse(values.transport.env) : undefined,
-    }
-  } else {
-    transport = {
-      type: values.transport.type,
-      url: values.transport.url,
-      headers: values.transport.headers ? envUtils.parse(values.transport.headers) : undefined,
-    }
-  }
   return {
     id: values.id,
     name: values.name,
     enabled: values.enabled,
-    transport,
+    disabledTools: values.disabledTools ?? [],
+    transport: {
+      type: 'http',
+      url: validateRemoteMcpUrl(values.transport.url),
+      headers: normalizeMcpHeaders(values.transport.headers ? envUtils.parse(values.transport.headers) : undefined),
+    },
   }
 }
 
 export function getFormValuesFromConfig(config: MCPServerConfig): MCPServerConfigFormValues {
-  let transport: MCPServerConfigFormValues['transport']
-  if (config.transport.type === 'stdio') {
-    transport = {
-      type: 'stdio',
-      command: [config.transport.command, ...config.transport.args].map(quoteCommandArg).join(' '),
-      env: config.transport.env ? envUtils.stringify(config.transport.env) : undefined,
-    }
-  } else {
-    transport = {
-      type: config.transport.type,
-      url: config.transport.url,
-      headers: config.transport.headers ? envUtils.stringify(config.transport.headers) : undefined,
-    }
+  if (config.transport.type !== 'http') {
+    throw new Error('Only remote HTTPS MCP servers are supported.')
   }
   return {
     id: config.id,
     name: config.name,
     enabled: config.enabled,
-    transport,
+    disabledTools: config.disabledTools ?? [],
+    transport: {
+      type: 'http',
+      url: config.transport.url,
+      headers: config.transport.headers ? envUtils.stringify(config.transport.headers) : undefined,
+    },
   }
 }
 
-const serverConfigSchema = z.union([
-  z
-    .object({
-      command: z.string(),
-      args: z.array(z.string()),
-      env: z.record(z.string(), z.string()).optional(),
-      name: z.string().optional(),
-    })
-    .transform((data) => ({ ...data, type: 'stdio' as const })),
-  z
-    .object({
-      url: z.string(),
-      headers: z.record(z.string(), z.string()).optional(),
-      name: z.string().optional(),
-    })
-    .transform((data) => ({ ...data, type: 'http' as const })),
-])
+type ParsedMcpServer = { type: 'http'; url: string; headers?: Record<string, string>; name?: string }
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined
+}
+
+function parseMcpServer(value: unknown): ParsedMcpServer {
+  const record = asRecord(value)
+  if (!record) throw new Error('MCP server entry must be an object.')
+
+  // ModelScope and other registries may wrap the transport as
+  // { transport: { type: 'sse', url, headers } }.
+  const nestedTransport = asRecord(record.transport)
+  const source = nestedTransport ? { ...record, ...nestedTransport } : record
+  const name = typeof source.name === 'string' ? source.name : undefined
+
+  if (typeof source.url === 'string') {
+    const headers = source.headers === undefined ? undefined : z.record(z.string(), z.string()).parse(source.headers)
+    return { type: 'http', url: source.url, headers, name }
+  }
+
+  throw new Error('MCP server entry needs a remote URL.')
+}
+
+function createConfig(parsed: ParsedMcpServer, nameOverride?: string): MCPServerConfig {
+  const name = parsed.name ?? nameOverride ?? ''
+  return {
+    id: uuid(),
+    name,
+    enabled: false,
+    disabledTools: [],
+    transport: { type: 'http', url: validateRemoteMcpUrl(parsed.url), headers: normalizeMcpHeaders(parsed.headers) },
+  }
+}
 
 export function parseServerFromJson(text: string): MCPServerConfig | undefined {
   const json = JSON.parse(text)
-  const parsed = serverConfigSchema.parse(json)
-  return {
-    id: uuid(),
-    name: parsed.name ?? '',
-    enabled: true,
-    transport: parsed,
+  const record = asRecord(json)
+  const registry = asRecord(record?.mcpServers)
+  if (registry) {
+    const entries = Object.entries(registry)
+    if (entries.length !== 1) throw new Error('Provide exactly one MCP server entry.')
+    const [name, value] = entries[0]
+    return { ...createConfig(parseMcpServer(value), name), enabled: false }
   }
+  return { ...createConfig(parseMcpServer(json)), enabled: false }
 }
 
 export function parseServersFromJson(text: string): MCPServerConfig[] {
   try {
     const json = JSON.parse(text)
+    const record = asRecord(json)
+    const registry = asRecord(record?.mcpServers)
+    if (!registry) {
+      const server = parseServerFromJson(text)
+      return server ? [server] : []
+    }
     const servers: MCPServerConfig[] = []
-    for (const [key, value] of Object.entries(json.mcpServers)) {
+    for (const [key, value] of Object.entries(registry)) {
       try {
-        const parsed = serverConfigSchema.parse(value)
-        servers.push({
-          id: uuid(),
-          name: parsed.name ?? key,
-          enabled: false,
-          transport: parsed,
-        })
-      } catch (err) {
-        console.error(err)
+        servers.push(createConfig(parseMcpServer(value), key))
+      } catch {
+        // Invalid entries are skipped; the settings screen reports an empty
+        // result without echoing untrusted clipboard contents into logs.
       }
     }
     return servers
-  } catch (err) {
-    console.error(err)
+  } catch {
     return []
   }
 }

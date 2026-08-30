@@ -475,19 +475,17 @@ export function RouteComponent() {
 
       <Divider />
 
-      {/* Error Reporting */}
+      {/* Local diagnostics and optional product analytics */}
       <Stack gap="md">
         <Stack gap="xxs">
-          <Title order={5}>{t('Error Reporting')}</Title>
+          <Title order={5}>{t('Diagnostic Logs')}</Title>
           <Text c="chatbox-tertiary">
-            {t(
-              'Chatbox respects your privacy and only uploads anonymous error data and events when necessary. You can change your preferences at any time in the settings.'
-            )}
+            {t('Error diagnostics are stored only on this device and are never uploaded to Chatbox.')}
           </Text>
         </Stack>
 
         <Checkbox
-          label={t('Enable optional anonymous reporting of crash and event data')}
+          label={t('Enable optional anonymous usage analytics')}
           checked={settings.allowReportingAndTracking}
           onChange={(e) => setSettings({ allowReportingAndTracking: e.target.checked })}
         />
@@ -1019,7 +1017,7 @@ const ExportLogsSection = () => {
 
       const date = new Date()
       const dateStr = dayjs(date).format('YYYY-M-D_H-m')
-      await platform.exporter.exportTextFile(`chatbox-logs-${dateStr}.txt`, logs)
+      await platform.exporter.exportTextFile(`aibox-logs-${dateStr}.txt`, logs)
       setExportResult({ success: true })
     } catch (error) {
       console.error('Failed to export logs:', error)

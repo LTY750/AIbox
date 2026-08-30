@@ -9,6 +9,9 @@ const mockDatabase = vi.hoisted(() => ({
   run: vi.fn(),
   executeSet: vi.fn(),
   query: vi.fn(),
+  beginTransaction: vi.fn(),
+  commitTransaction: vi.fn(),
+  rollbackTransaction: vi.fn(),
   close: vi.fn(),
 }))
 
@@ -47,6 +50,9 @@ describe('SQLiteSessionMetaStorage', () => {
     mockDatabase.execute.mockResolvedValue({ changes: { changes: 0 } })
     mockDatabase.run.mockResolvedValue({ changes: { changes: 1 } })
     mockDatabase.executeSet.mockResolvedValue({ changes: { changes: 1 } })
+    mockDatabase.beginTransaction.mockResolvedValue({ changes: { changes: 0 } })
+    mockDatabase.commitTransaction.mockResolvedValue({ changes: { changes: 0 } })
+    mockDatabase.rollbackTransaction.mockResolvedValue({ changes: { changes: 0 } })
     mockDatabase.query.mockImplementation((statement: string) => {
       if (statement.trim().toLowerCase() === 'pragma user_version') {
         return Promise.resolve({ values: [{ user_version: 2 }] })
@@ -126,6 +132,7 @@ describe('SQLiteSessionMetaStorage', () => {
 
   it('getArchivedPage queries archived rows with limit and offset', async () => {
     const storage = new SQLiteSessionMetaStorage()
+    await storage.initialize()
     mockDatabase.query
       .mockResolvedValueOnce({
         values: [
@@ -155,6 +162,7 @@ describe('SQLiteSessionMetaStorage', () => {
 
   it('getArchivedTotal counts archived rows directly', async () => {
     const storage = new SQLiteSessionMetaStorage()
+    await storage.initialize()
     mockDatabase.query.mockResolvedValueOnce({ values: [{ total: 7 }] })
 
     await expect(storage.getArchivedTotal()).resolves.toBe(7)
@@ -166,6 +174,7 @@ describe('SQLiteSessionMetaStorage', () => {
 
   it('getAllTotal counts all rows directly', async () => {
     const storage = new SQLiteSessionMetaStorage()
+    await storage.initialize()
     mockDatabase.query.mockResolvedValueOnce({ values: [{ total: 9 }] })
 
     await expect(storage.getAllTotal()).resolves.toBe(9)

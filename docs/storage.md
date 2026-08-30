@@ -1,6 +1,6 @@
 # 存储架构文档
 
-Chatbox 跨平台存储方案和版本迁移机制说明。
+AIbox Mobile 跨平台存储方案和版本迁移机制说明。
 
 ## 跨平台存储方案
 
@@ -68,6 +68,14 @@ for (; configVersion < CurrentVersion; configVersion++) {
 | **Desktop** | 只复制会话数据 | Settings/Configs 保留在文件中 |
 
 ## 关键设计决策
+
+### Android 敏感设置
+
+Android 的普通 `settings` SQLite 快照只保存可备份的非敏感配置。Provider API key、Chatbox AI 许可证和登录 token、搜索服务 key、文档解析凭据，以及远程 MCP URL/header 会在写入前移除，并以 JSON 密钥环记录存入 Android Keystore 支持的 `SecureStorage` 插件。原生插件不可用时，凭据只保留在当前 WebView 进程的内存中，绝不会降级写入 SQLite、localStorage 或备份文件；进程退出后需要重新输入。
+
+读取单项设置时，应用在内存中恢复这些值；`getAllStoreValues()`、备份和导出路径不会恢复密钥，因此不会把凭据带入普通 SQLite 快照或备份文件。清除凭据会写入空密钥快照并删除 fallback，避免旧值在后续启动时复活。
+
+MCP 在所有平台都仅允许公开 HTTPS endpoint，不启动本地 stdio 进程。Android 连接请求通过原生 HTTP bridge，工具调用默认需要用户批准，工具参数和结果会在写入会话前做凭据检测和脱敏。
 
 ### 1. 同类型存储共享数据源
 
@@ -170,4 +178,3 @@ A: 增加 `CurrentVersion`，在 `migrateFunctions` 添加迁移函数，更新�
 ---
 
 **最后更新**: 2025-10-25 | **当前版本**: v1.17.0 (Config Version 13)
-

@@ -1,10 +1,11 @@
-import type { ModelInterface } from '../models/types'
 import { enrichModelFromRegistry } from '../model-registry/enrich'
+import type { ModelInterface } from '../models/types'
 import { mergeSharedOAuthProviderSettings, resolveEffectiveApiKey } from '../oauth'
-import type { Config, ProviderModelInfo, ProviderSettings, SessionSettings, Settings } from '../types'
+import type { Config, ProviderModelInfo, SessionSettings, Settings } from '../types'
 import type { ModelDependencies } from '../types/adapters'
 import { apiStyleFromProviderType } from './api-style'
 // Import order determines display order in UI (side-effect registration into Map).
+import './definitions/chatboxai'
 import './definitions/openai'
 import './definitions/openai-responses'
 import './definitions/gemini'
@@ -62,7 +63,6 @@ export function getBuiltinProviderIds(): string[] {
  * This is a helper function that extracts and formats provider-related settings.
  */
 export function getProviderSettings(setting: SessionSettings, globalSettings: Settings) {
-  console.debug('getProviderSettings', setting.provider, setting.modelId)
   const provider = setting.provider
   if (!provider) {
     throw new Error('Model provider must not be empty.')
@@ -147,19 +147,7 @@ export function getModel(
   config: Config,
   dependencies: ModelDependencies
 ): ModelInterface {
-  // Keep old sessions readable without ever constructing the removed Chatbox AI gateway.
-  const effectiveSettings =
-    settings.provider === 'chatbox-ai'
-      ? {
-          ...settings,
-          provider: 'openai',
-          modelId: settings.modelId?.startsWith('chatboxai') ? 'gpt-4o-mini' : settings.modelId || 'gpt-4o-mini',
-        }
-      : settings
-
-  console.debug('getModel (registry)', effectiveSettings.provider, effectiveSettings.modelId)
-
-  const provider = effectiveSettings.provider
+  const provider = settings.provider
   if (!provider) {
     throw new Error('Model provider must not be empty.')
   }
@@ -169,16 +157,13 @@ export function getModel(
 
   if (providerDefinition) {
     // Provider is registered - use the new registry-based approach
-    const { providerSetting, formattedApiHost, providerBaseInfo } = getProviderSettings(
-      effectiveSettings,
-      globalSettings
-    )
-    const model = withReasoningApiStyle(getModelConfig(effectiveSettings, globalSettings, provider), providerBaseInfo.type)
+    const { providerSetting, formattedApiHost, providerBaseInfo } = getProviderSettings(settings, globalSettings)
+    const model = withReasoningApiStyle(getModelConfig(settings, globalSettings, provider), providerBaseInfo.type)
     const formattedApiPath = providerSetting.apiPath || providerBaseInfo.defaultSettings?.apiPath || ''
     const effectiveApiKey = resolveEffectiveApiKey(providerSetting, dependencies.platformType || 'desktop')
 
     const createConfig: CreateModelConfig = {
-      settings: effectiveSettings,
+      settings,
       globalSettings,
       config,
       dependencies,
@@ -193,15 +178,15 @@ export function getModel(
   }
 
   // Provider not registered - check if it's a custom provider
-  const { providerSetting, formattedApiHost, providerBaseInfo } = getProviderSettings(effectiveSettings, globalSettings)
-  const model = withReasoningApiStyle(getModelConfig(effectiveSettings, globalSettings, provider), providerBaseInfo.type)
+  const { providerSetting, formattedApiHost, providerBaseInfo } = getProviderSettings(settings, globalSettings)
+  const model = withReasoningApiStyle(getModelConfig(settings, globalSettings, provider), providerBaseInfo.type)
 
   if (providerBaseInfo.isCustom) {
     const formattedApiPath = providerSetting.apiPath || providerBaseInfo.defaultSettings?.apiPath || ''
     const effectiveApiKey = resolveEffectiveApiKey(providerSetting, dependencies.platformType || 'desktop')
     return createCustomProviderModel(
       {
-        settings: effectiveSettings,
+        settings,
         globalSettings,
         config,
         dependencies,
@@ -216,5 +201,5 @@ export function getModel(
     )
   }
 
-  throw new Error(`Cannot find model with provider: ${effectiveSettings.provider}`)
+  throw new Error(`Cannot find model with provider: ${settings.provider}`)
 }

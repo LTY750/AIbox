@@ -1,7 +1,7 @@
-import * as Sentry from '@sentry/react'
 import type { Message, MessageFile, MessageLink } from '../../shared/types'
 import { TOKEN_CACHE_KEYS, type TokenCacheKey } from '../../shared/types/session'
 import { getMessageText, isEmptyMessage } from '../../shared/utils/message'
+import { getLogger } from '@/lib/utils'
 import {
   buildAttachmentWrapperPrefix,
   buildAttachmentWrapperSuffix,
@@ -16,6 +16,8 @@ import {
 } from './token-estimation/tokenizer'
 
 export { estimateDeepSeekTokens, estimateTokens, getTokenizerType, isDeepSeekModel, type TokenModel }
+
+const log = getLogger('token')
 
 export function getTokenCacheKey(model?: TokenModel): TokenCacheKey {
   if (isDeepSeekModel(model)) {
@@ -90,7 +92,7 @@ export function estimateTokensFromMessages(
     // ret += 3 // every reply is primed with <|start|>assistant<|message|>
     return ret
   } catch (e) {
-    Sentry.captureException(e)
+    log.error('token estimation failed', e)
     return 0
   }
 }
@@ -311,7 +313,7 @@ export function estimateTokensFromMessagesForSendPayload(
 
     return total
   } catch (e) {
-    Sentry.captureException(e)
+    log.error('token estimation failed', e)
     return 0
   }
 }

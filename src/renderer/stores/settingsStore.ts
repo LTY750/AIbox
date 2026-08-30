@@ -12,6 +12,7 @@ import { immer } from 'zustand/middleware/immer'
 import { getLogger } from '@/lib/utils'
 import platform from '@/platform'
 import storage from '@/storage'
+import { CHATBOX_BUILD_TARGET } from '@/variables'
 import { mergeProviderSettings, type ProviderSettingsUpdate } from './providerSettings'
 
 const log = getLogger('settings-store')
@@ -22,7 +23,9 @@ const log = getLogger('settings-store')
  * - Mobile/Web: 'llamaparse' (local-first parsing with LlamaParse fallback)
  */
 export function getPlatformDefaultDocumentParser(): DocumentParserConfig {
-  return platform.type === 'desktop' ? { type: 'llamaparse' } : { type: 'llamaparse' }
+  const isDesktop =
+    CHATBOX_BUILD_TARGET !== 'mobile_app' && typeof window !== 'undefined' && Boolean(window.electronAPI)
+  return isDesktop ? { type: 'local' } : { type: 'llamaparse' }
 }
 
 type Action = {
@@ -30,15 +33,26 @@ type Action = {
   getSettings: () => Settings
 }
 
+function createPlatformDefaultSettings(): Settings {
+  const settings = defaults.settings()
+  settings.extension.documentParser = getPlatformDefaultDocumentParser()
+  return SettingsSchema.parse(settings)
+}
+
 function mergeWithDefaultSettings(persisted: unknown): Settings {
   const persistedSettings =
     persisted && typeof persisted === 'object' && !Array.isArray(persisted) ? (persisted as Partial<Settings>) : {}
-  const mergedSettings = deepmerge<Settings, Partial<Settings>>(defaults.settings(), persistedSettings, {
+  const mergedSettings = deepmerge<Settings, Partial<Settings>>(createPlatformDefaultSettings(), persistedSettings, {
     arrayMerge: (_target, source) => source,
   })
   normalizeRemovedChatboxFeatures(mergedSettings)
+  if (platform.type === 'mobile') {
+    mergedSettings.allowReportingAndTracking = false
+  }
   const parsedSettings = SettingsSchema.safeParse(mergedSettings)
-  return parsedSettings.success ? parsedSettings.data : mergedSettings
+  if (parsedSettings.success) return parsedSettings.data
+  log.warn('Persisted settings failed schema validation; using platform defaults.')
+  return createPlatformDefaultSettings()
 }
 
 function normalizeRemovedChatboxFeatures(settings: Settings): void {
@@ -53,13 +67,18 @@ function normalizeRemovedChatboxFeatures(settings: Settings): void {
   if (settings.defaultChatModel?.provider === 'chatbox-ai') {
     settings.defaultChatModel = { provider: 'openai', model: 'gpt-4o-mini' }
   }
+  // Keep old stdio entries parseable, but never allow a local MCP process to
+  // be enabled after settings are loaded.
+  for (const server of settings.mcp?.servers ?? []) {
+    if (server.transport.type === 'stdio') server.enabled = false
+  }
 }
 
 export const settingsStore = createStore<Settings & Action>()(
   subscribeWithSelector(
     persist(
       immer((set, get) => ({
-        ...SettingsSchema.parse(defaults.settings()),
+        ...createPlatformDefaultSettings(),
         setSettings: (val) => set(val),
         getSettings: () => {
           const store = get()
@@ -87,12 +106,12 @@ export const settingsStore = createStore<Settings & Action>()(
           },
           removeItem: async (name) => await storage.removeItem(name),
         })),
-        version: 5,
+        version: 6,
         partialize: (state) => {
           try {
             return SettingsSchema.parse(state)
           } catch {
-            return state
+            return createPlatformDefaultSettings()
           }
         },
         merge: (persisted, current) => ({
@@ -100,8 +119,10 @@ export const settingsStore = createStore<Settings & Action>()(
           ...mergeWithDefaultSettings(persisted),
         }),
         migrate: (persisted: any, version) => {
+          const hadMcpEnabledSetting =
+            persisted?.mcp && typeof persisted.mcp === 'object' && typeof persisted.mcp.enabled === 'boolean'
           // merge the newly added fields in defaults.settings() into the persisted values (deep merge).
-          const settings: any = deepmerge(defaults.settings(), persisted, {
+          const settings: any = deepmerge(createPlatformDefaultSettings(), persisted, {
             arrayMerge: (_target, source) => source,
           })
 
@@ -127,8 +148,17 @@ export const settingsStore = createStore<Settings & Action>()(
               }
             case 3:
             case 4:
-              if (settings.extension?.documentParser?.type === 'none' || settings.extension?.documentParser?.type === 'chatbox-ai') {
+              if (
+                settings.extension?.documentParser?.type === 'none' ||
+                settings.extension?.documentParser?.type === 'chatbox-ai'
+              ) {
                 settings.extension.documentParser.type = 'llamaparse'
+              }
+            case 5:
+              if (!hadMcpEnabledSetting) {
+                settings.mcp.enabled =
+                  settings.mcp.servers.some((server: { enabled?: boolean }) => server.enabled) ||
+                  settings.mcp.enabledBuiltinServers.length > 0
               }
             default:
               break
@@ -142,7 +172,14 @@ export const settingsStore = createStore<Settings & Action>()(
             }
           }
 
-          return SettingsSchema.parse(settings)
+          if (platform.type === 'mobile') {
+            settings.allowReportingAndTracking = false
+          }
+
+          const parsedSettings = SettingsSchema.safeParse(settings)
+          if (parsedSettings.success) return parsedSettings.data
+          log.warn('Migrated settings failed schema validation; using platform defaults.')
+          return createPlatformDefaultSettings()
         },
         skipHydration: true,
       }

@@ -1,7 +1,9 @@
 import { createStore, useStore } from 'zustand'
-import { persist, subscribeWithSelector } from 'zustand/middleware'
+import { createJSONStorage, persist, subscribeWithSelector, type StateStorage } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import type { AuthTokens } from '../routes/settings/provider/chatbox-ai/-components/types'
+import platform from '@/platform'
+import { getSecureValue, removeSecureValue, setSecureValue } from '@/platform/mobile_secure_storage'
 
 interface AuthTokensState {
   accessToken: string | null
@@ -17,6 +19,43 @@ interface AuthTokensActions {
 const initialState: AuthTokensState = {
   accessToken: null,
   refreshToken: null,
+}
+
+const AUTH_TOKENS_KEY = 'chatbox.auth.tokens'
+const authStorage: StateStorage = {
+  async getItem(name) {
+    if (platform.type === 'mobile') {
+      const secureValue = await getSecureValue(AUTH_TOKENS_KEY)
+      if (secureValue !== null) return secureValue
+
+      // Migrate tokens written by older mobile builds that used localStorage.
+      try {
+        const legacyValue = localStorage.getItem(name)
+        if (legacyValue !== null) {
+          await setSecureValue(AUTH_TOKENS_KEY, legacyValue)
+          localStorage.removeItem(name)
+        }
+        return legacyValue
+      } catch {
+        return null
+      }
+    }
+    return localStorage.getItem(name)
+  },
+  async setItem(name, value) {
+    if (platform.type === 'mobile') {
+      await setSecureValue(AUTH_TOKENS_KEY, value)
+      return
+    }
+    localStorage.setItem(name, value)
+  },
+  async removeItem(name) {
+    if (platform.type === 'mobile') {
+      await removeSecureValue(AUTH_TOKENS_KEY)
+      return
+    }
+    localStorage.removeItem(name)
+  },
 }
 
 export const authInfoStore = createStore<AuthTokensState & AuthTokensActions>()(
@@ -53,6 +92,7 @@ export const authInfoStore = createStore<AuthTokensState & AuthTokensActions>()(
       {
         name: 'chatbox-ai-auth-info',
         version: 0,
+        storage: createJSONStorage(() => authStorage),
         partialize: (state) => ({
           accessToken: state.accessToken,
           refreshToken: state.refreshToken,

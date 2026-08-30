@@ -10,6 +10,13 @@ async function loadSettingsStoreModule(
 ) {
   vi.resetModules()
 
+  vi.stubGlobal('window', platformType === 'desktop' ? { electronAPI: {} } : {})
+
+  vi.doMock('@/variables', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/variables')>()),
+    CHATBOX_BUILD_TARGET: platformType === 'mobile' ? 'mobile_app' : 'unknown',
+  }))
+
   const mockStorage = {
     getItem: vi.fn(async (key: string, initialValue: unknown) => {
       if (key === 'settings') {
@@ -65,8 +72,10 @@ describe('settingsStore persistence', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
+    vi.unstubAllGlobals()
     vi.unmock('@/platform')
     vi.unmock('@/storage')
+    vi.unmock('@/variables')
   })
 
   it('rehydrates persisted provider and custom provider settings', async () => {
@@ -150,11 +159,11 @@ describe('settingsStore persistence', () => {
           apiHost: 'https://api.openai.com',
         },
       },
-      __version: 5,
+      __version: 6,
     })
   })
 
-  it('migrates legacy Text Only document parser to Chatbox AI on web and mobile', async () => {
+  it('migrates legacy Text Only document parser to LlamaParse on web and mobile', async () => {
     const persistedSettings = {
       extension: {
         documentParser: { type: 'none' },
@@ -164,11 +173,11 @@ describe('settingsStore persistence', () => {
 
     const webStore = await loadSettingsStoreModule(persistedSettings, 'web')
     const webSettings = await webStore.initSettingsStore()
-    expect(webSettings.extension?.documentParser?.type).toBe('chatbox-ai')
+    expect(webSettings.extension?.documentParser?.type).toBe('llamaparse')
 
     const mobileStore = await loadSettingsStoreModule(persistedSettings, 'mobile')
     const mobileSettings = await mobileStore.initSettingsStore()
-    expect(mobileSettings.extension?.documentParser?.type).toBe('chatbox-ai')
+    expect(mobileSettings.extension?.documentParser?.type).toBe('llamaparse')
   })
 
   it('keeps desktop default document parser local', async () => {
@@ -245,11 +254,20 @@ describe('settingsStore persistence', () => {
     expect(settingsStore.getState().shortcuts.newPictureChat).toBe('')
   })
 
-  it('uses Chatbox AI as the default document parser on web and mobile', async () => {
+  it('uses LlamaParse as the default document parser on web and mobile', async () => {
     const webStore = await loadSettingsStoreModule(null, 'web')
-    expect(webStore.getPlatformDefaultDocumentParser()).toEqual({ type: 'chatbox-ai' })
+    expect(webStore.getPlatformDefaultDocumentParser()).toEqual({ type: 'llamaparse' })
 
     const mobileStore = await loadSettingsStoreModule(null, 'mobile')
-    expect(mobileStore.getPlatformDefaultDocumentParser()).toEqual({ type: 'chatbox-ai' })
+    expect(mobileStore.getPlatformDefaultDocumentParser()).toEqual({ type: 'llamaparse' })
+  })
+
+  it('falls back to platform defaults when persisted settings fail schema validation', async () => {
+    const { initSettingsStore } = await loadSettingsStoreModule({ theme: 'not-a-theme' })
+
+    const hydrated = await initSettingsStore()
+
+    expect(hydrated.theme).toBe(defaultSettings().theme)
+    expect(hydrated.extension.documentParser).toEqual({ type: 'local' })
   })
 })

@@ -43,6 +43,7 @@ import { Route as CopilotsFeaturedImport } from './routes/copilots/featured'
 import { Route as SettingsProviderRouteImport } from './routes/settings/provider/route'
 import { Route as SettingsProviderIndexImport } from './routes/settings/provider/index'
 import { Route as SettingsProviderProviderIdImport } from './routes/settings/provider/$providerId'
+import { Route as SettingsProviderChatboxAiIndexImport } from './routes/settings/provider/chatbox-ai/index'
 
 // Create/Update Routes
 
@@ -239,6 +240,13 @@ const SettingsProviderProviderIdRoute = SettingsProviderProviderIdImport.update(
     getParentRoute: () => SettingsProviderRouteRoute,
   } as any,
 )
+
+const SettingsProviderChatboxAiIndexRoute =
+  SettingsProviderChatboxAiIndexImport.update({
+    id: '/chatbox-ai/',
+    path: '/chatbox-ai/',
+    getParentRoute: () => SettingsProviderRouteRoute,
+  } as any)
 
 // Populate the FileRoutesByPath interface
 
@@ -468,6 +476,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsProviderIndexImport
       parentRoute: typeof SettingsProviderRouteImport
     }
+    '/settings/provider/chatbox-ai/': {
+      id: '/settings/provider/chatbox-ai/'
+      path: '/chatbox-ai'
+      fullPath: '/settings/provider/chatbox-ai'
+      preLoaderRoute: typeof SettingsProviderChatboxAiIndexImport
+      parentRoute: typeof SettingsProviderRouteImport
+    }
   }
 }
 
@@ -516,11 +531,13 @@ const DevRouteRouteWithChildren = DevRouteRoute._addFileChildren(
 interface SettingsProviderRouteRouteChildren {
   SettingsProviderProviderIdRoute: typeof SettingsProviderProviderIdRoute
   SettingsProviderIndexRoute: typeof SettingsProviderIndexRoute
+  SettingsProviderChatboxAiIndexRoute: typeof SettingsProviderChatboxAiIndexRoute
 }
 
 const SettingsProviderRouteRouteChildren: SettingsProviderRouteRouteChildren = {
   SettingsProviderProviderIdRoute: SettingsProviderProviderIdRoute,
   SettingsProviderIndexRoute: SettingsProviderIndexRoute,
+  SettingsProviderChatboxAiIndexRoute: SettingsProviderChatboxAiIndexRoute,
 }
 
 const SettingsProviderRouteRouteWithChildren =
@@ -595,6 +612,7 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof SettingsIndexRoute
   '/settings/provider/$providerId': typeof SettingsProviderProviderIdRoute
   '/settings/provider/': typeof SettingsProviderIndexRoute
+  '/settings/provider/chatbox-ai': typeof SettingsProviderChatboxAiIndexRoute
 }
 
 export interface FileRoutesByTo {
@@ -626,6 +644,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsIndexRoute
   '/settings/provider/$providerId': typeof SettingsProviderProviderIdRoute
   '/settings/provider': typeof SettingsProviderIndexRoute
+  '/settings/provider/chatbox-ai': typeof SettingsProviderChatboxAiIndexRoute
 }
 
 export interface FileRoutesById {
@@ -662,6 +681,7 @@ export interface FileRoutesById {
   '/settings/': typeof SettingsIndexRoute
   '/settings/provider/$providerId': typeof SettingsProviderProviderIdRoute
   '/settings/provider/': typeof SettingsProviderIndexRoute
+  '/settings/provider/chatbox-ai/': typeof SettingsProviderChatboxAiIndexRoute
 }
 
 export interface FileRouteTypes {
@@ -699,6 +719,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/settings/provider/$providerId'
     | '/settings/provider/'
+    | '/settings/provider/chatbox-ai'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -729,6 +750,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/settings/provider/$providerId'
     | '/settings/provider'
+    | '/settings/provider/chatbox-ai'
   id:
     | '__root__'
     | '/'
@@ -763,6 +785,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/settings/provider/$providerId'
     | '/settings/provider/'
+    | '/settings/provider/chatbox-ai/'
   fileRoutesById: FileRoutesById
 }
 
@@ -856,7 +879,8 @@ export const routeTree = rootRoute
       "parent": "/settings",
       "children": [
         "/settings/provider/$providerId",
-        "/settings/provider/"
+        "/settings/provider/",
+        "/settings/provider/chatbox-ai/"
       ]
     },
     "/copilots/featured": {
@@ -958,6 +982,10 @@ export const routeTree = rootRoute
     },
     "/settings/provider/": {
       "filePath": "settings/provider/index.tsx",
+      "parent": "/settings/provider"
+    },
+    "/settings/provider/chatbox-ai/": {
+      "filePath": "settings/provider/chatbox-ai/index.tsx",
       "parent": "/settings/provider"
     }
   }

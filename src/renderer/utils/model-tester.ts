@@ -28,18 +28,23 @@ export type TestModelOptions = {
 const TEST_IMAGE_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=='
 
+// This marker is deliberately local and non-sensitive. A model passes the
+// tool-use check only after it invokes the synthetic tool and includes the
+// tool's returned marker in its final answer.
+const TOOL_USE_TEST_MARKER = 'AIBOX_TOOL_USE_CHECK_7F3C'
+
 const testWeatherTools: CallChatCompletionOptions['tools'] = {
-  get_weather: {
-    description: 'Get the weather',
+  mcp__verification__check: {
+    description: `Verification tool. Call this tool for the user's request, then reply with the exact marker it returns: ${TOOL_USE_TEST_MARKER}`,
     inputSchema: jsonSchema({
       type: 'object',
       properties: {
-        location: { type: 'string', description: 'City name' },
+        reason: { type: 'string', description: 'Short reason for checking tool use' },
       },
-      required: ['location'],
+      required: ['reason'],
       additionalProperties: false,
     }),
-    execute: async () => ({ temperature: 72, condition: 'sunny' }),
+    execute: async () => ({ marker: TOOL_USE_TEST_MARKER }),
   },
 } satisfies ToolSet
 
@@ -135,12 +140,34 @@ async function testVisionRequest(modelInstance: ModelInterface, state: ModelTest
 }
 
 async function testToolUseRequest(modelInstance: ModelInterface, state: ModelTestState): Promise<ModelTestState> {
+  let toolExecuted = false
   try {
-    await modelInstance.chat([{ role: 'user', content: 'What is the weather in San Francisco?' }], {
-      tools: testWeatherTools,
-      onResultChange: () => {},
-      maxSteps: 1,
-    })
+    const result = await modelInstance.chat(
+      [
+        {
+          role: 'user',
+          content: `Use the verification tool now. Do not answer until it has run. In your final answer include the exact marker returned by the tool (${TOOL_USE_TEST_MARKER}).`,
+        },
+      ],
+      {
+        tools: testWeatherTools,
+        onResultChange: () => {},
+        maxSteps: 2,
+      }
+    )
+    toolExecuted = result.contentParts.some(
+      (part) => part.type === 'tool-call' && part.toolName === 'mcp__verification__check' && part.state === 'result'
+    )
+    const finalText = result.contentParts
+      .filter((part): part is Extract<(typeof result.contentParts)[number], { type: 'text' }> => part.type === 'text')
+      .map((part) => part.text)
+      .join('')
+    if (!toolExecuted) {
+      throw new Error('The model did not execute the verification tool.')
+    }
+    if (!finalText.includes(TOOL_USE_TEST_MARKER)) {
+      throw new Error('The model executed the tool but did not use its returned value in the final response.')
+    }
     return { ...state, toolTest: { status: 'success' } }
   } catch (e: unknown) {
     const error = e as { responseBody?: string; message?: string }

@@ -147,7 +147,7 @@ function _PictureDialog(props: {
               e.preventDefault()
               e.stopPropagation()
               if (!shareUrl) return
-              void shareMobileUrl(shareUrl, 'Chatbox image').catch((error) => {
+              void shareMobileUrl(shareUrl, 'AIbox Mobile image').catch((error) => {
                 console.error('Failed to share image:', error)
               })
             }}

@@ -11,7 +11,6 @@ import type {
   SessionType,
   Settings,
 } from '@shared/types'
-import { ModelProviderEnum } from '@shared/types'
 import identity from 'lodash/identity'
 import pickBy from 'lodash/pickBy'
 import {
@@ -31,7 +30,7 @@ import { getSessionAgentModeEntry } from './agent-mode'
  * Get session-level web browsing setting
  * Returns user's explicit setting if set, otherwise returns default based on provider
  */
-export function getSessionWebBrowsing(sessionId: string, provider: string | undefined): boolean {
+export function getSessionWebBrowsing(sessionId: string, _provider: string | undefined): boolean {
   const sessionValue = uiStore.getState().sessionWebBrowsingMap[sessionId]
   if (sessionValue !== undefined) {
     return sessionValue
@@ -76,9 +75,10 @@ export function trackGenerateEvent(
       (agentModeActive ? (agentModeEntry.locked ? 'locked_session' : 'manual') : 'none')
     const sessionKnowledgeBaseMap = uiStore.getState().sessionKnowledgeBaseMap
     const knowledgeBaseEnabled = Boolean(sessionKnowledgeBaseMap[sessionId])
-    const enabledMcpCount =
-      (globalSettings.mcp?.servers?.filter((server) => server.enabled).length ?? 0) +
-      (globalSettings.mcp?.enabledBuiltinServers?.length ?? 0)
+    const enabledMcpCount = globalSettings.mcp?.enabled
+      ? (globalSettings.mcp.servers?.filter((server) => server.enabled && server.transport.type === 'http').length ??
+          0) + (platform.type === 'mobile' ? 0 : (globalSettings.mcp.enabledBuiltinServers?.length ?? 0))
+      : 0
     const enabledSkillCount = globalSettings.skills?.enabledSkillNames?.length ?? 0
     const workingDirectoryCount = settings.workingDirectories?.filter((dir) => dir.trim().length > 0).length ?? 0
 

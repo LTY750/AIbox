@@ -48,7 +48,7 @@ vi.mock('../stores/toastActions', () => ({
 }))
 
 import { JK_EVENTS, JK_PAGE_NAMES } from '@/analytics/jk-events'
-import { MessageMermaid } from './Mermaid'
+import { MessageMermaid, sanitizeMermaidSvg } from './Mermaid'
 
 describe('MessageMermaid', () => {
   beforeEach(() => {
@@ -81,5 +81,16 @@ describe('MessageMermaid', () => {
         },
       },
     })
+  })
+
+  test('sanitizes active SVG content independently of Mermaid', () => {
+    const svg = sanitizeMermaidSvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(1)</script><rect width="10" height="10" /></svg>'
+    )
+
+    expect(svg).toContain('<svg')
+    expect(svg).toContain('<rect')
+    expect(svg).not.toContain('<script')
+    expect(svg).not.toContain('onload')
   })
 })

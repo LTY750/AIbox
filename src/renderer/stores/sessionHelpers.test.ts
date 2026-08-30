@@ -9,6 +9,7 @@ const {
   parserState,
   defaultEmbeddingModelState,
   mockParseFileLocally,
+  mockParseLlamaParse,
   mockParseFileWithMineru,
   mockParseFileWithTextin,
   mockGetSessionRagConfig,
@@ -38,6 +39,7 @@ const {
     parserState: parser,
     defaultEmbeddingModelState: defaultEmbeddingModel,
     mockParseFileLocally: vi.fn(),
+    mockParseLlamaParse: vi.fn(),
     mockParseFileWithMineru: vi.fn(),
     mockParseFileWithTextin: vi.fn(),
     mockGetSessionRagConfig: vi.fn(async () => ({
@@ -79,6 +81,10 @@ vi.mock('@/storage', () => ({
 vi.mock('@/packages/remote', () => ({
   getSessionRagConfig: mockGetSessionRagConfig,
   uploadAndCreateUserFile: mockUploadAndCreateUserFile,
+}))
+
+vi.mock('@/packages/llamaparse', () => ({
+  parseFileWithLlamaParse: mockParseLlamaParse,
 }))
 
 vi.mock('./settingActions', () => ({
@@ -181,6 +187,7 @@ describe('preprocessFile local parser fallback', () => {
     parserState.type = 'local'
     defaultEmbeddingModelState.value = undefined
     mockParseFileLocally.mockReset()
+    mockParseLlamaParse.mockReset()
     mockParseFileWithMineru.mockReset()
     mockParseFileWithTextin.mockReset()
     mockGetSessionRagConfig.mockClear()
@@ -192,60 +199,56 @@ describe('preprocessFile local parser fallback', () => {
     mockReportError.mockClear()
   })
 
-  it('falls back to Chatbox AI when local parsing throws and a license is active', async () => {
+  it('falls back to LlamaParse when local parsing throws', async () => {
     const file = createFile('report.pdf')
-    blobStore.set('remote-key', 'remote parsed content')
     mockParseFileLocally.mockRejectedValueOnce(new Error('local failed'))
-    mockUploadAndCreateUserFile.mockResolvedValueOnce('remote-key')
+    mockParseLlamaParse.mockResolvedValueOnce('remote parsed content')
 
     const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
 
     expect(mockParseFileLocally).toHaveBeenCalledWith(file)
-    expect(mockUploadAndCreateUserFile).toHaveBeenCalledWith('licensed-key', file)
+    expect(mockParseLlamaParse).toHaveBeenCalledWith(file, { apiKey: '' })
     expect(result.error).toBeUndefined()
     expect(result.content).toBe('remote parsed content')
     expect(result.storageKey).toBe(`file:/tmp/${file.name}-${file.size}-${file.lastModified}`)
   })
 
-  it('falls back to Chatbox AI when local parsing returns empty content and a license is active', async () => {
+  it('falls back to LlamaParse when local parsing returns empty content', async () => {
     const file = createFile('empty.pdf')
     blobStore.set('local-key', '   \n\t')
-    blobStore.set('remote-key', 'remote recovered content')
     mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'local-key' })
-    mockUploadAndCreateUserFile.mockResolvedValueOnce('remote-key')
+    mockParseLlamaParse.mockResolvedValueOnce('remote recovered content')
 
     const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
 
     expect(mockParseFileLocally).toHaveBeenCalledWith(file)
-    expect(mockUploadAndCreateUserFile).toHaveBeenCalledWith('licensed-key', file)
+    expect(mockParseLlamaParse).toHaveBeenCalledWith(file, { apiKey: '' })
     expect(result.error).toBeUndefined()
     expect(result.content).toBe('remote recovered content')
   })
 
-  it('rejects empty content returned by the Chatbox AI fallback', async () => {
+  it('rejects empty content returned by the LlamaParse fallback', async () => {
     const file = createFile('empty-cloud-result.pdf')
     blobStore.set('local-key', '   \n\t')
-    blobStore.set('remote-key', '   \n\t')
     mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'local-key' })
-    mockUploadAndCreateUserFile.mockResolvedValueOnce('remote-key')
+    mockParseLlamaParse.mockResolvedValueOnce('   \n\t')
 
     const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
 
-    expect(mockUploadAndCreateUserFile).toHaveBeenCalledWith('licensed-key', file)
+    expect(mockParseLlamaParse).toHaveBeenCalledWith(file, { apiKey: '' })
     expect(result.content).toBe('')
     expect(result.storageKey).toBe('')
     expect(result.error).toBe('empty_attachment_content')
   })
 
-  it('falls back to Chatbox AI for text files when local parsing fails', async () => {
+  it('falls back to LlamaParse for text files when local parsing fails', async () => {
     const file = createFile('readme.txt', 'text content')
-    blobStore.set('remote-key', 'remote text content')
     mockParseFileLocally.mockRejectedValueOnce(new Error('local failed'))
-    mockUploadAndCreateUserFile.mockResolvedValueOnce('remote-key')
+    mockParseLlamaParse.mockResolvedValueOnce('remote text content')
 
     const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
 
-    expect(mockUploadAndCreateUserFile).toHaveBeenCalledWith('licensed-key', file)
+    expect(mockParseLlamaParse).toHaveBeenCalledWith(file, { apiKey: '' })
     expect(result.error).toBeUndefined()
     expect(result.content).toBe('remote text content')
   })
@@ -274,43 +277,33 @@ describe('preprocessFile local parser fallback', () => {
     expect(result.error).toBe('empty_attachment_content')
   })
 
-  it('keeps local_parser_failed when local parsing throws without a license', async () => {
+  it('surfaces the LlamaParse credential error when local parsing fails without a key', async () => {
     const file = createFile('no-license.pdf')
     licenseState.key = undefined
     mockParseFileLocally.mockRejectedValueOnce(new Error('local failed'))
+    mockParseLlamaParse.mockRejectedValueOnce(new Error('llama_parse_api_key_required'))
 
     const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
 
     expect(mockUploadAndCreateUserFile).not.toHaveBeenCalled()
     expect(result.content).toBe('')
     expect(result.storageKey).toBe('')
-    expect(result.error).toBe('local_parser_failed')
-    expect(mockReportError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'local_parser_failed' }),
-      expect.objectContaining({
-        domain: 'file-attachment',
-        operation: 'preprocess-file',
-        priority: 'high',
-        tags: expect.objectContaining({
-          file_extension: 'pdf',
-          preprocess_stage: 'local_parse',
-          user_error_code: 'local_parser_failed',
-        }),
-      })
-    )
+    expect(result.error).toBe('llama_parse_api_key_required')
+    expect(mockReportError).not.toHaveBeenCalled()
   })
 
   it('rejects empty local content without a license for ordinary attachments', async () => {
     const file = createFile('empty-without-license.pdf')
     licenseState.key = undefined
     mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'missing-local-key' })
+    mockParseLlamaParse.mockRejectedValueOnce(new Error('llama_parse_api_key_required'))
 
     const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
 
     expect(mockUploadAndCreateUserFile).not.toHaveBeenCalled()
     expect(result.content).toBe('')
     expect(result.storageKey).toBe('')
-    expect(result.error).toBe('empty_attachment_content')
+    expect(result.error).toBe('llama_parse_api_key_required')
   })
 
   it('reprocesses whitespace-only cached content instead of returning an empty attachment', async () => {
@@ -390,11 +383,11 @@ describe('preprocessFile local parser fallback', () => {
     const quotaError = new Error('QuotaExceededError: the current transaction exceeded its quota limitations')
     quotaError.name = 'QuotaExceededError'
     mockParseFileLocally.mockRejectedValueOnce(new Error('local failed'))
-    mockUploadAndCreateUserFile.mockRejectedValueOnce(quotaError)
+    mockParseLlamaParse.mockRejectedValueOnce(quotaError)
 
     const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
 
-    expect(mockUploadAndCreateUserFile).toHaveBeenCalledTimes(1)
+    expect(mockParseLlamaParse).toHaveBeenCalledTimes(1)
     expect(result.error).toBe('file_storage_quota_exceeded')
     expect(mockReportError).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'file_storage_quota_exceeded' }),
@@ -449,8 +442,8 @@ describe('preprocessFile local parser fallback', () => {
     )
   })
 
-  it('uses local parsing first when Chatbox AI parser is selected', async () => {
-    parserState.type = 'chatbox-ai'
+  it('uses local parsing first when LlamaParse is selected', async () => {
+    parserState.type = 'llamaparse'
     const file = createFile('local-first.pdf')
     blobStore.set('local-key', 'local parsed content')
     mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'local-key' })
@@ -464,20 +457,18 @@ describe('preprocessFile local parser fallback', () => {
     expect(result.parserType).toBe('local')
   })
 
-  it('falls back to Chatbox AI when Chatbox AI parser is selected and local parsing is unsupported', async () => {
-    parserState.type = 'chatbox-ai'
+  it('falls back to LlamaParse when local parsing is unsupported', async () => {
     const file = createFile('cloud-fallback.docx')
-    blobStore.set('remote-key', 'remote parsed document')
     mockParseFileLocally.mockResolvedValueOnce({ isSupported: false })
-    mockUploadAndCreateUserFile.mockResolvedValueOnce('remote-key')
+    mockParseLlamaParse.mockResolvedValueOnce('remote parsed document')
 
     const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
 
     expect(mockParseFileLocally).toHaveBeenCalledWith(file)
-    expect(mockUploadAndCreateUserFile).toHaveBeenCalledWith('licensed-key', file)
+    expect(mockParseLlamaParse).toHaveBeenCalledWith(file, { apiKey: '' })
     expect(result.error).toBeUndefined()
     expect(result.content).toBe('remote parsed document')
-    expect(result.parserType).toBe('chatbox-ai')
+    expect(result.parserType).toBe('llamaparse')
   })
 
   it('keeps high-token attachments inline when parsed content stays below byte threshold', async () => {
@@ -498,12 +489,13 @@ describe('preprocessFile local parser fallback', () => {
   it('uses session retrieval for over-threshold attachments when session RAG embedding is available', async () => {
     const file = createFile('licensed-large.pdf')
     const parsedContent = 'a'.repeat(256 * 1024 + 1)
+    defaultEmbeddingModelState.value = { provider: 'openai', model: 'text-embedding-3-small' }
     blobStore.set('local-key', parsedContent)
     mockParseFileLocally.mockResolvedValueOnce({ isSupported: true, key: 'local-key' })
 
     const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
 
-    expect(mockGetSessionRagConfig).toHaveBeenCalledWith({ licenseKey: 'licensed-key' })
+    expect(mockGetSessionRagConfig).not.toHaveBeenCalled()
     expect(result.error).toBeUndefined()
     expect(result.ragMode).toBe('session-retrieval')
     expect(result.sessionAttachmentAvailability).toBe('allowed')

@@ -17,9 +17,9 @@ export function SuggestedQuestions({ onQuestionClick, disabled }: SuggestedQuest
   const { t } = useTranslation()
 
   const questions = [
-    t('I want to try Chatbox for free!'),
+    t('What can I help you with today?'),
     t('What is an API? Where to get it? How to connect?'),
-    t('What is the relationship between Chatbox and other model providers?'),
+    t('What is an API? Where to get it? How to connect?'),
     t('How do I switch to different models, like DeepSeek?'),
     t('Where is the Knowledge Base feature?'),
   ]

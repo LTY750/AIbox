@@ -7,7 +7,7 @@ import type { Message, MessageToolCallPart } from './types'
 
 export type ApprovalPauseReason = Extract<
   NonNullable<MessageToolCallPart['pauseReason']>,
-  { type: 'user_exec_approval' | 'file_mutation_approval' | 'app_action_approval' }
+  { type: 'user_exec_approval' | 'file_mutation_approval' | 'app_action_approval' | 'mcp_tool_approval' }
 >
 
 export type PendingApprovalToolCall = {
@@ -22,7 +22,8 @@ export function isApprovalPauseReason(
   return (
     pauseReason?.type === 'user_exec_approval' ||
     pauseReason?.type === 'file_mutation_approval' ||
-    pauseReason?.type === 'app_action_approval'
+    pauseReason?.type === 'app_action_approval' ||
+    pauseReason?.type === 'mcp_tool_approval'
   )
 }
 
@@ -62,5 +63,7 @@ export function getApprovalPreview(pauseReason: ApprovalPauseReason): string {
     case 'file_mutation_approval':
     case 'app_action_approval':
       return pauseReason.title
+    case 'mcp_tool_approval':
+      return `${pauseReason.serverName}: ${pauseReason.toolName}`
   }
 }

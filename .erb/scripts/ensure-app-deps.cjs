@@ -1,12 +1,9 @@
 /**
  * beforePack hook for electron-builder.
  *
- * With pnpm's node-linker=hoisted, dependencies declared in
- * release/app/package.json get hoisted to the workspace root
- * node_modules/ instead of release/app/node_modules/.
- * electron-builder only packages release/app/node_modules/,
- * so transitive deps like detect-libc, node-fetch, zod end up
- * missing from the asar.
+ * Development installs use pnpm's isolated linker, while electron-builder
+ * packages only release/app/node_modules/. Stage a complete, flat production
+ * tree here so the asar contains all transitive runtime dependencies.
  *
  * This script runs `npm ci --omit=dev` in release/app/
  * to create a complete, flat node_modules/ before packaging,
@@ -21,7 +18,7 @@ exports.default = async function ensureAppDeps(context) {
   const appDir = path.join(__dirname, '..', '..', 'release', 'app')
   const nodeModulesDir = path.join(appDir, 'node_modules')
 
-  // Remove pnpm's incomplete hoisted node_modules if it exists
+  // Remove pnpm's symlinked tree before npm creates a self-contained tree.
   if (fs.existsSync(nodeModulesDir)) {
     fs.rmSync(nodeModulesDir, { recursive: true, force: true })
   }

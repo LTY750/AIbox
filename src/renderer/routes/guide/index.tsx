@@ -354,7 +354,7 @@ function GuidePage() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={t('Type your Chatbox AI-related question here') || ''}
+                  placeholder={t('Type your question here...') || ''}
                   disabled={!canSendMessage || isLoading}
                   autosize
                   minRows={2}
@@ -393,7 +393,7 @@ function GuidePage() {
                     <UnstyledButton className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--chatbox-background-tertiary)] transition-colors">
                       <ProviderImageIcon provider="chatbox-ai" size={18} />
                       <Text size="sm" className="text-[var(--chatbox-tint-secondary)]">
-                        Chatbox Guide
+                        AIbox Guide
                       </Text>
                       <ScalableIcon
                         icon={IconChevronRight}
@@ -407,7 +407,7 @@ function GuidePage() {
                       leftSection={<ProviderImageIcon provider="chatbox-ai" size={16} />}
                       rightSection={<ScalableIcon icon={IconCheck} size={14} className="text-chatbox-tint-brand" />}
                     >
-                      Chatbox Guide
+                      AIbox Guide
                     </Menu.Item>
                   </Menu.Dropdown>
                 </Menu>

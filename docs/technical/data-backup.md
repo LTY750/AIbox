@@ -33,6 +33,8 @@ chatbox-backup-YYYY-M-D.zip
 Schema 的单一实现位于 `src/renderer/packages/backup/types.ts`。导入端只接受明确支持的格式版本，不对未知版本做猜测性恢复。
 导出端在报告成功前也会用同一 schema 校验最终 manifest，并执行与导入端一致的 entry 数量、单项大小和总大小限制，避免生成自身无法导入的归档。超长 session id 仅在归档路径中替换为内容哈希，manifest 与恢复后的 session id 保持原值。
 
+历史单 JSON 备份仍通过 `legacy-import.ts` 导入，但在读取前限制为 128 MiB；超过限制的文件不会进入 JSON 解析，以避免一次性分配过大的 renderer 内存。
+
 ## 资源边界
 
 资源收集器遍历 session 当前消息、历史线程和消息分叉，并收集：

@@ -303,7 +303,7 @@ export async function prepareAgentGenerationHarness(
         }
       : undefined
 
-  const { tools, instructions: toolInstructions } = await buildToolsForSession(model, {
+  const { tools, instructions: toolInstructions, hasMcpTools } = await buildToolsForSession(model, {
     sessionId: session.id,
     webBrowsing,
     knowledgeBase,
@@ -348,6 +348,7 @@ export async function prepareAgentGenerationHarness(
     agentMode: effectiveAgentMode === 'on',
     signal,
     providerOptions,
+    maxSteps: hasMcpTools && effectiveAgentMode === 'off' ? 6 : undefined,
   }
 
   if (Object.keys(tools).length > 0) {

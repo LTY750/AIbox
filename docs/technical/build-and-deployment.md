@@ -26,18 +26,24 @@
 
 项目从 npm 迁移到 pnpm，主要动机是安装速度和磁盘效率。迁移的核心挑战在于 electron-builder 兼容性。
 
-**关键决策（[`./key-decisions.md`](./key-decisions.md) #6）**：采用 `node-linker=hoisted` 模式。
+**关键决策（[`./key-decisions.md`](./key-decisions.md) #6）**：开发态采用
+`node-linker=isolated`，让 pnpm 的 workspace 状态在重复安装之间稳定收敛。
 
-electron-builder 假定 `node_modules` 为扁平结构（flat `node_modules`），而 pnpm 默认使用 symlink + `.pnpm` store 的隔离结构。如果不使用 hoisted 模式：
+electron-builder 仍需要扁平的生产依赖树，但不应让这个打包约束污染日常
+开发安装。`electron-builder.yml` 的 `beforePack` hook
+`.erb/scripts/ensure-app-deps.cjs` 会在 `release/app/` 中运行
+`npm ci --omit=dev --ignore-scripts`，生成只包含生产依赖的扁平
+`release/app/node_modules`；打包结束后该目录可安全被下一次 pnpm 安装重新链接。
 
-- electron-builder 的 `installAppDependencies` 无法正确识别依赖
-- `asarUnpack` 的 glob 匹配可能失效
-- postinstall 脚本中的路径假设会被打破
+日常 `pnpm install` 会运行一次非强制的 `electron-rebuild` 检查；匹配当前
+Electron ABI 的模块会被跳过，不会重复编译。需要显式重建桌面端原生依赖时，
+运行 `pnpm --filter xyz.chatboxapp.ce run rebuild -- --force`；electron-builder
+打包时也会在 `beforePack` 暂存生产依赖后执行自己的依赖重建步骤。
 
 `.npmrc` 中的关键配置：
 
 ```ini
-node-linker=hoisted
+node-linker=isolated
 auto-install-peers=true
 ```
 
@@ -178,11 +184,20 @@ alpha 通道沿用原行为，不注入签名 secrets，因此会跳过 Windows 
 1. `pnpm run mobile:sync:android` — 使用 `CHATBOX_BUILD_TARGET=mobile_app` 和 `CHATBOX_BUILD_PLATFORM=android` 编译 renderer，并执行 `npx cap sync android`
 2. 在 Android Studio 或 `android/gradlew.bat` 中运行、签名和生成 APK
 
+Release Android 构建启用 Android Gradle Plugin 的 R8 压缩与混淆（`minifyEnabled true`、`shrinkResources true`）；debug 构建保持未压缩，便于调试。FileProvider 仅暴露应用专属的 cache/external-files 子目录。
+
 移动端与桌面端共享同一份 renderer 代码，通过 Platform 抽象层（`src/renderer/platform/`）屏蔽 API 差异。iOS 的构建脚本和 Capacitor 依赖暂时保留，但本阶段不进行 Xcode 构建、签名或发布验证。
 
 已知限制：
 - Android 端已升级至 `targetSdkVersion=35`（Android 15），最低支持 API 23
 - Windows ARM64 知识库功能被禁用（libsql 原生模块不支持）
+
+Android 应用身份（2026-08 起）：
+- `applicationId` / Capacitor `appId` 统一为 `com.aibox.mobile`，与应用名 "AIbox Mobile"（`package.json#productName`）一致；`namespace` 保留上游 `xyz.chatboxapp.chatbox`（内部 R 类包名，避免迁移 Java 包目录）
+- `versionName` / `versionCode` 以根 `package.json#version` 为唯一事实来源（当前 `0.0.1` / `1`），升级时两处需同步修改
+- Release 签名为 fail-closed：四个 `CHATBOX_ANDROID_*` 属性齐全才可出 release 包。本机签名材料放在 gitignored 的 `android/.gradle-local/gradle.properties`（随 NOTES 流程的 `GRADLE_USER_HOME` 自动加载）与 `~/.aibox-signing/` keystore；keystore 绝不进仓库
+
+Android 深链接：`chatbox://` 与 `chatbox-dev://` 在 `AndroidManifest.xml` 以 BROWSABLE intent-filter 声明，`singleTask` 启动模式下经 Capacitor App 插件 `appUrlOpen` 事件进入 `MobilePlatform.handleDeepLink`（与桌面端 `src/main/deeplinks.ts` 行为对齐）。
 
 ---
 

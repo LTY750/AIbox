@@ -221,11 +221,14 @@ export default defineConfig(({ mode }) => {
     renderer: {
       resolve: {
         alias: {
-          // Demo conversations are useful in development but must not be
-          // compiled into production mobile/release bundles.
+          // Keep the mobile app's built-in examples available after a fresh
+          // install. Desktop release builds continue to use the compact
+          // production marker module.
           '@/packages/initial_data': resolve(
             __dirname,
-            isProduction ? 'src/renderer/packages/initial_data.release.ts' : 'src/renderer/packages/initial_data.ts'
+            isProduction && !isMobile
+              ? 'src/renderer/packages/initial_data.release.ts'
+              : 'src/renderer/packages/initial_data.ts'
           ),
           '@': path.resolve(__dirname, 'src/renderer'),
           '@shared': path.resolve(__dirname, 'src/shared'),

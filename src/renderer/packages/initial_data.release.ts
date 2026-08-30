@@ -1,8 +1,7 @@
 import type { Session } from '../../shared/types'
 
-// Production mobile/desktop builds intentionally ship no demo conversations.
-// Keep the migration identifiers as metadata only; migration code skips demo
-// seeding for production builds.
+// Desktop production builds intentionally ship no demo conversations. Keep the
+// migration identifiers as metadata only for the compact desktop bundle.
 const migrationMarker = (id: string): Session => ({ id, name: '', messages: [] })
 
 export const defaultSessionsForEN: Session[] = []

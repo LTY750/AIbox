@@ -32,7 +32,7 @@ export function UserTypeCards({ onSelect, disabled }: UserTypeCardsProps) {
   const cardTexts = {
     novice: {
       title: t("I'm new to this"),
-      description: t('Use Chatbox AI service'),
+      description: t('Login to Chatbox AI'),
     },
     expert: {
       title: t('Skip guide'),

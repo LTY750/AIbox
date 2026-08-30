@@ -1,7 +1,12 @@
-import type { SessionMetaRecord } from '@shared/types'
-import { SessionMetaRecordSchema } from '@shared/types'
+import { type SessionMetaRecord, SessionMetaRecordSchema } from '@shared/types'
+import { parseSettingsForImport } from '@shared/utils/backup'
 import { BackupStorageKey } from './storage-keys'
 import type { BackupMetaStorage, BackupStorage } from './types'
+
+// Legacy backups are read as one JSON document, so reject oversized files
+// before calling File.text() and allocating a potentially attacker-controlled
+// string/object graph in the renderer.
+export const MAX_LEGACY_JSON_BACKUP_BYTES = 128 * 1024 * 1024
 
 export interface LegacyBackupDataStore {
   getData<T>(key: string, defaultValue: T): Promise<T>
@@ -37,6 +42,9 @@ export async function importLegacyJsonBackup(
   file: File,
   options: LegacyBackupImportOptions
 ): Promise<LegacyBackupImportResult> {
+  if (!Number.isFinite(file.size) || file.size < 0 || file.size > MAX_LEGACY_JSON_BACKUP_BYTES) {
+    throw new Error(`Legacy JSON backup is too large (maximum ${MAX_LEGACY_JSON_BACKUP_BYTES} bytes)`)
+  }
   const parsed: unknown = JSON.parse(await file.text())
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('Unsupported legacy backup data format')
@@ -58,7 +66,15 @@ export async function importLegacyJsonBackup(
     ([key]) =>
       key !== BackupStorageKey.ChatSessionsList && key !== BackupStorageKey.ConfigVersion && !key.startsWith('__')
   )
-  for (const [key, value] of entriesToImport) await options.storage.setItemNow(key, value)
+  for (const [key, value] of entriesToImport) {
+    if (key === BackupStorageKey.Settings) {
+      const parsedSettings = parseSettingsForImport(value)
+      if (!parsedSettings) throw new Error('Invalid settings entry')
+      await options.storage.setItemNow(key, parsedSettings)
+      continue
+    }
+    await options.storage.setItemNow(key, value)
+  }
 
   const rawMetaValue = importData[BackupStorageKey.ChatSessionsList]
   const rawMeta: unknown[] | undefined = Array.isArray(rawMetaValue) ? rawMetaValue : undefined

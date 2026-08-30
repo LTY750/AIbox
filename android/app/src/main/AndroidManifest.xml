@@ -31,6 +31,23 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Deep links: chatbox://provider/import?config=... (renderer
+                 normalizes chatbox-dev:// to chatbox://). singleTask launch
+                 mode makes warm opens arrive via onNewIntent, which the
+                 Capacitor App plugin forwards as the appUrlOpen event. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="chatbox" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="chatbox-dev" />
+            </intent-filter>
+
         </activity>
 
         <provider

@@ -28,18 +28,20 @@ export const DocumentParserConfigSchema = z.object({
   type: z.enum(['none', 'local', 'llamaparse', 'chatbox-ai', 'mineru', 'textin']),
   llamaParse: z
     .object({
-      apiKey: z.string(),
+      // Mobile settings snapshots redact this value before persisting. Keep
+      // the section valid while the credential is restored from secure storage.
+      apiKey: z.string().optional().catch(undefined),
     })
     .optional(),
   mineru: z
     .object({
-      apiToken: z.string(),
+      apiToken: z.string().optional().catch(undefined),
     })
     .optional(),
   textin: z
     .object({
-      appId: z.string(),
-      secretCode: z.string(),
+      appId: z.string().optional().catch(undefined),
+      secretCode: z.string().optional().catch(undefined),
     })
     .optional(),
 })
@@ -390,10 +392,12 @@ const MCPServerConfigSchema = z.object({
   id: z.string(),
   name: z.string(),
   enabled: z.boolean(),
+  disabledTools: z.array(z.string()).default([]),
   transport: MCPTransportConfigSchema,
 })
 
 const MCPSettingsSchema = z.object({
+  enabled: z.boolean().default(false),
   servers: z.array(MCPServerConfigSchema),
   enabledBuiltinServers: z.array(z.string()),
 })

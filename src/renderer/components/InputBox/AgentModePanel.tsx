@@ -169,7 +169,11 @@ const AgentModePanel: FC<AgentModePanelProps> = ({
   const mcp = useMcpSettings()
   const isPremium = useAutoValidate()
   const onMCPEnabledChange = useToggleMCPServer()
-  const enabledMCPCount = mcp.servers.filter((s) => s.enabled).length + mcp.enabledBuiltinServers.length
+  const remoteMcpServers = mcp.servers.filter((server) => server.transport.type === 'http')
+  const enabledMCPCount = mcp.enabled
+    ? remoteMcpServers.filter((server) => server.enabled).length +
+      (platform.type === 'mobile' ? 0 : mcp.enabledBuiltinServers.length)
+    : 0
 
   // Knowledge Base state
   const { data: knowledgeBases } = useKnowledgeBases()
@@ -754,7 +758,7 @@ const AgentModePanel: FC<AgentModePanelProps> = ({
         <>
           <SubPanelHeader title="MCP" settingsPath="/mcp" disabled={workModeCapabilitiesDisabled} />
           <Divider my={4} />
-          {isPremium && (
+          {isPremium && platform.type !== 'mobile' && (
             <>
               {BUILTIN_MCP_SERVERS.map((server) => (
                 <MCPServerItem
@@ -766,20 +770,20 @@ const AgentModePanel: FC<AgentModePanelProps> = ({
                   onEnabledChange={onMCPEnabledChange}
                 />
               ))}
-              {mcp.servers.length > 0 && <Divider my={4} />}
+              {remoteMcpServers.length > 0 && <Divider my={4} />}
             </>
           )}
-          {mcp.servers.map((server) => (
+          {remoteMcpServers.map((server) => (
             <MCPServerItem
               key={server.id}
               id={server.id}
               name={server.name}
               enabled={server.enabled}
-              disabled={workModeCapabilitiesDisabled}
+              disabled={workModeCapabilitiesDisabled || !mcp.enabled}
               onEnabledChange={onMCPEnabledChange}
             />
           ))}
-          {!mcp.servers.length && !mcp.enabledBuiltinServers.length && (
+          {!remoteMcpServers.length && (platform.type === 'mobile' || !mcp.enabledBuiltinServers.length) && (
             <Group justify="center" py="md">
               <Button
                 size="xs"

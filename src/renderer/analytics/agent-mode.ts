@@ -1,6 +1,6 @@
-import * as Sentry from '@sentry/react'
 import { isExpectedGenerationError } from '@shared/models/error-classification'
 import platform from '@/platform'
+import { reportError } from '@/utils/sentry'
 import { trackEvent } from '@/utils/track'
 import { trackJkAutoEvent, trackJkClickEvent } from './jk'
 import { JK_EVENTS, JK_PAGE_NAMES } from './jk-events'
@@ -206,21 +206,18 @@ export function captureAgentModeException(
   if (isExpectedGenerationError(error)) return
   const exception = error instanceof Error ? error : new Error(`${error}`)
   const customProvider = context.provider?.startsWith('custom-provider-') === true
-  Sentry.withScope((scope) => {
-    scope.setTag('component', 'agent-mode')
-    scope.setTag('operation', context.operation)
-    scope.setTag('error_domain', 'agent-mode')
-    scope.setTag('error_operation', context.operation)
-    scope.setTag('error_priority', 'high')
-    scope.setTag('error_handled', 'true')
-    if (context.provider) scope.setTag('provider', sanitizeProviderTag(context.provider))
-    // Custom-provider model IDs are user-typed free text; skip them.
-    if (context.model && !customProvider) scope.setTag('model', context.model)
-    if (context.agentMode) scope.setTag('agent_mode', context.agentMode)
-    if (context.fullAccess !== undefined) scope.setTag('full_access', toBooleanString(context.fullAccess))
-    if (context.toolName) scope.setTag('tool_name', sanitizeToolNameTag(context.toolName))
-    if (context.pauseType) scope.setTag('pause_type', context.pauseType)
-    if (context.operationType) scope.setTag('operation_type', context.operationType)
-    Sentry.captureException(exception)
+  reportError(exception, {
+    domain: 'agent-mode',
+    operation: context.operation,
+    priority: 'high',
+    tags: {
+      ...(context.provider ? { provider: sanitizeProviderTag(context.provider) } : {}),
+      ...(context.model && !customProvider ? { model: context.model } : {}),
+      ...(context.agentMode ? { agent_mode: context.agentMode } : {}),
+      ...(context.fullAccess !== undefined ? { full_access: toBooleanString(context.fullAccess) } : {}),
+      ...(context.toolName ? { tool_name: sanitizeToolNameTag(context.toolName) } : {}),
+      ...(context.pauseType ? { pause_type: context.pauseType } : {}),
+      ...(context.operationType ? { operation_type: context.operationType } : {}),
+    },
   })
 }

@@ -1,4 +1,5 @@
-import type { CopilotDetail, Session, Settings } from '@shared/types'
+import { type CopilotDetail, type Session, type Settings } from '@shared/types'
+import { parseSettingsForImport } from '@shared/utils/backup'
 import { v4 as uuidv4 } from 'uuid'
 import {
   BACKUP_MANIFEST_PATH,
@@ -340,9 +341,12 @@ export async function importBackupArchive(file: File, options: BackupImportOptio
     if (manifest.data.settings) {
       const value = stagedEntries.get(manifest.data.settings.path)?.value
       if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid settings entry')
+      const restoredSettings = restoreSettingsResourceKeys(value as Partial<Settings>, resourceKeyMap)
+      const parsedSettings = parseSettingsForImport(restoredSettings)
+      if (!parsedSettings) throw new Error('Invalid settings entry')
       await options.storage.setItemNow(
         BackupStorageKey.Settings,
-        restoreSettingsResourceKeys(value as Partial<Settings>, resourceKeyMap)
+        parsedSettings
       )
     }
     if (manifest.data.copilots) {

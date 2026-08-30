@@ -7,7 +7,7 @@
   "main": "./dist/main/main.js",
   "scripts": {
     "rebuild": "node ../../.erb/scripts/electron-rebuild.cjs",
-    "postinstall": "pnpm run rebuild && pnpm run link-modules && node ../../.erb/scripts/patch-libsql.cjs",
+    "postinstall": "node ../../.erb/scripts/electron-rebuild.cjs && node ../../.erb/scripts/link-modules.cjs && node ../../.erb/scripts/patch-libsql.cjs",
     "link-modules": "node ../../.erb/scripts/link-modules.cjs"
   },
   "dependencies": {

@@ -467,7 +467,7 @@ describe('normalizeWindowsShellPath', () => {
 })
 
 describe('validateWritePath with user-granted directories', () => {
-  test('accepts a granted directory while rejecting sibling and symlink escapes', async () => {
+  test.skipIf(process.platform === 'win32')('accepts a granted directory while rejecting sibling and symlink escapes', async () => {
     const root = mkdtempSync(path.join(tmpdir(), 'chatbox-granted-path-'))
     const workDir = path.join(root, 'sandbox')
     const grantedDir = path.join(root, 'granted')

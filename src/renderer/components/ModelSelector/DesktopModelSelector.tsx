@@ -195,7 +195,14 @@ export const DesktopModelSelector = forwardRef<HTMLDivElement, DesktopModelSelec
     }
 
     return (
-      <Combobox store={combobox} width={350} withinPortal={true} {...comboboxProps} onOptionSubmit={handleOptionSubmit}>
+      <Combobox
+        store={combobox}
+        width={350}
+        withinPortal={true}
+        transitionProps={{ transition: 'fade-down', duration: 180, ...comboboxProps?.transitionProps }}
+        {...comboboxProps}
+        onOptionSubmit={handleOptionSubmit}
+      >
         <Combobox.Target targetType="button">
           {isValidElement(children) ? (
             cloneElement(children as ReactElement, {

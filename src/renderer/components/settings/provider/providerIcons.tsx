@@ -4,6 +4,7 @@ import ProviderIcon from '@/components/icons/ProviderIcon'
 import { getProviderIconSrc } from '@/utils/providerIconSrc'
 
 export const FEATURED_PROVIDER_IDS: string[] = [
+  ModelProviderEnum.ChatboxAI,
   ModelProviderEnum.OpenAI,
   ModelProviderEnum.Claude,
   ModelProviderEnum.Gemini,

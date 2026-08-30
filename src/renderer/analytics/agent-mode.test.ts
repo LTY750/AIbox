@@ -8,13 +8,14 @@ import {
 } from '@shared/models/errors'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const captureExceptionMock = vi.fn()
-const setTagMock = vi.fn()
+const { reportErrorMock } = vi.hoisted(() => ({ reportErrorMock: vi.fn() }))
 
-vi.mock('@sentry/react', () => ({
-  withScope: (callback: (scope: { setTag: (key: string, value: string) => void }) => void) =>
-    callback({ setTag: setTagMock }),
-  captureException: (error: unknown) => captureExceptionMock(error),
+vi.mock('@/utils/sentry', () => ({
+  reportError: reportErrorMock,
+}))
+
+vi.mock('@/platform', () => ({
+  default: { type: 'desktop' },
 }))
 
 vi.mock('@/utils/track', () => ({
@@ -80,7 +81,7 @@ describe('isExpectedGenerationError', () => {
 describe('captureAgentModeException', () => {
   it('skips expected provider errors', () => {
     captureAgentModeException(new ApiError('rate limited'), { operation: 'suggestion' })
-    expect(captureExceptionMock).not.toHaveBeenCalled()
+    expect(reportErrorMock).not.toHaveBeenCalled()
   })
 
   it('captures unexpected errors with tags', () => {
@@ -92,17 +93,23 @@ describe('captureAgentModeException', () => {
       agentMode: 'on',
       fullAccess: true,
     })
-    expect(captureExceptionMock).toHaveBeenCalledWith(error)
-    expect(setTagMock).toHaveBeenCalledWith('component', 'agent-mode')
-    expect(setTagMock).toHaveBeenCalledWith('provider', 'openai')
-    expect(setTagMock).toHaveBeenCalledWith('model', 'gpt-4o')
-    expect(setTagMock).toHaveBeenCalledWith('full_access', 'true')
+    expect(reportErrorMock).toHaveBeenCalledWith(error, {
+      domain: 'agent-mode',
+      operation: 'generation',
+      priority: 'high',
+      tags: {
+        provider: 'openai',
+        model: 'gpt-4o',
+        agent_mode: 'on',
+        full_access: 'true',
+      },
+    })
   })
 
   it('wraps non-Error values so Sentry gets a real exception', () => {
     captureAgentModeException('string failure', { operation: 'tool_retry' })
-    expect(captureExceptionMock).toHaveBeenCalledTimes(1)
-    const captured = captureExceptionMock.mock.calls[0][0]
+    expect(reportErrorMock).toHaveBeenCalledTimes(1)
+    const captured = reportErrorMock.mock.calls[0][0]
     expect(captured).toBeInstanceOf(Error)
     expect(captured.message).toBe('string failure')
   })
@@ -113,8 +120,10 @@ describe('captureAgentModeException', () => {
       provider: 'custom-provider-3f1c9a2e',
       model: 'my-private-model',
     })
-    expect(setTagMock).toHaveBeenCalledWith('provider', 'custom')
-    expect(setTagMock).not.toHaveBeenCalledWith('model', expect.anything())
+    expect(reportErrorMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ tags: { provider: 'custom' } })
+    )
   })
 
   it('strips user-entered MCP server names from tool_name tags', () => {
@@ -122,7 +131,10 @@ describe('captureAgentModeException', () => {
       operation: 'tool_pause_continue',
       toolName: 'mcp__my_company_server__search_docs',
     })
-    expect(setTagMock).toHaveBeenCalledWith('tool_name', 'mcp__search_docs')
+    expect(reportErrorMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ tags: { tool_name: 'mcp__search_docs' } })
+    )
   })
 
   it('keeps builtin tool names as-is', () => {
@@ -130,6 +142,9 @@ describe('captureAgentModeException', () => {
       operation: 'tool_retry',
       toolName: 'write_file',
     })
-    expect(setTagMock).toHaveBeenCalledWith('tool_name', 'write_file')
+    expect(reportErrorMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ tags: { tool_name: 'write_file' } })
+    )
   })
 })

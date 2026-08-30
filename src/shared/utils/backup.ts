@@ -1,4 +1,6 @@
-import type { Settings } from '../types'
+import * as defaults from '../defaults'
+import { SettingsSchema, type Settings } from '../types'
+import deepmerge from 'deepmerge'
 
 function withoutProviderCredentials(provider: object): Record<string, unknown> {
   const cleanedProvider: Record<string, unknown> = { ...provider }
@@ -59,23 +61,43 @@ export function cleanSettingsForBackup(settings: Settings, includeKeys: boolean)
       }
       cleaned.extension = extension
     }
-    if (settings.mcp) {
-      cleaned.mcp = {
-        ...settings.mcp,
-        servers: settings.mcp.servers.map((server) => {
-          if (server.transport.type === 'stdio') {
-            const transport = { ...server.transport }
-            delete transport.env
-            return { ...server, transport }
-          }
-          const transport = { ...server.transport }
-          delete transport.headers
-          return { ...server, transport }
-        }),
-      }
+  }
+  if (settings.mcp) {
+    // Legacy local-process MCP entries are never exported. The supported
+    // product surface only connects to remote HTTPS servers.
+    cleaned.mcp = {
+      ...settings.mcp,
+      servers: settings.mcp.servers.flatMap((server) => {
+        if (server.transport.type !== 'http') return []
+        if (includeKeys) return [{ ...server, transport: { ...server.transport } }]
+        const transport = { ...server.transport }
+        delete transport.headers
+        // Remote MCP URLs may contain tenant identifiers or query tokens.
+        // Keep the server shape in a keyless backup without preserving a
+        // potentially sensitive endpoint that cannot work without headers.
+        transport.url = ''
+        return [{ ...server, transport }]
+      }),
     }
   }
   return cleaned
+}
+
+/**
+ * Validate imported settings and fill fields omitted by older backup formats.
+ * The first parse keeps current full backups strict; the default merge only
+ * accommodates legacy partial settings and still requires a successful schema
+ * parse before the value reaches storage.
+ */
+export function parseSettingsForImport(value: unknown): Settings | undefined {
+  const parsed = SettingsSchema.safeParse(value)
+  if (parsed.success) return parsed.data
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const merged = deepmerge<Settings, Partial<Settings>>(defaults.settings(), value as Partial<Settings>, {
+    arrayMerge: (_target, source) => source,
+  })
+  const mergedParsed = SettingsSchema.safeParse(merged)
+  return mergedParsed.success ? mergedParsed.data : undefined
 }
 
 export function getBackupFilename(exportedAt: Date): string {

@@ -84,7 +84,7 @@ export default function AdvancedSettingTab(props: Props) {
       </Accordion>
       <Accordion>
         <AccordionSummary aria-controls="panel1a-content">
-          <Typography>{t('Error Reporting')}</Typography>
+          <Typography>{t('Diagnostic Logs')}</Typography>
         </AccordionSummary>
         <AccordionDetails>
           <AnalyticsSetting />
@@ -188,7 +188,7 @@ function ExportAndImport(props: { onCancel: () => void }) {
     data['__exported_items'] = exportItems
     data['__exported_at'] = date.toISOString()
     const dateStr = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
-    platform.exporter.exportTextFile(`chatbox-exported-data-${dateStr}.json`, JSON.stringify(data))
+    platform.exporter.exportTextFile(`aibox-exported-data-${dateStr}.json`, JSON.stringify(data))
   }
   const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const errTip = t('Import failed, unsupported data format')
@@ -324,11 +324,7 @@ export function AnalyticsSetting() {
   return (
     <Box>
       <div>
-        <p className="opacity-70">
-          {t(
-            'Chatbox respects your privacy and only uploads anonymous error data and events when necessary. You can change your preferences at any time in the settings.'
-          )}
-        </p>
+        <p className="opacity-70">{t('Error diagnostics are stored only on this device and are never uploaded.')}</p>
       </div>
       <div className="my-2">
         <AllowReportingAndTrackingCheckbox />
@@ -351,7 +347,7 @@ export function AllowReportingAndTrackingCheckbox(props: { className?: string })
           })
         }
       />
-      {t('Enable optional anonymous reporting of crash and event data')}
+      {t('Enable optional anonymous usage analytics')}
     </span>
   )
 }

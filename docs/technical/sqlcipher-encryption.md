@@ -1,16 +1,15 @@
 # SQLCipher 加密（移动端 SQLite）设计
 
-> Status: 设计稿（planned，未实现）。本轮不写代码——当前无 Android 构建环境可验证，
-> 明文→加密迁移与密钥管理必须先在真机/模拟器上验证后才能合入。
+> Status: 设计稿（planned，未实现）。SQLCipher 数据库迁移仍需单独验证；本项目当前先确保
+> API/登录凭据不落入普通设置快照。
 > 前置依赖：[关键决策 #4](./key-decisions.md) 与结构化迁移框架（`src/renderer/storage/sqliteMigrations.ts`）。
 
 ## 现状
 
-- 移动端会话/设置存储 `chatbox.db` 与安全存储 fallback `chatbox-credentials.db` 均以
-  `no-encryption` 建库（`src/renderer/storage/sqliteConnection.ts`），落盘为明文 SQLite。
+- 移动端会话/设置存储由 SQLite 管理；SQLCipher 静态加密尚未在本设计之外落地。
 - `@capacitor-community/sqlite` 在 Android 上底层使用 SQLCipher，加密能力已内置，只是未启用密钥。
-- API 凭据本身已通过 Android Keystore 的 AES-GCM 加密保存（`SecureStoragePlugin`），
-  但会话消息、设置快照等仍位于明文库中。
+- API 凭据通过 Android Keystore 的 AES-GCM 加密保存（`SecureStoragePlugin`）。插件不可用时，
+  凭据只保留在当前 WebView 进程内存，不会回退到 `chatbox-credentials.db` 或其他明文存储。
 
 ## 目标
 
@@ -55,7 +54,7 @@
 
 验证清单（合入前必须完成）：
 
-- [ ] 具备 JDK 17 + Android SDK，`./gradlew assembleDebug` 通过。
+- [ ] 具备 JDK 21 + Android SDK，`./gradlew assembleDebug` 通过。
 - [ ] 真机/模拟器：全新安装 → 加密建库，`PRAGMA key` 生效，文件内容非明文。
 - [ ] 覆盖安装明文旧版本 → 自动迁移 → 数据完整、可读。
 - [ ] 覆盖安装加密旧版本 → 用同一 passphrase 打开。

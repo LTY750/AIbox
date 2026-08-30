@@ -1,8 +1,8 @@
-# Chatbox Pro 技术设计文档
+# AIbox Mobile 技术设计文档
 
 > Last updated: 2026-07
 
-本目录包含 Chatbox Pro 的系统设计与技术决策文档，面向工程师和技术负责人。
+本目录包含 AIbox Mobile 的系统设计与技术决策文档，面向工程师和技术负责人。部分共享模块仍保留 Chatbox AI provider 的产品术语。
 
 如需了解产品功能概述（面向非技术人员），请参阅 [`docs/product/`](../product/index.md)。
 
@@ -27,7 +27,7 @@
 | [Windows 原生代码执行](./windows-sandbox.md) | Windows 代码执行根因分析、SRT/Codex 方案对比、当前最小原生支持（放弃隔离）与未来强隔离演进 |
 | [构建与部署](./build-and-deployment.md) | 构建工具链、依赖管理、签名打包、CI/CD |
 | [自动更新系统](./auto-updater.md) | electron-updater 机制、状态管理、Feed URL Fallback、本地测试方法 |
-| [Sentry 错误上报](./sentry-error-reporting.md) | 错误覆盖范围、统一分类、采样降噪、去重与隐私规则 |
+| [本地诊断日志](./sentry-error-reporting.md) | 错误分类、本地日志、脱敏与导出规则 |
 
 ## 文档定位
 

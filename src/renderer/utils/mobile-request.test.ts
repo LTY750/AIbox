@@ -74,7 +74,7 @@ describe('mobile request transport', () => {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     })
     Object.defineProperty(expoFileLike, 'name', { value: '公安联考资料汇编.docx' })
-    form.append('file', expoFileLike)
+    form.append('file', expoFileLike, '公安联考资料汇编.docx')
 
     await handleMobileRequest(
       'https://api.cloud.llamaindex.ai/api/v1/beta/files',
@@ -87,7 +87,7 @@ describe('mobile request transport', () => {
     expect(request.data).toEqual([
       {
         key: 'file',
-        value: 'UEsDAA==',
+        value: 'UEsDBA==',
         type: 'base64File',
         contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         fileName: '公安联考资料汇编.docx',
@@ -163,6 +163,10 @@ describe('mobile request transport', () => {
 })
 
 describe('mobile request stream cancellation', () => {
+  beforeEach(() => {
+    nativeStreamHandle.mockReset()
+  })
+
   test('cancels the native task even when its readable stream is locked', async () => {
     const stream = new ReadableStream<Uint8Array>()
     const reader = stream.getReader()

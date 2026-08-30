@@ -1,6 +1,6 @@
 import type { SessionMetaRecord } from '@shared/types'
 import { describe, expect, it, vi } from 'vitest'
-import { importLegacyJsonBackup } from './legacy-import'
+import { importLegacyJsonBackup, MAX_LEGACY_JSON_BACKUP_BYTES } from './legacy-import'
 import type { BackupMetaStorage, BackupStorage } from './types'
 
 class LegacyMemoryStorage implements BackupStorage {
@@ -84,12 +84,12 @@ describe('legacy JSON backup import', () => {
         recoverSessionList,
         migrateData: async (dataStore) => {
           const settings = await dataStore.getData<Record<string, unknown>>('settings', {})
-          await dataStore.setData('settings', { ...settings, migrated: true })
+          await dataStore.setData('settings', { ...settings, fontSize: 16 })
         },
       }
     )
 
-    expect(storage.values.get('settings')).toEqual({ language: 'en', migrated: true })
+    expect(storage.values.get('settings')).toMatchObject({ language: 'en', fontSize: 16 })
     expect(storage.values.get('configVersion')).toBeUndefined()
     expect(metaStorage.records.get('existing')?.name).toBe('Updated')
     expect(metaStorage.records.get('new')).toMatchObject({ id: 'new', name: 'New session' })
@@ -121,5 +121,20 @@ describe('legacy JSON backup import', () => {
         migrateData: () => Promise.resolve(),
       })
     ).rejects.toThrow('Unsupported legacy backup data format')
+  })
+
+  it('rejects oversized files before reading their contents', async () => {
+    const text = vi.fn(() => Promise.resolve('{}'))
+    const oversizedFile = { size: MAX_LEGACY_JSON_BACKUP_BYTES + 1, text } as unknown as File
+
+    await expect(
+      importLegacyJsonBackup(oversizedFile, {
+        storage: new LegacyMemoryStorage(),
+        metaStorage: new LegacyMemoryMetaStorage(),
+        recoverSessionList: () => Promise.resolve(),
+        migrateData: () => Promise.resolve(),
+      })
+    ).rejects.toThrow('Legacy JSON backup is too large')
+    expect(text).not.toHaveBeenCalled()
   })
 })

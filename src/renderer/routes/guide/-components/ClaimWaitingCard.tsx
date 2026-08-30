@@ -67,7 +67,10 @@ export function ClaimWaitingCard({ onClaimDetected }: ClaimWaitingCardProps) {
       <Flex align="center" gap="xs">
         <Loader size="xs" type="dots" />
         <Text size="sm" c="chatbox-text-secondary">
-          {t("We're waiting for you to finish on chatboxai.app...")}
+          {t("We're waiting for you to finish on chatboxai.app...").replace(
+            'chatboxai.app',
+            'Chatbox AI account website'
+          )}
         </Text>
       </Flex>
       <Group gap="md">

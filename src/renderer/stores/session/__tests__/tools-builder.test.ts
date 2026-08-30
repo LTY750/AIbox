@@ -212,13 +212,14 @@ beforeEach(() => {
   }
   getSettingsMock.mockReturnValue({
     skills: { enabledSkillNames: ['test-skill'] },
+    mcp: { enabled: true },
   })
   settingsState.licenseKey = undefined
   settingsState.licenseDetail = undefined
   settingsState.licensePlanName = undefined
   settingsState.licenseActivationMethod = undefined
   settingsState.hasExpiredLicense = false
-  webSearchProvider.current = 'build-in'
+  webSearchProvider.current = 'tavily'
   isProMock.mockReturnValue(true)
   buildCodeExecutionToolsMock.mockReturnValue({
     description: 'code execution toolset',
@@ -251,7 +252,7 @@ beforeEach(() => {
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 describe('buildToolsForSession', () => {
-  test('agentMode="off" — no skills tools, no sandbox tools in result', async () => {
+  test('agentMode="off" — no Work Mode tools, while enabled remote MCP remains available', async () => {
     const model = createMockModel()
     const options: BuildToolsOptions = {
       webBrowsing: false,
@@ -263,10 +264,11 @@ describe('buildToolsForSession', () => {
     expect(result.tools.load_skill).toBeUndefined()
     expect(result.tools.chatbox_cli).toBeUndefined()
     expect(result.tools.user_exec).toBeUndefined()
-    expect(result.tools.mcp_tool).toBeUndefined()
+    expect(result.tools.mcp_tool).toBeDefined()
+    expect(result.hasMcpTools).toBe(true)
     expect(result.instructions).not.toContain('## Skills')
     expect(result.instructions).not.toContain('Chatbox Account CLI')
-    expect(result.instructions).not.toContain('## Tool-use Communication')
+    expect(result.instructions).toContain('## Tool-use Communication')
     expect(discoverSkillsMock).not.toHaveBeenCalled()
     for (const name of sandboxToolNames) {
       expect(result.tools[name]).toBeUndefined()
@@ -284,7 +286,7 @@ describe('buildToolsForSession', () => {
 
     expect(result.tools.kb_search).toBeDefined()
     expect(result.instructions).toContain('kb toolset')
-    expect(result.tools.mcp_tool).toBeUndefined()
+    expect(result.tools.mcp_tool).toBeDefined()
     expect(result.tools.load_skill).toBeUndefined()
     expect(result.tools.user_exec).toBeUndefined()
     expect(result.tools.list_files).toBeUndefined()
@@ -303,7 +305,7 @@ describe('buildToolsForSession', () => {
 
     expect(result.tools.web_search).toBeDefined()
     expect(result.tools.kb_search).toBeDefined()
-    expect(result.tools.mcp_tool).toBeUndefined()
+    expect(result.tools.mcp_tool).toBeDefined()
     expect(result.tools.load_skill).toBeUndefined()
   })
 
@@ -812,14 +814,16 @@ describe('chatbox_cli tool', () => {
       agentMode: 'on',
     }
 
-    getSettingsMock.mockReturnValueOnce({
+    getSettingsMock.mockReturnValue({
       skills: { enabledSkillNames: ['chatbox-product-info'] },
+      mcp: { enabled: true },
     })
     const enabled = await buildToolsForSession(model, options)
     expect(enabled.tools.chatbox_cli).toBeDefined()
 
-    getSettingsMock.mockReturnValueOnce({
+    getSettingsMock.mockReturnValue({
       skills: { enabledSkillNames: ['test-skill'] },
+      mcp: { enabled: false },
     })
     const disabled = await buildToolsForSession(model, options)
     expect(disabled.tools.chatbox_cli).toBeUndefined()

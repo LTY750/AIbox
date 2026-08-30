@@ -81,7 +81,7 @@ describe('AndroidFilterWriter', () => {
     })
     filesystemMock.downloadFile
       .mockRejectedValueOnce(documentsError)
-      .mockResolvedValueOnce({ path: '/cache/chatbox_temp_exports/image.png' })
+      .mockResolvedValueOnce({ path: '/cache/aibox_temp_exports/image.png' })
 
     await new AndroidFilterWriter().exportByUrl('image.png', 'https://example.com/image.png')
 
@@ -93,7 +93,7 @@ describe('AndroidFilterWriter', () => {
       })
     )
     const preparedPath = filesystemMock.writeFile.mock.calls[0][0].path
-    expect(preparedPath).toMatch(/^chatbox_temp_exports\/.+-image\.png$/)
+    expect(preparedPath).toMatch(/^aibox_temp_exports\/.+-image\.png$/)
     expect(filesystemMock.downloadFile).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
@@ -102,7 +102,7 @@ describe('AndroidFilterWriter', () => {
       })
     )
     expect(documentSaverMock.saveFile).toHaveBeenCalledWith({
-      sourceUri: '/cache/chatbox_temp_exports/image.png',
+      sourceUri: '/cache/aibox_temp_exports/image.png',
       suggestedName: 'image.png',
       mimeType: 'image/png',
     })
@@ -229,19 +229,19 @@ describe('MobileExporter', () => {
 
     expect(filesystemMock.writeFile).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: 'chatbox_ai_exports/backup.zip',
+        path: 'aibox_exports/backup.zip',
         directory: 'DOCUMENTS',
         recursive: true,
       })
     )
     expect(filesystemMock.writeFile.mock.calls[0][0].data).toHaveLength(1_398_104)
     expect(filesystemMock.appendFile).toHaveBeenCalledWith({
-      path: 'chatbox_ai_exports/backup.zip',
+      path: 'aibox_exports/backup.zip',
       data: 'AQID',
       directory: 'DOCUMENTS',
     })
     expect(filesystemMock.getUri).toHaveBeenCalledWith({
-      path: 'chatbox_ai_exports/backup.zip',
+      path: 'aibox_exports/backup.zip',
       directory: 'DOCUMENTS',
     })
   })
@@ -296,7 +296,7 @@ describe('MobileExporter', () => {
     ).rejects.toMatchObject({ name: 'AbortError' })
 
     expect(filesystemMock.deleteFile).toHaveBeenCalledWith({
-      path: 'chatbox_ai_exports/backup.zip',
+      path: 'aibox_exports/backup.zip',
       directory: 'DOCUMENTS',
     })
     expect(toastMock.show).not.toHaveBeenCalled()

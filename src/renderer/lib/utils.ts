@@ -2,6 +2,7 @@ import { type ClassValue, clsx } from 'clsx'
 import dayjs from 'dayjs'
 import { getDefaultStore } from 'jotai'
 import { twMerge } from 'tailwind-merge'
+import { redactSensitiveText } from '@shared/utils/redact'
 import platform from '@/platform'
 import { initLogAtom } from '@/stores/atoms/utilAtoms'
 
@@ -47,7 +48,7 @@ export function getLogger(logId: string) {
     log(level: string, ...args: any[]) {
       const store = getDefaultStore()
       const now = dayjs().format('HH:mm:ss.SSS')
-      const message = args.map((arg) => serializeArg(arg)).join(' ')
+      const message = redactSensitiveText(args.map((arg) => serializeArg(arg)).join(' '))
       store.set(initLogAtom, [...store.get(initLogAtom), `[${now}][${logId}] ${message}`])
       platform.appLog(level, message).catch((e) => {
         console.error('Failed to send log to main process', e)

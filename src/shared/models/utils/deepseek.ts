@@ -12,7 +12,7 @@ import type { MessageContentParts, ToolUseScope } from '../../types'
  * Distilled and VL models are excluded because they use different model families.
  */
 
-const SCOPED_TOOLS: ToolUseScope[] = ['agent', 'web-browsing', 'read-file']
+const SCOPED_TOOLS: ToolUseScope[] = ['agent', 'mcp', 'web-browsing', 'read-file']
 
 // Matches DeepSeek chat/reasoner/R1, plus V-series models below V4.
 const WEAK_MODEL_PATTERN = /deepseek[-_]?(chat|reasoner|r1|v(?:0|1|2|3)(?:[._]\d+)?)\b/i

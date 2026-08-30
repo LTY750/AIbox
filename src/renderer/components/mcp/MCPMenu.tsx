@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { useMCPServerStatus, useToggleMCPServer } from '@/hooks/mcp'
 import { navigateToSettings } from '@/modals/Settings'
 import { BUILTIN_MCP_SERVERS } from '@/packages/mcp/builtin'
+import platform from '@/platform'
 import { useAutoValidate } from '@/stores/premiumActions'
 import { useMcpSettings } from '@/stores/settingsStore'
 import { ScalableIcon } from '../common/ScalableIcon'
@@ -45,7 +46,10 @@ const MCPMenu: FC<{ children: (enabledTools: number) => ReactNode }> = ({ childr
   const mcp = useMcpSettings()
   const isPremium = useAutoValidate()
   const onEnabledChange = useToggleMCPServer()
-  const enabledToolsCount = mcp.servers.filter((s) => s.enabled).length + mcp.enabledBuiltinServers.length
+  const enabledToolsCount = mcp.enabled
+    ? mcp.servers.filter((s) => s.enabled && s.transport.type === 'http').length +
+      (platform.type === 'mobile' ? 0 : mcp.enabledBuiltinServers.length)
+    : 0
   const [opened, setOpened] = useState(false)
   return (
     <Menu
@@ -81,7 +85,7 @@ const MCPMenu: FC<{ children: (enabledTools: number) => ReactNode }> = ({ childr
             </ActionIcon>
           </Menu.Label>
         </Flex>
-        {isPremium && (
+        {isPremium && platform.type !== 'mobile' && mcp.enabled && (
           <>
             {BUILTIN_MCP_SERVERS.map((server) => (
               <ServerItem
@@ -97,18 +101,20 @@ const MCPMenu: FC<{ children: (enabledTools: number) => ReactNode }> = ({ childr
             <Menu.Divider />
           </>
         )}
-        {mcp.servers.map((server) => (
-          <ServerItem key={server.id} item={server} onEnabledChange={onEnabledChange} />
-        ))}
-        {!mcp.servers.length && !mcp.enabledBuiltinServers.length && (
-          <Group justify="center">
-            <Link to="/settings/mcp">
-              <Button size="xs" my={12} variant="outline">
-                {t('Add your first MCP server')}
-              </Button>
-            </Link>
-          </Group>
-        )}
+        {mcp.enabled &&
+          mcp.servers
+            .filter((server) => server.transport.type === 'http')
+            .map((server) => <ServerItem key={server.id} item={server} onEnabledChange={onEnabledChange} />)}
+        {!mcp.servers.filter((server) => server.transport.type === 'http').length &&
+          (!mcp.enabledBuiltinServers.length || platform.type === 'mobile') && (
+            <Group justify="center">
+              <Link to="/settings/mcp">
+                <Button size="xs" my={12} variant="outline">
+                  {t('Add your first MCP server')}
+                </Button>
+              </Link>
+            </Group>
+          )}
       </Menu.Dropdown>
     </Menu>
   )

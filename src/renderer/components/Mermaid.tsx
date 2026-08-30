@@ -1,5 +1,6 @@
-/** biome-ignore-all lint/security/noDangerouslySetInnerHtml: Mermaid sanitizes the generated SVG before returning it */
+/** biome-ignore-all lint/security/noDangerouslySetInnerHtml: The generated SVG is sanitized before injection */
 import DataObjectIcon from '@mui/icons-material/DataObject'
+import DOMPurify from 'dompurify'
 import { ChartBarStacked } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -251,9 +252,20 @@ async function mermaidCodeToSvgCode(source: string, theme: 'light' | 'dark') {
   mermaid.initialize({ theme: theme === 'light' ? 'default' : 'dark', suppressErrorRendering: true })
   const id = `mermaidtmp${Math.random().toString(36).substring(2, 15)}`
   const result = await mermaid.render(id, source)
-  // 考虑到 mermaid 工具内部本身已经使用了 dompurify 进行处理，因此可以先假设它的输出是安全的
-  // 经过测试，发现 dompurify.sanitize 有时候会导致最终的 svg 显示不完整
-  // 考虑到现代浏览器都不会执行 svg 中的 script 标签，所以这里不进行 sanitize。参考：https://stackoverflow.com/questions/7917008/xss-when-loading-untrusted-svg-using-img-tag
-  // return dompurify.sanitize(result.svg, { USE_PROFILES: { svg: true, svgFilters: true } })
-  return { id, svg: result.svg }
+  return { id, svg: sanitizeMermaidSvg(result.svg) }
+}
+
+export function sanitizeMermaidSvg(svgCode: string): string {
+  // Keep this boundary independent from Mermaid's internal security settings.
+  // Mermaid output is inserted into the live document, so explicitly apply an
+  // SVG-only policy and remove active content even if Mermaid changes defaults.
+  const svg = DOMPurify.sanitize(svgCode, {
+    USE_PROFILES: { svg: true, svgFilters: true },
+    FORBID_TAGS: ['script', 'foreignObject', 'iframe', 'object', 'embed'],
+    FORBID_ATTR: ['onload', 'onerror', 'onclick', 'onmouseover', 'onfocus', 'href', 'xlink:href'],
+  })
+  if (!svg.trim().toLowerCase().startsWith('<svg')) {
+    throw new Error('Mermaid produced an invalid SVG')
+  }
+  return svg
 }

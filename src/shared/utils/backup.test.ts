@@ -91,16 +91,10 @@ describe('cleanSettingsForBackup', () => {
       enabledBuiltinServers: [],
       servers: [
         {
-          id: 'stdio',
-          name: 'stdio',
-          enabled: true,
-          transport: { type: 'stdio', command: 'server', args: [] },
-        },
-        {
           id: 'http',
           name: 'http',
           enabled: true,
-          transport: { type: 'http', url: 'https://example.com/mcp' },
+          transport: { type: 'http', url: '' },
         },
       ],
     })
@@ -123,13 +117,12 @@ describe('cleanSettingsForBackup', () => {
         },
       },
       mcp: {
-        servers: [
-          { transport: { env: { TOKEN: 'stdio-token' } } },
-          { transport: { headers: { Authorization: 'Bearer token' } } },
-        ],
+        servers: [{ transport: { headers: { Authorization: 'Bearer token' } } }],
       },
     })
     expect(cleaned).not.toHaveProperty('licenseDetail')
     expect(cleaned).not.toHaveProperty('licenseInstances')
+    expect(cleaned.mcp).toMatchObject({ servers: [{ id: 'http' }] })
+    expect(cleaned.mcp).not.toMatchObject({ servers: [{ id: 'stdio' }] })
   })
 })

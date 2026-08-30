@@ -25,6 +25,7 @@ public class SecureStoragePlugin extends Plugin {
     private static final String KEY_ALIAS = "chatbox_secure_storage_key";
     private static final String VALUE_SUFFIX = ".value";
     private static final String IV_SUFFIX = ".iv";
+    private static final Object KEY_LOCK = new Object();
 
     @PluginMethod
     public void set(PluginCall call) {
@@ -32,10 +33,10 @@ public class SecureStoragePlugin extends Plugin {
         String value = call.getString("value");
         if (key == null || value == null) { call.reject("key and value are required"); return; }
         try {
-            byte[] iv = new byte[12];
-            new java.security.SecureRandom().nextBytes(iv);
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            cipher.init(Cipher.ENCRYPT_MODE, getSecretKey(), new GCMParameterSpec(128, iv));
+            // Android Keystore requires randomized encryption and rejects caller-provided IVs.
+            cipher.init(Cipher.ENCRYPT_MODE, getSecretKey());
+            byte[] iv = cipher.getIV();
             byte[] encrypted = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
             boolean committed = prefs().edit()
                 .putString(key + VALUE_SUFFIX, Base64.encodeToString(encrypted, Base64.NO_WRAP))
@@ -76,15 +77,22 @@ public class SecureStoragePlugin extends Plugin {
     private SharedPreferences prefs() { return getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
 
     private SecretKey getSecretKey() throws Exception {
-        KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
-        keyStore.load(null);
-        if (keyStore.containsAlias(KEY_ALIAS)) return ((KeyStore.SecretKeyEntry) keyStore.getEntry(KEY_ALIAS, null)).getSecretKey();
-        KeyGenerator generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
-        generator.init(new KeyGenParameterSpec.Builder(KEY_ALIAS, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setUserAuthenticationRequired(false)
-            .build());
-        return generator.generateKey();
+        // Keystore alias lookup and generation must be one atomic operation.
+        // Without the lock, concurrent first reads/writes can both observe a
+        // missing alias and race to generate the same key.
+        synchronized (KEY_LOCK) {
+            KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+            keyStore.load(null);
+            if (keyStore.containsAlias(KEY_ALIAS)) {
+                return ((KeyStore.SecretKeyEntry) keyStore.getEntry(KEY_ALIAS, null)).getSecretKey();
+            }
+            KeyGenerator generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
+            generator.init(new KeyGenParameterSpec.Builder(KEY_ALIAS, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setUserAuthenticationRequired(false)
+                .build());
+            return generator.generateKey();
+        }
     }
 }

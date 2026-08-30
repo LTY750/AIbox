@@ -187,9 +187,17 @@ chatbox://provider/import?config=eyJpZCI6Im1pbmltYWwtcHJvdmlkZXIiLCJuYW1lIjoiTWl
 ```
 
 **Expected Result:**
-- ✅ Deep link opens Chatbox
+- ✅ Deep link opens the app (desktop via `src/main/deeplinks.ts`; Android via Manifest intent-filter + Capacitor App `appUrlOpen`)
 - Import dialog shows with decoded config
 - Same result as manual clipboard import
+
+**Android verification (device/emulator via adb):**
+
+```bash
+adb shell am start -a android.intent.action.VIEW -d "chatbox://provider/import?config=eyJpZCI6Im1pbmltYWwtcHJvdmlkZXIiLCJuYW1lIjoiTWluaW1hbCBQcm92aWRlciIsInR5cGUiOiJvcGVuYWkiLCJzZXR0aW5ncyI6eyJhcGlIb3N0IjoiaHR0cHM6Ly9hcGkubWluaW1hbC5jb20ifX0="
+```
+
+Also verify the `chatbox-dev://` scheme is normalized (uses the same URL with `chatbox-dev://` prefix).
 
 ## Invalid Configurations (Should Fail)
 

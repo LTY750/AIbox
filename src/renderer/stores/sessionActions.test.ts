@@ -160,14 +160,6 @@ vi.mock('@/stores/uiStore', () => ({
   useUIStore: vi.fn(),
 }))
 
-vi.mock('@/components/settings/mcp/registries', () => ({
-  MCP_ENTRIES_OFFICIAL: [],
-}))
-
-vi.mock('../components/settings/mcp/registries', () => ({
-  MCP_ENTRIES_OFFICIAL: [],
-}))
-
 function makeMessage(id: string, role: Message['role'] = 'user'): Message {
   return {
     id,

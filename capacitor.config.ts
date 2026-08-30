@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
-  appId: 'xyz.chatboxapp.chatbox.debug',
+  appId: 'com.aibox.mobile',
   appName: 'AIbox Mobile',
   webDir: 'release/app/dist/renderer',
   plugins: {

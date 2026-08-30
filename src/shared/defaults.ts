@@ -154,6 +154,7 @@ export function settings(): Settings {
       documentParser: { type: 'llamaparse' },
     },
     mcp: {
+      enabled: false,
       servers: [],
       enabledBuiltinServers: [],
     },

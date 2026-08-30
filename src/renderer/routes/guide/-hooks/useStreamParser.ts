@@ -233,7 +233,7 @@ async function handleActivateLicense(
 
   const failureMessage = t(
     'Failed to activate the license key. You can try activating manually in **Settings**, or log in to the [Chatbox AI website](https://chatboxai.app) to view your license details.'
-  )
+  ).replace('Chatbox AI website', 'Chatbox AI account website')
 
   try {
     const result = await activateLicense(licenseKey, 'manual')

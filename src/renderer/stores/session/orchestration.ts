@@ -30,6 +30,7 @@ import {
 import { AppActionApprovalPausedError } from '@/packages/app-action-approval'
 import * as appleAppStore from '@/packages/apple_app_store'
 import { wakeBackgroundTaskFollowUps } from '@/packages/chatbox-cli/background-follow-up'
+import { MCPToolApprovalPausedError } from '@/packages/mcp/approval'
 import { estimateTokensFromMessages } from '@/packages/token'
 import { FileMutationApprovalPausedError, UserExecApprovalPausedError } from '@/packages/user-exec-approval'
 import platform from '@/platform'
@@ -317,6 +318,26 @@ function isAppActionApprovalPausedError(error: unknown): error is AppActionAppro
   )
 }
 
+function isMcpToolApprovalPausedError(error: unknown): error is MCPToolApprovalPausedError {
+  return (
+    error instanceof MCPToolApprovalPausedError ||
+    Boolean(
+      error &&
+        typeof error === 'object' &&
+        'name' in error &&
+        error.name === 'MCPToolApprovalPausedError' &&
+        'toolCallId' in error &&
+        typeof error.toolCallId === 'string' &&
+        'serverName' in error &&
+        typeof error.serverName === 'string' &&
+        'toolName' in error &&
+        typeof error.toolName === 'string' &&
+        'preview' in error &&
+        typeof error.preview === 'string'
+    )
+  )
+}
+
 function getToolCallPause(error: unknown): {
   toolCallId: string
   pauseReason: MessageToolCallPart['pauseReason']
@@ -353,6 +374,17 @@ function getToolCallPause(error: unknown): {
         title: error.title,
         preview: error.preview,
         details: error.details,
+      },
+    }
+  }
+  if (isMcpToolApprovalPausedError(error)) {
+    return {
+      toolCallId: error.toolCallId,
+      pauseReason: {
+        type: 'mcp_tool_approval',
+        serverName: error.serverName,
+        toolName: error.toolName,
+        preview: error.preview,
       },
     }
   }
@@ -1186,14 +1218,17 @@ async function stopPausedToolCallWithoutSessionLock(sessionId: string, messageId
   if (
     pauseReason?.type === 'user_exec_approval' ||
     pauseReason?.type === 'file_mutation_approval' ||
-    pauseReason?.type === 'app_action_approval'
+    pauseReason?.type === 'app_action_approval' ||
+    pauseReason?.type === 'mcp_tool_approval'
   ) {
     const deniedResult =
       pauseReason.type === 'user_exec_approval'
         ? { success: false, exitCode: null, stdout: '', stderr: 'Command denied by user.' }
         : pauseReason.type === 'file_mutation_approval'
           ? { success: false, error: 'File mutation denied by user.' }
-          : { success: false, error: 'Chatbox action denied by user.' }
+          : pauseReason.type === 'app_action_approval'
+            ? { success: false, error: 'App action denied by user.' }
+            : { success: false, error: 'Remote MCP call denied by user.' }
     // Denying one call intentionally denies its whole parallel batch: the model should see
     // one consistent refusal and react once, not a mix of denied and still-pending siblings.
     // Approving stays per-call (each approval is reviewed individually in continuePausedToolCall).

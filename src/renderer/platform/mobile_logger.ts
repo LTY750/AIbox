@@ -1,20 +1,11 @@
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
+import { redactSensitiveText } from '@shared/utils/redact'
 import dayjs from 'dayjs'
 
-const LOG_FILE_NAME = 'chatbox-app.log'
+const LOG_FILE_NAME = 'aibox-app.log'
 const LOG_DIRECTORY = Directory.Data
 const MAX_LOG_SIZE = 5 * 1024 * 1024 // 5MB，超过此大小会轮转
 const MAX_LOG_AGE_DAYS = 30 // 日志保留天数
-
-function redactLogMessage(message: string): string {
-  return message
-    .replace(
-      /(apiKey|accessKey|secretKey|sessionToken|accessToken|refreshToken|password|token)\s*([=:])\s*(["']?)[^\s,"']+\3/gi,
-      '$1$2$3[REDACTED]$3'
-    )
-    .replace(/Bearer\s+[A-Za-z0-9._~-]+/gi, 'Bearer [REDACTED]')
-    .replace(/([?&](?:api_key|access_token|token|key)=)[^&\s]+/gi, '$1[REDACTED]')
-}
 
 /**
  * Mobile 平台日志管理器
@@ -86,7 +77,7 @@ export class MobileLogger {
   private async rotateLog(): Promise<void> {
     try {
       const timestamp = dayjs().format('YYYY-MM-DD_HH-mm-ss')
-      const backupName = `chatbox-app-${timestamp}.log`
+      const backupName = `aibox-app-${timestamp}.log`
 
       // 重命名当前日志文件
       await Filesystem.rename({
@@ -113,7 +104,7 @@ export class MobileLogger {
       })
 
       const logBackups = result.files
-        .filter((file) => file.name.startsWith('chatbox-app-') && file.name.endsWith('.log'))
+        .filter((file) => file.name.startsWith('aibox-app-') && file.name.endsWith('.log'))
         .sort((a, b) => (b.mtime || 0) - (a.mtime || 0))
 
       // 只保留最新的 3 个备份
@@ -136,7 +127,7 @@ export class MobileLogger {
    */
   public log(level: string, message: string): void {
     const timestamp = dayjs().format('YYYY-MM-DD HH:mm:ss.SSS')
-    const logEntry = `[${timestamp}] [${level.toUpperCase()}] ${redactLogMessage(message)}\n`
+    const logEntry = `[${timestamp}] [${level.toUpperCase()}] ${redactSensitiveText(message)}\n`
 
     // 添加到缓冲区
     this.logBuffer.push(logEntry)

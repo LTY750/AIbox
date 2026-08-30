@@ -63,17 +63,17 @@ export default class MenuBuilder {
 
   buildDarwinTemplate(): MenuItemConstructorOptions[] {
     const subMenuAbout: DarwinMenuItemConstructorOptions = {
-      label: 'Chatbox',
+      label: 'AIbox Mobile',
       submenu: [
         {
-          label: 'About Chatbox',
+          label: 'About AIbox Mobile',
           selector: 'orderFrontStandardAboutPanel:',
         },
         { type: 'separator' },
         { label: 'Services', submenu: [] },
         { type: 'separator' },
         {
-          label: 'Hide Chatbox',
+          label: 'Hide AIbox Mobile',
           accelerator: 'Command+H',
           selector: 'hide:',
         },
@@ -211,7 +211,7 @@ export default class MenuBuilder {
         {
           label: 'Github Repo',
           click() {
-            shell.openExternal('https://github.com/chatboxai/chatbox')
+            shell.openExternal('https://github.com/LTY750/AIbox')
           },
         },
         // {
@@ -223,7 +223,7 @@ export default class MenuBuilder {
         {
           label: 'Search Issues',
           click() {
-            shell.openExternal('https://github.com/chatboxai/chatbox/issues?q=is%3Aissue')
+            shell.openExternal('https://github.com/LTY750/AIbox/issues?q=is%3Aissue')
           },
         },
       ],
@@ -302,7 +302,7 @@ export default class MenuBuilder {
           {
             label: 'Github Repo',
             click() {
-              shell.openExternal('https://github.com/chatboxai/chatbox')
+            shell.openExternal('https://github.com/LTY750/AIbox')
             },
           },
           // {
@@ -314,7 +314,7 @@ export default class MenuBuilder {
           {
             label: 'Search Issues',
             click() {
-              shell.openExternal('https://github.com/chatboxai/chatbox/issues?q=is%3Aissue')
+            shell.openExternal('https://github.com/LTY750/AIbox/issues?q=is%3Aissue')
             },
           },
         ],

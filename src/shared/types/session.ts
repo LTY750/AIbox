@@ -199,6 +199,12 @@ export const MessageToolCallPartSchema = z.object({
         preview: z.string(),
         details: AppActionApprovalDetailsSchema.optional(),
       }),
+      z.object({
+        type: z.literal('mcp_tool_approval'),
+        serverName: z.string(),
+        toolName: z.string(),
+        preview: z.string(),
+      }),
     ])
     .optional(),
   /** When the original result exceeded the size limit, the full result is stored in blob storage under this key. */
@@ -224,7 +230,7 @@ export const StreamTextResultSchema = z.object({
 })
 
 // Tool and provider schemas
-export const ToolUseScopeSchema = z.enum(['agent', 'web-browsing', 'knowledge-base', 'read-file'])
+export const ToolUseScopeSchema = z.enum(['agent', 'mcp', 'web-browsing', 'knowledge-base', 'read-file'])
 
 export const ModelProviderSchema = z.union([z.nativeEnum(ModelProviderEnum), z.string()])
 

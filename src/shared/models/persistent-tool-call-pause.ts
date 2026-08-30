@@ -5,6 +5,7 @@ const PERSISTENT_TOOL_CALL_PAUSE_ERROR_NAMES = new Set([
   'UserExecApprovalPausedError',
   'FileMutationApprovalPausedError',
   'AppActionApprovalPausedError',
+  'MCPToolApprovalPausedError',
 ])
 
 export function isPersistentToolCallPauseError(error: unknown): boolean {

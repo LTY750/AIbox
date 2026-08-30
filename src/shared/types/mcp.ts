@@ -2,6 +2,7 @@ export type MCPServerConfig<TransportConfig = MCPTransportConfig> = {
   id: string
   name: string
   enabled: boolean
+  disabledTools?: string[]
   transport: TransportConfig
 }
 

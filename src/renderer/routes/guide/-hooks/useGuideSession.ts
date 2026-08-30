@@ -170,6 +170,8 @@ export function useGuideSession(): UseGuideSessionReturn {
       const configCompleteMsg = t(
         "You've already completed the setup and can use Chatbox normally.\n\nIf you have any questions about Chatbox AI, feel free to ask me here."
       )
+        .replaceAll('Chatbox AI', 'AIbox Mobile')
+        .replaceAll('Chatbox', 'AIbox Mobile')
       setMessages([
         {
           id: generateMessageId(),
@@ -200,7 +202,7 @@ export function useGuideSession(): UseGuideSessionReturn {
         ? [
             t(`## 👋 Hey! I'm Boxy, your setup guide assistant.
 
-Chatbox is an **all-in-one AI chat client** that supports 30+ mainstream models including ChatGPT, Claude, DeepSeek, and more.
+AIbox Mobile is an **all-in-one AI chat client** that supports 30+ mainstream models including ChatGPT, Claude, DeepSeek, and more.
 
 ### ✨ Key Features
 - 🔐 **Local First** — Your data stays on your device, ensuring privacy and security
@@ -215,9 +217,7 @@ Chatbox is an **all-in-one AI chat client** that supports 30+ mainstream models 
 - 🆘 [Help Center](`),
             helpCenterUrl,
             t(`) — FAQs
-- 📮 Contact us: hi@chatboxai.com
-
-💡 Follow Chatbox on [Xiaohongshu](https://www.xiaohongshu.com/user/profile/67b581b6000000000e01d11f) for the latest updates and tips
+- 💻 [AIbox Mobile GitHub](https://github.com/LTY750/AIbox) — source code and updates
 
 ---
 
@@ -226,7 +226,7 @@ Chatbox is an **all-in-one AI chat client** that supports 30+ mainstream models 
         : [
             t(`## 👋 Hey! I'm Boxy, your setup guide assistant.
 
-Chatbox is an **all-in-one AI chat client** that supports 30+ mainstream models including ChatGPT, Claude, DeepSeek, and more.
+AIbox Mobile is an **all-in-one AI chat client** that supports 30+ mainstream models including ChatGPT, Claude, DeepSeek, and more.
 
 ### ✨ Key Features
 - 🔐 **Local First** — Your data stays on your device, ensuring privacy and security
@@ -240,7 +240,7 @@ Chatbox is an **all-in-one AI chat client** that supports 30+ mainstream models 
 - 🆘 [Help Center](`),
             helpCenterUrl,
             t(`) — FAQs
-- 📮 Contact us: hi@chatboxai.com
+- 💻 [AIbox Mobile GitHub](https://github.com/LTY750/AIbox) — source code and updates
 
 ---
 
@@ -432,7 +432,7 @@ Chatbox is an **all-in-one AI chat client** that supports 30+ mainstream models 
         type === 'novice'
           ? t(
               'Great! Chatbox AI is our all-in-one service designed for new users - it works out of the box with no complex setup required.\n\nClick the login button below, then enter your email and verification code in the popup to sign in.'
-            )
+            ).replace('Chatbox AI', 'Chatbox AI account')
           : t(
               "Excellent! You're ready to explore.\n\nClick the button below to configure your API directly. If you need help later, just click the **Help** button in the sidebar. Enjoy!"
             )
@@ -496,11 +496,16 @@ Chatbox is an **all-in-one AI chat client** that supports 30+ mainstream models 
       setIsAutoRedirectingToNewChat(true)
       const baseTimestamp = Date.now()
 
-      await streamFixedMessage(t("Awesome, everything is ready! Let's start your first Chatbox AI chat."), [
-        createAutoNewChatLoadingToolPart(`auto-new-chat-${baseTimestamp}`, {
-          waitForWindowFocusBeforeAutoNavigate: options?.waitForWindowFocusBeforeAutoNavigate,
-        }),
-      ])
+      await streamFixedMessage(
+        t("Awesome, everything is ready! Let's start your first Chatbox AI chat.")
+          .replaceAll('Chatbox AI', 'AIbox Mobile')
+          .replaceAll('Chatbox', 'AIbox Mobile'),
+        [
+          createAutoNewChatLoadingToolPart(`auto-new-chat-${baseTimestamp}`, {
+            waitForWindowFocusBeforeAutoNavigate: options?.waitForWindowFocusBeforeAutoNavigate,
+          }),
+        ]
+      )
 
       const timeoutId = setTimeout(() => {
         pendingTimeoutsRef.current.delete(timeoutId)
@@ -544,7 +549,7 @@ Chatbox is an **all-in-one AI chat client** that supports 30+ mainstream models 
     } else {
       await streamFixedMessage(
         t(
-          "You're logged in! Claim your **free plan** below to unlock Chatbox AI features. If you have any questions, feel free to click the Help button in the bottom left corner anytime."
+          "You're logged in to your Chatbox AI account. You can continue with AIbox Mobile or manage your hosted service below."
         ),
         [
           {
@@ -567,15 +572,18 @@ Chatbox is an **all-in-one AI chat client** that supports 30+ mainstream models 
     if (claimWaitingShownRef.current) return
     claimWaitingShownRef.current = true
 
-    await streamFixedMessage(t("We're waiting for you to finish on chatboxai.app..."), [
-      {
-        type: 'tool-show_claim_waiting',
-        toolCallId: `claim-waiting-${Date.now()}`,
-        toolName: 'show_claim_waiting',
-        state: 'result',
-        result: { displayed: true },
-      },
-    ])
+    await streamFixedMessage(
+      t("We're waiting for you to finish on chatboxai.app...").replace('chatboxai.app', 'Chatbox AI account website'),
+      [
+        {
+          type: 'tool-show_claim_waiting',
+          toolCallId: `claim-waiting-${Date.now()}`,
+          toolName: 'show_claim_waiting',
+          state: 'result',
+          result: { displayed: true },
+        },
+      ]
+    )
   }, [streamFixedMessage, t])
 
   /**
@@ -612,7 +620,9 @@ Chatbox is an **all-in-one AI chat client** that supports 30+ mainstream models 
       appendFixedMessage(
         t(
           "You've already completed the setup and can use Chatbox normally.\n\nIf you have any questions about Chatbox AI, feel free to ask me here."
-        ),
+        )
+          .replaceAll('Chatbox AI', 'AIbox Mobile')
+          .replaceAll('Chatbox', 'AIbox Mobile'),
         [
           createNewChatButtonToolPart(`new-chat-btn-${Date.now()}`, {
             label: t('Click here to start a new chat') ?? undefined,
@@ -818,6 +828,8 @@ Chatbox is an **all-in-one AI chat client** that supports 30+ mainstream models 
 
     // Add the success message
     const successText = t("Awesome, everything is ready! Let's start your first Chatbox AI chat.")
+      .replaceAll('Chatbox AI', 'AIbox Mobile')
+      .replaceAll('Chatbox', 'AIbox Mobile')
     const successMessage: GuideUIMessage = {
       id: generateMessageId(),
       role: 'assistant',
@@ -847,8 +859,8 @@ Chatbox is an **all-in-one AI chat client** that supports 30+ mainstream models 
     fakeMessages.push({
       id: generateMessageId(),
       role: 'assistant',
-      content: t('Welcome to Chatbox!'),
-      parts: [{ type: 'text', text: t('Welcome to Chatbox!') }],
+      content: 'Welcome to AIbox Mobile!',
+      parts: [{ type: 'text', text: 'Welcome to AIbox Mobile!' }],
     })
 
     // Add maxRounds - 1 user messages, so next send triggers limit message

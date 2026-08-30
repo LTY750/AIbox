@@ -76,7 +76,7 @@ export function ProviderList({ providers, onAddProvider }: ProviderListProps) {
                 c={provider.id === providerId ? 'chatbox-brand' : 'chatbox-secondary'}
                 bg={provider.id === providerId ? 'var(--chatbox-background-brand-secondary)' : 'transparent'}
                 className={clsx(
-                  'cursor-pointer select-none rounded-lg',
+                  'settings-nav-item cursor-pointer select-none rounded-lg',
                   provider.id === providerId ? '' : 'hover:!bg-chatbox-background-gray-secondary'
                 )}
               >

@@ -64,6 +64,7 @@ export interface BuildToolsOptions {
 export interface BuildToolsResult {
   tools: ToolSet
   instructions: string
+  hasMcpTools: boolean
 }
 
 /**
@@ -290,16 +291,24 @@ In long conversations, earlier tool call results may be automatically compressed
 
   let tools: ToolSet = {}
 
-  // MCP tools: agent mode only, requires model support
-  if (includeAgentTools) {
-    tools = { ...mcpController.getAvailableTools() }
+  // Remote MCP tools are independent of desktop Work Mode. The global setting,
+  // per-server switch, per-tool allowlist, and model capability must all agree.
+  const mcpSettings = settingsStore.getState().getSettings()?.mcp
+  const mcpTools = mcpSettings?.enabled && model.isSupportToolUse('mcp') ? mcpController.getAvailableTools() : {}
+  const hasMcpTools = Object.keys(mcpTools).length > 0
+  if (hasMcpTools) {
+    tools = { ...mcpTools }
+    instructions += `
+## Remote MCP tools
+Use remote MCP tools only when they are relevant to the user's request. Send only the minimum arguments needed and never place credentials in tool arguments.
+`
   }
 
   // Web search: works independently of agent mode
   if (webBrowsing && webSupported) {
     tools.web_search = webSearchTool
     // Inject parse_link based on the selected provider's declared capability.
-    // Validation (Pro for build-in, API key for third parties) happens at execution time.
+    // Provider credential validation happens at execution time.
     if (includeParseLinkTool) {
       tools.parse_link = parseLinkTool
     }
@@ -362,7 +371,7 @@ In long conversations, earlier tool call results may be automatically compressed
     instructions = buildToolUseCommunicationInstruction() + instructions
   }
 
-  return { tools, instructions }
+  return { tools, instructions, hasMcpTools }
 }
 
 function buildLoadSkillTool(options: BuildToolsOptions): ToolSet[string] {

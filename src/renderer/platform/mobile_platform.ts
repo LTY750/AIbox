@@ -22,17 +22,34 @@ import { getSecureValue, removeSecureValue, setSecureValue } from './mobile_secu
 import type { SessionAttachmentRagController } from './session-attachment-rag/interface'
 import { MobileSQLiteStorage } from './storages'
 
-export { extractSettingsSecrets, removeSettingsSecrets, setPath } from './mobile_settings_secrets'
+export {
+  extractSettingsSecrets,
+  removeSettingsSecrets,
+  restoreSettingsSecrets,
+  setPath,
+} from './mobile_settings_secrets'
 
 import {
   extractSettingsSecrets,
   type MobileSettingsRecord,
   removeSettingsSecrets,
-  setPath,
+  restoreSettingsSecrets,
 } from './mobile_settings_secrets'
 import { parseFileLocallyInBrowser, parseUrlContentFree } from './web_platform_utils'
 
 const SECURE_SETTINGS_KEY = 'chatbox.settings.secrets'
+
+function summarizeDeepLink(url: string): string {
+  try {
+    const normalizedUrl = url.replace(/^chatbox-dev:\/\//, 'chatbox://')
+    const parsedUrl = new URL(normalizedUrl.replace(/^chatbox:\/\//, 'https://'))
+    // Keep query and fragment data out of diagnostics: deep links can carry
+    // base64 provider configurations and one-time authentication values.
+    return `${parsedUrl.protocol}//${parsedUrl.hostname}${parsedUrl.pathname}`
+  } catch {
+    return '[invalid URL]'
+  }
+}
 
 export default class MobilePlatform extends MobileSQLiteStorage implements Platform {
   public type: PlatformType = 'mobile'
@@ -40,6 +57,9 @@ export default class MobilePlatform extends MobileSQLiteStorage implements Platf
   public exporter = new MobileExporter()
 
   private navigationCallback: ((path: string) => void) | null = null
+  // Deep links can arrive before __root.tsx wires onNavigate (cold start);
+  // buffer the target path and flush it once the callback is registered.
+  private pendingNavigationPath: string | null = null
   private _imageGenerationStorage: ImageGenerationStorage | null = null
   private _sessionMetaStorage: SessionMetaStorage | null = null
   private appStateCallbacks = new Set<(state: { isActive: boolean }) => void>()
@@ -49,9 +69,19 @@ export default class MobilePlatform extends MobileSQLiteStorage implements Platf
     mobileLogger.init().catch((e) => console.error('Failed to init mobile logger:', e))
     // 监听深度链接 (Deep Links)
     App.addListener('appUrlOpen', (event) => {
-      console.debug('App URL opened:', event.url)
+      console.debug('App URL opened:', summarizeDeepLink(event.url))
       this.handleDeepLink(event.url)
     })
+    // Cold start: the native side only stores the launch intent (Bridge.intentUri)
+    // and never fires appUrlOpen for it, so pull it once via getLaunchUrl().
+    App.getLaunchUrl()
+      .then((result) => {
+        if (result?.url) {
+          console.debug('App launched from URL:', summarizeDeepLink(result.url))
+          this.handleDeepLink(result.url)
+        }
+      })
+      .catch((error) => console.warn('Failed to get launch URL:', error))
     const appStateListener = App.addListener('appStateChange', (state) => {
       for (const callback of this.appStateCallbacks) {
         try {
@@ -73,7 +103,11 @@ export default class MobilePlatform extends MobileSQLiteStorage implements Platf
     try {
       // 支持 chatbox:// 和 chatbox-dev:// 两种协议（归一化处理）
       const normalizedUrl = url.replace(/^chatbox-dev:\/\//, 'chatbox://')
-      const parsedUrl = new URL(normalizedUrl)
+      // Android WebView parses non-special schemes as opaque-path URLs
+      // (hostname === '', pathname === '//provider/import'), unlike Node which
+      // fills the host. Swap to a special scheme so host/path/query parse
+      // identically on every engine.
+      const parsedUrl = new URL(normalizedUrl.replace(/^chatbox:\/\//, 'https://'))
 
       // 处理 provider 导入链接: chatbox://provider/import?config=<base64-encoded-config>
       if (parsedUrl.hostname === 'provider' && parsedUrl.pathname === '/import') {
@@ -88,9 +122,11 @@ export default class MobilePlatform extends MobileSQLiteStorage implements Platf
         // 不需要，实际跳回到 app 后业务hooks useLogin 会处理后续动作
       }
 
-      console.warn('Unhandled deep link:', url)
+      console.warn('Unhandled deep link:', summarizeDeepLink(url))
     } catch (error) {
-      console.error('Failed to handle deep link:', error)
+      // Do not include the original URL or an exception message that may
+      // embed it in logs.
+      console.error('Failed to handle deep link:', error instanceof Error ? error.name : 'UnknownError')
     }
   }
 
@@ -99,13 +135,20 @@ export default class MobilePlatform extends MobileSQLiteStorage implements Platf
     if (this.navigationCallback) {
       this.navigationCallback(path)
     } else {
-      console.warn('Navigation callback not set, path:', path)
+      // Navigation may not be wired yet (cold start before __root subscribes);
+      // keep the path and flush it when onNavigate is registered.
+      this.pendingNavigationPath = path
     }
   }
 
   // 设置导航回调（类似 electronAPI.onNavigate）
   public onNavigate(callback: (path: string) => void): () => void {
     this.navigationCallback = callback
+    if (this.pendingNavigationPath) {
+      const path = this.pendingNavigationPath
+      this.pendingNavigationPath = null
+      callback(path)
+    }
     return () => {
       this.navigationCallback = null
     }
@@ -186,18 +229,28 @@ export default class MobilePlatform extends MobileSQLiteStorage implements Platf
     return () => null
   }
   public async openLink(url: string): Promise<void> {
+    let targetUrl: URL
+    try {
+      targetUrl = new URL(url)
+    } catch {
+      throw new Error('Only absolute http and https links are supported')
+    }
+    if (targetUrl.protocol !== 'http:' && targetUrl.protocol !== 'https:') {
+      throw new Error('Only http and https links are supported')
+    }
+
     try {
       // 使用 Browser.open 打开
       // 原生插件不受 JavaScript 用户手势限制，可以在异步调用后正常工作
       // iOS: 会使用 SFSafariViewController 而不是普通 webview
       // Android: 使用 Chrome Custom Tabs
       await Browser.open({
-        url,
+        url: targetUrl.toString(),
       })
     } catch (error) {
       console.error('Failed to open link with Browser plugin:', error)
       // 降级方案：使用 window.open（但在异步调用后可能被阻止）
-      window.open(url)
+      window.open(targetUrl.toString())
     }
   }
   public async getDeviceName(): Promise<string> {
@@ -266,6 +319,14 @@ export default class MobilePlatform extends MobileSQLiteStorage implements Platf
   public async getStoreValue(key: string): Promise<any> {
     const value = await super.getStoreValue(key)
     if (key !== 'settings' || !value || typeof value !== 'object') return value
+    // Sanitize legacy snapshots on read as well as on write. This matters for
+    // installs upgraded from a build that persisted local stdio MCP entries:
+    // an existing secure-settings blob must not prevent that stale data from
+    // being removed from SQLite.
+    const sanitizedValue = removeSettingsSecrets(value as MobileSettingsRecord)
+    if (JSON.stringify(sanitizedValue) !== JSON.stringify(value)) {
+      await super.setStoreValue(key, sanitizedValue)
+    }
     // A decryption error is intentionally allowed to propagate so the
     // settings screen can surface recovery guidance instead of silently
     // presenting a credential-less profile.
@@ -274,17 +335,14 @@ export default class MobilePlatform extends MobileSQLiteStorage implements Platf
       const secrets = extractSettingsSecrets(value)
       if (Object.keys(secrets).length > 0) {
         await setSecureValue(SECURE_SETTINGS_KEY, JSON.stringify(secrets))
-        await super.setStoreValue(key, removeSettingsSecrets(value))
       }
-      return value
+      return Object.keys(secrets).length > 0 ? restoreSettingsSecrets(sanitizedValue, secrets) : sanitizedValue
     }
     try {
       const secrets = JSON.parse(rawSecrets) as Record<string, unknown>
-      const restored = structuredClone(value) as MobileSettingsRecord
-      for (const [path, secret] of Object.entries(secrets)) setPath(restored, path, secret)
-      return restored
+      return restoreSettingsSecrets(sanitizedValue, secrets)
     } catch {
-      return value
+      return sanitizedValue
     }
   }
 

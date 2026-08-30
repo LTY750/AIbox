@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import path from 'path'
 import { discoverAgentSkills, discoverClaudeSkills, discoverSkills } from '../discovery'
 
 vi.mock('fs', () => ({
@@ -77,7 +78,7 @@ describe('discoverSkills', () => {
     const custom = result.find((s) => s.name === 'my-skill')
     expect(custom).toBeDefined()
     expect(custom!.isBuiltin).toBe(false)
-    expect(custom!.path).toBe('/skills/my-skill')
+    expect(custom!.path).toBe(path.join('/skills', 'my-skill'))
   })
 
   it('should skip non-directory entries', () => {
@@ -170,7 +171,7 @@ describe('discoverClaudeSkills', () => {
 
     expect(result).toHaveLength(1)
     expect(result[0].name).toBe('my-skill')
-    expect(result[0].path).toBe('/claude/skills/my-skill')
+    expect(result[0].path).toBe(path.join('/claude/skills', 'my-skill'))
     expect(result[0].isBuiltin).toBe(false)
     expect(result[0].source).toEqual({ type: 'claude-code', skillPath: '/claude/skills/my-skill' })
   })
@@ -193,7 +194,7 @@ describe('discoverClaudeSkills', () => {
 
     expect(result).toHaveLength(1)
     expect(result[0].name).toBe('linked-skill')
-    expect(mockedStatSync).toHaveBeenCalledWith('/claude/skills/linked-skill')
+    expect(mockedStatSync).toHaveBeenCalledWith(path.join('/claude/skills', 'linked-skill'))
   })
 
   it('should deduplicate by realpath (two entries resolving to same path)', () => {

@@ -14,8 +14,11 @@ function makeSettings(overrides: Partial<ChatboxDefaultModelSettings> = {}): Cha
 }
 
 describe('resolveChatboxLicenseDefaultModel', () => {
-  it('keeps BYOK users without a Chatbox license on the existing no-default path', () => {
-    expect(resolveChatboxLicenseDefaultModel(makeSettings())).toBeUndefined()
+  it('uses the current regular-provider default for BYOK users', () => {
+    expect(resolveChatboxLicenseDefaultModel(makeSettings())).toEqual({
+      provider: ModelProviderEnum.OpenAI,
+      modelId: 'gpt-4o-mini',
+    })
   })
 
   it('does not use an expired Chatbox license as the default model source', () => {
@@ -30,10 +33,10 @@ describe('resolveChatboxLicenseDefaultModel', () => {
           },
         })
       )
-    ).toBeUndefined()
+    ).toEqual({ provider: ModelProviderEnum.OpenAI, modelId: 'gpt-4o-mini' })
   })
 
-  it('uses the license defaultModel when the API provides one', () => {
+  it('uses the regular-provider default when a license supplies a legacy model', () => {
     expect(
       resolveChatboxLicenseDefaultModel(
         makeSettings({
@@ -45,13 +48,10 @@ describe('resolveChatboxLicenseDefaultModel', () => {
           },
         })
       )
-    ).toEqual({
-      provider: ModelProviderEnum.ChatboxAI,
-      modelId: 'chatboxai-4',
-    })
+    ).toEqual({ provider: ModelProviderEnum.OpenAI, modelId: 'gpt-4o-mini' })
   })
 
-  it('falls back to the license type when defaultModel is missing', () => {
+  it('uses the regular-provider default when a license type is supplied', () => {
     expect(
       resolveChatboxLicenseDefaultModel(
         makeSettings({
@@ -62,13 +62,10 @@ describe('resolveChatboxLicenseDefaultModel', () => {
           },
         })
       )
-    ).toEqual({
-      provider: ModelProviderEnum.ChatboxAI,
-      modelId: 'chatboxai-3.5',
-    })
+    ).toEqual({ provider: ModelProviderEnum.OpenAI, modelId: 'gpt-4o-mini' })
   })
 
-  it('uses plan names as a fallback for older license details', () => {
+  it('uses the regular-provider default for older license details', () => {
     expect(
       resolveChatboxLicenseDefaultModel(
         makeSettings({
@@ -76,10 +73,7 @@ describe('resolveChatboxLicenseDefaultModel', () => {
           licensePlanName: 'Chatbox AI Pro',
         })
       )
-    ).toEqual({
-      provider: ModelProviderEnum.ChatboxAI,
-      modelId: 'chatboxai-4',
-    })
+    ).toEqual({ provider: ModelProviderEnum.OpenAI, modelId: 'gpt-4o-mini' })
 
     expect(
       resolveChatboxLicenseDefaultModel(
@@ -88,13 +82,10 @@ describe('resolveChatboxLicenseDefaultModel', () => {
           licensePlanName: 'Chatbox AI Lite',
         })
       )
-    ).toEqual({
-      provider: ModelProviderEnum.ChatboxAI,
-      modelId: 'chatboxai-3.5',
-    })
+    ).toEqual({ provider: ModelProviderEnum.OpenAI, modelId: 'gpt-4o-mini' })
   })
 
-  it('uses license plan over display name when defaultModel and type are missing', () => {
+  it('ignores legacy plan and display-name fields', () => {
     expect(
       resolveChatboxLicenseDefaultModel(
         makeSettings({
@@ -105,10 +96,7 @@ describe('resolveChatboxLicenseDefaultModel', () => {
           },
         })
       )
-    ).toEqual({
-      provider: ModelProviderEnum.ChatboxAI,
-      modelId: 'chatboxai-3.5',
-    })
+    ).toEqual({ provider: ModelProviderEnum.OpenAI, modelId: 'gpt-4o-mini' })
 
     expect(
       resolveChatboxLicenseDefaultModel(
@@ -120,24 +108,24 @@ describe('resolveChatboxLicenseDefaultModel', () => {
           },
         })
       )
-    ).toEqual({
-      provider: ModelProviderEnum.ChatboxAI,
-      modelId: 'chatboxai-4',
-    })
+    ).toEqual({ provider: ModelProviderEnum.OpenAI, modelId: 'gpt-4o-mini' })
   })
 })
 
 describe('applyChatboxLicenseDefaultModelToSession', () => {
-  it('keeps preset chat sessions unchanged for BYOK users', () => {
+  it('applies the regular-provider default to preset chat sessions', () => {
     const session = {
       type: 'chat' as const,
       settings: undefined,
     }
 
-    expect(applyChatboxLicenseDefaultModelToSession(session, makeSettings())).toBe(session)
+    expect(applyChatboxLicenseDefaultModelToSession(session, makeSettings())).toEqual({
+      type: 'chat',
+      settings: { provider: ModelProviderEnum.OpenAI, modelId: 'gpt-4o-mini' },
+    })
   })
 
-  it('applies the Chatbox license model to preset chat sessions without a selected model', () => {
+  it('preserves other preset fields while applying the regular-provider default', () => {
     const session = {
       type: 'chat' as const,
       settings: {
@@ -160,8 +148,8 @@ describe('applyChatboxLicenseDefaultModelToSession', () => {
       type: 'chat',
       settings: {
         temperature: 0.7,
-        provider: ModelProviderEnum.ChatboxAI,
-        modelId: 'chatboxai-4',
+        provider: ModelProviderEnum.OpenAI,
+        modelId: 'gpt-4o-mini',
       },
     })
   })

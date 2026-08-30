@@ -1,7 +1,7 @@
 import platform from '@/platform'
 
 export const featureFlags = {
-  mcp: platform.type === 'desktop',
+  mcp: platform.type === 'desktop' || platform.type === 'mobile',
   knowledgeBase: platform.type === 'desktop',
   skills: platform.type === 'desktop',
   // Work Mode currently depends on a local desktop sandbox. Keep the product
