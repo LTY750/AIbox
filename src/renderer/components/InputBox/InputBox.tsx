@@ -1378,7 +1378,13 @@ const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
     // Show deprecated notice for legacy picture sessions
     if (sessionType === 'picture') {
       return (
-        <Box pt={0} pb={isSmallScreen ? 'md' : 'sm'} px="sm" id={dom.InputBoxID}>
+        <Box
+          pt={0}
+          pb={isSmallScreen ? undefined : 'sm'}
+          px={isSmallScreen ? 4 : 'sm'}
+          id={dom.InputBoxID}
+          className={isSmallScreen ? 'mobile-bottom-surface' : undefined}
+        >
           <Stack
             className={cn(
               'rounded-lg bg-chatbox-background-secondary shadow-[0_8px_48px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_48px_-8px_rgba(0,0,0,0.5)]',
@@ -1402,10 +1408,10 @@ const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
     return (
       <Box
         pt={0}
-        pb={isSmallScreen ? 'md' : 'sm'}
-        px="sm"
+        pb={isSmallScreen ? undefined : 'sm'}
+        px={isSmallScreen ? 4 : 'sm'}
         id={dom.InputBoxID}
-        className="overflow-visible"
+        className={cn('overflow-visible', isSmallScreen && 'mobile-bottom-surface')}
         {...getRootProps()}
       >
         <input className="hidden" {...getInputProps()} />
@@ -1415,7 +1421,9 @@ const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
             ref={skillMenuAnchorRef}
             className={cn(
               // min-h + justify-between 必须同层，桌面空输入时工具栏贴底
-              'relative flex flex-col justify-between gap-xs rounded-lg bg-chatbox-background-secondary px-3 py-2 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.3)]',
+              'relative flex flex-col justify-between rounded-lg bg-chatbox-background-secondary px-3 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.3)]',
+              isSmallScreen ? 'gap-0 py-3' : 'gap-xs py-2',
+              isSmallScreen && 'mobile-chat-input',
               !isSmallScreen && 'min-h-[92px]'
             )}
             style={{ border: '0.5px solid var(--chatbox-border-primary)' }}
@@ -1468,8 +1476,9 @@ const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
 
             {/* Input Row */}
             <Flex
-              align="flex-end"
+              align={isSmallScreen ? 'center' : 'flex-end'}
               gap={4}
+              className={cn(isSmallScreen && 'min-h-[56px]')}
               // Clicking the locked input while approval is pending surfaces the
               // floating approval pill even when the card is visible in the list.
               onClickCapture={
@@ -1515,7 +1524,12 @@ const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
                       : t('Send')
                   }
                   onClick={generating ? onStopGenerating : () => handleSubmit()}
-                  className={cn('shrink-0 mb-1', !generating && submitBlocked && 'disabled:!opacity-100 !text-white')}
+                  className={cn(
+                    'shrink-0',
+                    isSmallScreen && 'mobile-chat-send-button mobile-touch-target',
+                    !isSmallScreen && 'mb-1',
+                    !generating && submitBlocked && 'disabled:!opacity-100 !text-white'
+                  )}
                   style={!generating && submitBlocked ? { backgroundColor: 'rgba(222, 226, 230, 1)' } : undefined}
                 >
                   {generating ? (
@@ -1714,7 +1728,7 @@ const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
             )}
 
             {/* Toolbar Row */}
-            <Flex align="center" gap={0} className="shrink-0 w-full" justify="space-between">
+            <Flex align="center" gap={0} wrap="nowrap" className="shrink-0 w-full" justify="space-between">
               {/* Hidden file inputs */}
               <ImageUploadInput
                 ref={pictureInputRef}
@@ -1764,7 +1778,10 @@ const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
                         setWebBrowsingMode(!webBrowsingMode)
                         dom.focusMessageInput()
                       }}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--chatbox-background-tertiary)] transition-colors"
+                      className={cn(
+                        'flex items-center justify-center gap-1 rounded-lg px-2 py-1 hover:bg-[var(--chatbox-background-tertiary)] transition-colors',
+                        isSmallScreen && 'mobile-touch-target'
+                      )}
                     >
                       <IconWorldWww
                         size={toolbarIconSize}
@@ -1867,7 +1884,7 @@ const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
                     <Menu.Target>
                       <UnstyledButton
                         aria-label={t('Settings')}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--chatbox-background-tertiary)] transition-colors"
+                        className="mobile-touch-target flex items-center justify-center gap-1 rounded-lg px-2 py-1 hover:bg-[var(--chatbox-background-tertiary)] transition-colors"
                       >
                         <IconSettings
                           size={toolbarIconSize}
@@ -1912,9 +1929,11 @@ const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
                   <Flex
                     align="center"
                     gap="2"
-                    className={`shrink-0 text-xs cursor-pointer hover:text-chatbox-tint-secondary transition-colors px-2 py-1 rounded-lg hover:bg-[var(--chatbox-background-tertiary)] ${
+                    className={cn(
+                      'shrink-0 text-xs cursor-pointer hover:text-chatbox-tint-secondary transition-colors px-2 py-1 rounded-lg hover:bg-[var(--chatbox-background-tertiary)]',
+                      isSmallScreen && 'mobile-touch-target',
                       tokenPercentage && tokenPercentage > 80 ? 'text-red-500' : 'text-chatbox-tint-tertiary'
-                    }`}
+                    )}
                   >
                     <ScalableIcon icon={IconArrowUp} size={14} />
                     {isCalculating && <Loader size={10} />}
@@ -1944,6 +1963,7 @@ const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
                       aria-label={`${t('Select Model')}: ${modelSelectorDisplayText}`}
                       className={cn(
                         'flex min-w-0 max-w-full items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--chatbox-background-tertiary)] transition-colors',
+                        isSmallScreen && 'mobile-touch-target',
                         !model && 'animate-pulse bg-blue-500/20'
                       )}
                     >
@@ -2041,7 +2061,10 @@ const AttachmentMenu: React.FC<{
         <UnstyledButton
           data-testid={TestId.chat.attachmentMenuTrigger}
           aria-label={t('Upload')}
-          className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--chatbox-background-tertiary)] transition-colors"
+          className={cn(
+            'flex items-center justify-center gap-1 rounded-lg px-2 py-1 hover:bg-[var(--chatbox-background-tertiary)] transition-colors',
+            isSmallScreen && 'mobile-touch-target'
+          )}
         >
           <IconCirclePlus size={toolbarIconSize} strokeWidth={1.8} className="text-[var(--chatbox-tint-secondary)]" />
         </UnstyledButton>

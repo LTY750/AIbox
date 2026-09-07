@@ -24,16 +24,15 @@ export const Page: FC<PageProps> = ({ children, title, left, right }) => {
   return (
     <div className="flex flex-col h-full">
       <Flex
-        h={48}
         align="center"
         px="md"
-        className={clsx('title-bar', isSmallScreen ? 'bg-chatbox-background-primary' : '')}
+        className={clsx('title-bar mobile-top-surface', isSmallScreen ? 'bg-chatbox-background-primary' : '')}
       >
         {left ||
           ((!showSidebar || isSmallScreen) && (
             <Flex align="center" className={needRoomForMacWindowControls ? 'pl-20' : ''}>
               <ActionIcon
-                className="controls"
+                className={clsx('controls', isSmallScreen && 'mobile-touch-target')}
                 variant="subtle"
                 size={isSmallScreen ? 24 : 20}
                 color={isSmallScreen ? 'chatbox-secondary' : 'chatbox-tertiary'}

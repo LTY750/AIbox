@@ -40,6 +40,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
+  background-color: var(--chatbox-background-primary);
 }
 
 code {
@@ -161,50 +162,178 @@ html[data-theme="light"] {
 .App {
   width: 100%;
   height: 100%;
-
-  /* 移动端异形屏的显示问题 */
-  padding-top: max(env(safe-area-inset-top), var(--mobile-safe-area-inset-top, 0px));
-  padding-right: max(env(safe-area-inset-right), var(--mobile-safe-area-inset-right, 0px));
-  padding-bottom: max(env(safe-area-inset-bottom), var(--mobile-safe-area-inset-bottom, 0px));
-  padding-left: max(env(safe-area-inset-left), var(--mobile-safe-area-inset-left, 0px));
+  /* Child surfaces own the inset for the edge they touch. Keeping the root
+     full-bleed prevents nested drawers and snackbars from double-padding. */
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: max(env(safe-area-inset-left, 0px), var(--mobile-safe-area-inset-left, 0px));
+  padding-right: max(env(safe-area-inset-right, 0px), var(--mobile-safe-area-inset-right, 0px));
 }
 
-/* 当页面包含 disclaimer 时，取消 .App 的底部安全区域 padding，
-   让 disclaimer 沉入安全区域，减少底部留白 */
-.App:has(.disclaimer-safe-area) {
-  padding-bottom: 0;
+/* The edge-to-edge WebView remains full height while the IME is visible.
+   Capacitor reports the IME obstruction in CSS pixels; subtract it once so
+   the flex column's bottom surface ends exactly at the keyboard boundary. */
+html[data-mobile-keyboard-open="true"] .App {
+  height: calc(100% - var(--mobile-keyboard-height, 0px));
+}
+
+html[data-mobile-keyboard-open="true"] .mobile-bottom-surface {
+  padding-bottom: 0 !important;
+}
+
+html[data-mobile-keyboard-open="true"] .disclaimer-safe-area {
+  display: none !important;
+}
+
+/* Each full-bleed surface consumes only the edge it owns. */
+.mobile-top-surface {
+  min-height: calc(48px + max(env(safe-area-inset-top, 0px), var(--mobile-safe-area-inset-top, 0px)));
+  padding-top: max(env(safe-area-inset-top, 0px), var(--mobile-safe-area-inset-top, 0px));
+}
+
+.mobile-chat-header {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 20;
+  width: 100%;
+  pointer-events: none;
+  background-color: color-mix(in srgb, var(--chatbox-background-primary) 14%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 calc(100% - 12px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 calc(100% - 12px), transparent 100%);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  transition: background-color 180ms ease;
+}
+
+.mobile-chat-header-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: calc(80px + max(env(safe-area-inset-top, 0px), var(--mobile-safe-area-inset-top, 0px)));
+  padding: calc(12px + max(env(safe-area-inset-top, 0px), var(--mobile-safe-area-inset-top, 0px))) 12px 12px;
+  pointer-events: none;
+}
+
+.mobile-chat-header-controls > * {
+  pointer-events: auto;
+}
+
+.mobile-chat-floating-button,
+.mobile-chat-action-pill {
+  background-color: color-mix(in srgb, var(--chatbox-background-primary) 60%, transparent) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.12);
+  backdrop-filter: blur(18px) saturate(1.12);
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--chatbox-tint-primary) 12%, transparent);
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.mobile-chat-floating-button {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 999px !important;
+}
+
+.mobile-chat-action-pill {
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+}
+
+.mobile-chat-floating-action {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 999px !important;
+}
+
+.mobile-chat-header-frosted .mobile-chat-floating-button,
+.mobile-chat-header-frosted .mobile-chat-action-pill {
+  background-color: color-mix(in srgb, var(--chatbox-background-primary) 42%, transparent) !important;
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--chatbox-tint-primary) 16%, transparent);
+}
+
+.mobile-chat-header-frosted {
+  background-color: color-mix(in srgb, var(--chatbox-background-primary) 10%, transparent);
+}
+
+@supports not ((backdrop-filter: blur(1px))) {
+  .mobile-chat-header,
+  .mobile-chat-floating-button,
+  .mobile-chat-action-pill {
+    background-color: var(--chatbox-background-primary) !important;
+  }
+}
+
+.mobile-bottom-surface {
+  padding-bottom: calc(1rem + max(env(safe-area-inset-bottom, 0px), var(--mobile-safe-area-inset-bottom, 0px)));
+}
+
+.mobile-chat-send-button {
+  align-self: flex-end !important;
+  align-items: center !important;
+  display: flex !important;
+  justify-content: center !important;
+  line-height: 0 !important;
+  margin-bottom: 2px !important;
+  padding: 0 !important;
+}
+
+.mobile-chat-send-button svg {
+  display: block;
+  flex: none;
+}
+
+.mobile-bottom-inset {
+  height: max(env(safe-area-inset-bottom, 0px), var(--mobile-safe-area-inset-bottom, 0px));
+  min-height: 1rem;
+}
+
+.mobile-drawer-bottom-inset {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--mobile-safe-area-inset-bottom, 0px));
+}
+
+/* Keep the compact visual rhythm while giving coarse pointers a larger hit area. */
+.mobile-touch-target {
+  position: relative;
+  overflow: visible !important;
+  touch-action: manipulation;
+}
+
+@media (pointer: coarse) {
+  .mobile-touch-target::after {
+    content: "";
+    position: absolute;
+    inset: -12px;
+    min-width: 48px;
+    min-height: 48px;
+    border-radius: inherit;
+  }
 }
 
 html[data-mobile-keyboard-open="true"] .image-creator-input-area {
   padding-bottom: 8px !important;
 }
 
+html[data-mobile-keyboard-open="true"] .mobile-bottom-inset {
+  height: 0 !important;
+  min-height: 0 !important;
+}
+
+html[data-mobile-keyboard-open="true"] .mobile-drawer-bottom-inset {
+  padding-bottom: 0 !important;
+}
+
 html[data-mobile-keyboard-open="true"] .image-creator-disclaimer {
   display: none;
 }
 
-.ToolBar {
-  /* 移动端异形屏的显示问题 */
-  padding-top: max(env(safe-area-inset-top, 0px), var(--mobile-safe-area-inset-top, 0px));
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--mobile-safe-area-inset-bottom, 0px));
-  padding-left: max(env(safe-area-inset-left, 0px), var(--mobile-safe-area-inset-left, 0px));
-}
-
-.ThreadHistoryDrawer {
-  /* 移动端异形屏的显示问题 */
-  padding-top: max(env(safe-area-inset-top), var(--mobile-safe-area-inset-top, 0px));
-  padding-right: max(env(safe-area-inset-right), var(--mobile-safe-area-inset-right, 0px));
-  padding-bottom: max(env(safe-area-inset-bottom), var(--mobile-safe-area-inset-bottom, 0px));
-  /* padding-left: env(safe-area-inset-left); */
-  /* padding-left: var(--mobile-safe-area-inset-left, 0px); */
-}
-
 .Snackbar {
-  /* 移动端异形屏的显示问题 */
-  padding-top: max(env(safe-area-inset-top), var(--mobile-safe-area-inset-top, 0px));
-  padding-right: max(env(safe-area-inset-right), var(--mobile-safe-area-inset-right, 0px));
-  padding-bottom: max(env(safe-area-inset-bottom), var(--mobile-safe-area-inset-bottom, 0px));
-  padding-left: max(env(safe-area-inset-left), var(--mobile-safe-area-inset-left, 0px));
+  margin-top: max(env(safe-area-inset-top, 0px), var(--mobile-safe-area-inset-top, 0px));
+  margin-right: max(env(safe-area-inset-right, 0px), var(--mobile-safe-area-inset-right, 0px));
+  margin-left: max(env(safe-area-inset-left, 0px), var(--mobile-safe-area-inset-left, 0px));
 }
 
 @font-face {

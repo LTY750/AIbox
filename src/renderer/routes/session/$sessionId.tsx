@@ -1,8 +1,8 @@
 import NiceModal from '@ebay/nice-modal-react'
-import { Box, Button } from '@mantine/core'
+import { Box, Button, Skeleton } from '@mantine/core'
 import type { ModelProvider } from '@shared/types'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useStore } from 'zustand'
 import { JK_PAGE_NAMES } from '@/analytics/jk-events'
@@ -47,6 +47,34 @@ export const Route = createFileRoute('/session/$sessionId')({
 const builtInTemplateSessionIds = new Set(
   [...defaultSessionsForEN, ...defaultSessionsForCN].map((session) => session.id)
 )
+
+function SessionLoadingSkeleton() {
+  const { t } = useTranslation()
+
+  return (
+    <div
+      className="flex h-full flex-col bg-chatbox-background-primary"
+      role="status"
+      aria-busy="true"
+      aria-label={t('Loading...') as string}
+    >
+      <div className="mobile-top-surface flex h-14 flex-none items-center gap-2 border-b border-chatbox-border-primary px-md">
+        <Skeleton h={24} w={24} radius="sm" />
+        <Skeleton h={18} w="42%" />
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden px-md py-xl">
+        <div className="mx-auto flex h-full w-full max-w-4xl flex-col justify-end gap-8">
+          <Skeleton className="self-start" h={72} w="68%" radius="lg" />
+          <Skeleton className="self-end" h={48} w="54%" radius="lg" />
+          <Skeleton className="self-start" h={96} w="76%" radius="lg" />
+        </div>
+      </div>
+      <div className="mobile-bottom-surface flex-none border-t border-chatbox-border-primary p-sm">
+        <Skeleton h={76} radius="lg" />
+      </div>
+    </div>
+  )
+}
 
 function RouteComponent() {
   const { t } = useTranslation()
@@ -106,6 +134,7 @@ function RouteComponent() {
   )
 
   const messageListRef = useRef<MessageListRef>(null)
+  const [isMessageListScrolling, setIsMessageListScrolling] = useState(false)
 
   const goHome = useCallback(() => {
     navigate({ to: '/', replace: true })
@@ -241,17 +270,34 @@ function RouteComponent() {
     }
   }, [currentSessionWithDefaultModel?.settings?.provider, currentSessionWithDefaultModel?.settings?.modelId])
 
+  if (isFetching && !currentSession) {
+    return <SessionLoadingSkeleton />
+  }
+
   return currentSession ? (
-    <div className={`flex flex-col h-full ${!isSmallScreen ? 'relative' : ''}`}>
-      <Header session={currentSession} />
+    <div
+      className={`relative flex flex-col h-full ${isSmallScreen ? 'mobile-chat-shell' : ''}`}
+      style={
+        isSmallScreen
+          ? {
+              ['--mobile-chat-header-height' as string]:
+                'calc(80px + max(env(safe-area-inset-top, 0px), var(--mobile-safe-area-inset-top, 0px)))',
+            }
+          : undefined
+      }
+    >
+      <Header session={currentSession} frosted={generatingMessages.length > 0 || isMessageListScrolling} />
 
       {/* MessageList 设置 key，确保每个 session 对应新的 MessageList 实例 */}
-      <MessageList
-        ref={messageListRef}
-        key={`message-list${currentSessionId}`}
-        currentSession={currentSession}
-        className={!isSmallScreen ? 'pt-[2px]' : undefined}
-      />
+      <div className="relative min-h-0 flex-1">
+        <MessageList
+          ref={messageListRef}
+          key={`message-list${currentSessionId}`}
+          currentSession={currentSession}
+          onScrollActivityChange={setIsMessageListScrolling}
+          className={!isSmallScreen ? 'pt-[2px]' : undefined}
+        />
+      </div>
 
       <Box className="relative">
         {shouldShowTemplateWelcomeCard && (
@@ -296,15 +342,13 @@ function RouteComponent() {
       <ThreadHistoryDrawer session={currentSession} />
     </div>
   ) : (
-    !isFetching && (
-      <Page title="">
-        <div className="flex flex-1 flex-col items-center justify-center min-h-[60vh]">
-          <div className="text-2xl font-semibold text-gray-700 mb-4">{t('Conversation not found')}</div>
-          <Button variant="outline" onClick={goHome}>
-            {t('Back to HomePage')}
-          </Button>
-        </div>
-      </Page>
-    )
+    <Page title="">
+      <div className="flex flex-1 flex-col items-center justify-center min-h-[60vh]">
+        <div className="text-2xl font-semibold text-gray-700 mb-4">{t('Conversation not found')}</div>
+        <Button variant="outline" onClick={goHome}>
+          {t('Back to HomePage')}
+        </Button>
+      </div>
+    </Page>
   )
 }

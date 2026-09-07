@@ -89,6 +89,7 @@ export interface MessageListRef {
 export interface MessageListProps {
   className?: string
   currentSession: Session
+  onScrollActivityChange?: (active: boolean) => void
 }
 
 const MessageList = forwardRef<MessageListRef, MessageListProps>((props, ref) => {
@@ -293,13 +294,33 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>((props, ref) =>
   const [showScrollToPrev, setShowScrollToPrev] = useState(false)
   const lastScrollTop = useRef<number>()
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scrollActivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current)
       }
+      if (scrollActivityTimerRef.current) {
+        clearTimeout(scrollActivityTimerRef.current)
+      }
+      props.onScrollActivityChange?.(false)
     }
-  }, [])
+  }, [props.onScrollActivityChange])
+
+  const notifyScrollActivity = useCallback(() => {
+    if (!isSmallScreen || !props.onScrollActivityChange) {
+      return
+    }
+
+    props.onScrollActivityChange(true)
+    if (scrollActivityTimerRef.current) {
+      clearTimeout(scrollActivityTimerRef.current)
+    }
+    scrollActivityTimerRef.current = setTimeout(() => {
+      props.onScrollActivityChange?.(false)
+      scrollActivityTimerRef.current = null
+    }, 320)
+  }, [isSmallScreen, props.onScrollActivityChange])
 
   const handleScrollTopThrottled = useThrottledCallback((scrollTop?: number) => {
     if (typeof scrollTop === 'number' && typeof lastScrollTop.current === 'number') {
@@ -324,6 +345,7 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>((props, ref) =>
 
   const handleScroll = useCallback<UIEventHandler>(
     (e) => {
+      notifyScrollActivity()
       const scrollTop = e.currentTarget.scrollTop
       const maxScrollTop = e.currentTarget.scrollHeight - e.currentTarget.clientHeight
       if (smoothFollowOutput.handleScroll(scrollTop, maxScrollTop)) {
@@ -335,7 +357,7 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>((props, ref) =>
         handleScrollTopThrottled(scrollTop)
       }
     },
-    [handleScrollTopThrottled, smoothFollowOutput]
+    [handleScrollTopThrottled, notifyScrollActivity, smoothFollowOutput]
   )
   // message navigation handlers end
 
@@ -496,9 +518,12 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>((props, ref) =>
               const isFirstItem = index === 0
               const isLastItem = index === renderItems.length - 1
 
+              const firstItemStyle =
+                isSmallScreen && index === 0 ? { paddingTop: 'var(--mobile-chat-header-height)' } : undefined
+
               if (item.type === 'group') {
                 return (
-                  <div className={itemClassName}>
+                  <div className={itemClassName} style={firstItemStyle}>
                     <div
                       className="flex flex-col pt-5"
                       style={
@@ -520,7 +545,9 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>((props, ref) =>
               }
 
               return (
-                <div className={itemClassName}>{renderMessageBlock(item.messages[0], { isFirstItem, isLastItem })}</div>
+                <div className={itemClassName} style={firstItemStyle}>
+                  {renderMessageBlock(item.messages[0], { isFirstItem, isLastItem })}
+                </div>
               )
             }}
             atTopStateChange={setAtTop}
@@ -549,7 +576,7 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>((props, ref) =>
                 {(transitionStyle) => (
                   <Flex
                     style={transitionStyle}
-                    className="absolute z-10 top-0 left-0 right-0 leading-tight bg-chatbox-background-secondary"
+                    className="absolute z-10 bottom-1 left-0 right-12 leading-tight bg-chatbox-background-secondary"
                   >
                     {[
                       { text: t('Return to the top'), icon: IconArrowBarToUp, onClick: handleScrollToTop },
