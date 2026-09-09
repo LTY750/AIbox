@@ -1,10 +1,12 @@
-import { ActionIcon, Box, Flex, ScrollArea, Stack, Text, UnstyledButton } from '@mantine/core'
+import { ActionIcon, Box, Button, Flex, ScrollArea, Stack, Text, UnstyledButton } from '@mantine/core'
 import type { ImageGeneration } from '@shared/types'
 import { IconPlus, IconServer } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { Drawer } from 'vaul'
 import { ScalableIcon } from '@/components/common/ScalableIcon'
 import ProviderIcon from '@/components/icons/ProviderIcon'
+import { navigateToSettings } from '@/modals/Settings'
+import { useMobileBackHandler } from '@/platform/mobile_back_navigation'
 import { HistoryListContent } from './HistoryPanel'
 
 /* ============================================
@@ -42,6 +44,15 @@ export function MobileHistoryDrawer({
 }: MobileHistoryDrawerProps) {
   const { t } = useTranslation()
 
+  useMobileBackHandler(
+    () => {
+      onOpenChange(false)
+      return true
+    },
+    open,
+    100
+  )
+
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange} noBodyStyles>
       <Drawer.Portal>
@@ -64,6 +75,8 @@ export function MobileHistoryDrawer({
               variant="subtle"
               color="gray"
               size="sm"
+              className="mobile-touch-target"
+              aria-label={t('New Creation')}
               onClick={() => {
                 onNewCreation()
                 onOpenChange(false)
@@ -90,6 +103,7 @@ export function MobileHistoryDrawer({
               onDelete={onDelete}
             />
           </Box>
+          <div className="mobile-bottom-inset shrink-0" />
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>
@@ -124,6 +138,20 @@ export function MobileModelDrawer({
 }: MobileModelDrawerProps) {
   const { t } = useTranslation()
 
+  const openProviderSettings = () => {
+    onOpenChange(false)
+    navigateToSettings('/provider')
+  }
+
+  useMobileBackHandler(
+    () => {
+      onOpenChange(false)
+      return true
+    },
+    open,
+    100
+  )
+
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange} noBodyStyles>
       <Drawer.Portal>
@@ -146,45 +174,57 @@ export function MobileModelDrawer({
 
           <ScrollArea flex={1} type="auto" offsetScrollbars>
             <Stack gap="md" p="xs" pb="xl">
-              {modelGroups.map((group, groupIndex) => (
-                <Stack key={group.providerId} gap={2}>
-                  <Flex align="center" gap={6} px="sm">
-                    {group.isCustom ? (
-                      <ScalableIcon icon={IconServer} size={14} className="text-chatbox-tint-gray" />
-                    ) : (
-                      <ProviderIcon size={14} provider={group.providerId} className="opacity-50" />
-                    )}
-                    <Text size="xs" fw={500} c="dimmed">
-                      {group.label}
-                    </Text>
-                  </Flex>
-                  {group.models.map((model) => {
-                    const isSelected = selectedProvider === group.providerId && selectedModel === model.modelId
-                    return (
-                      <UnstyledButton
-                        key={`${group.providerId}:${model.modelId}`}
-                        onClick={() => {
-                          onSelect(group.providerId, model.modelId)
-                          onOpenChange(false)
-                        }}
-                        className={`
-                          w-full px-4 py-3 rounded-lg transition-colors
-                          ${isSelected ? 'bg-[var(--chatbox-background-brand-secondary)]' : 'hover:bg-[var(--chatbox-background-secondary)]'}
-                        `}
-                      >
-                        <Text size="sm" fw={isSelected ? 600 : 400}>
-                          {model.displayName}
-                        </Text>
-                      </UnstyledButton>
-                    )
-                  })}
-                  {groupIndex < modelGroups.length - 1 && (
-                    <div className="h-px bg-[var(--chatbox-border-primary)] mx-2 mt-2" />
-                  )}
+              {modelGroups.length === 0 ? (
+                <Stack align="center" gap="xs" py="xl" px="md">
+                  <Text size="sm" c="dimmed">
+                    {t('No models available')}
+                  </Text>
+                  <Button variant="transparent" size="xs" onClick={openProviderSettings}>
+                    {t('Add provider')}
+                  </Button>
                 </Stack>
-              ))}
+              ) : (
+                modelGroups.map((group, groupIndex) => (
+                  <Stack key={group.providerId} gap={2}>
+                    <Flex align="center" gap={6} px="sm">
+                      {group.isCustom ? (
+                        <ScalableIcon icon={IconServer} size={14} className="text-chatbox-tint-gray" />
+                      ) : (
+                        <ProviderIcon size={14} provider={group.providerId} className="opacity-50" />
+                      )}
+                      <Text size="xs" fw={500} c="dimmed">
+                        {group.label}
+                      </Text>
+                    </Flex>
+                    {group.models.map((model) => {
+                      const isSelected = selectedProvider === group.providerId && selectedModel === model.modelId
+                      return (
+                        <UnstyledButton
+                          key={`${group.providerId}:${model.modelId}`}
+                          onClick={() => {
+                            onSelect(group.providerId, model.modelId)
+                            onOpenChange(false)
+                          }}
+                          className={`
+                            min-h-12 w-full px-4 py-3 rounded-lg transition-colors
+                            ${isSelected ? 'bg-[var(--chatbox-background-brand-secondary)]' : 'hover:bg-[var(--chatbox-background-secondary)]'}
+                          `}
+                        >
+                          <Text size="sm" fw={isSelected ? 600 : 400}>
+                            {model.displayName}
+                          </Text>
+                        </UnstyledButton>
+                      )
+                    })}
+                    {groupIndex < modelGroups.length - 1 && (
+                      <div className="h-px bg-[var(--chatbox-border-primary)] mx-2 mt-2" />
+                    )}
+                  </Stack>
+                ))
+              )}
             </Stack>
           </ScrollArea>
+          <div className="mobile-bottom-inset shrink-0" />
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>
@@ -205,6 +245,15 @@ export interface MobileRatioDrawerProps {
 
 export function MobileRatioDrawer({ open, onOpenChange, options, selectedRatio, onSelect }: MobileRatioDrawerProps) {
   const { t } = useTranslation()
+
+  useMobileBackHandler(
+    () => {
+      onOpenChange(false)
+      return true
+    },
+    open,
+    100
+  )
 
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange} noBodyStyles>
@@ -235,7 +284,7 @@ export function MobileRatioDrawer({ open, onOpenChange, options, selectedRatio, 
                   onOpenChange(false)
                 }}
                 className={`
-                  w-full px-4 py-3 rounded-lg transition-colors
+                  min-h-12 w-full px-4 py-3 rounded-lg transition-colors
                   ${selectedRatio === ratio ? 'bg-[var(--chatbox-background-brand-secondary)]' : 'hover:bg-[var(--chatbox-background-secondary)]'}
                 `}
               >
@@ -245,6 +294,7 @@ export function MobileRatioDrawer({ open, onOpenChange, options, selectedRatio, 
               </UnstyledButton>
             ))}
           </Stack>
+          <div className="mobile-bottom-inset shrink-0" />
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>

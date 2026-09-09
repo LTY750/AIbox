@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 :root {
+  --chatbox-motion-duration-short: 120ms;
+  --chatbox-motion-duration-standard: 200ms;
+  --chatbox-motion-duration-long: 300ms;
+
   /* radius */
   --chatbox-radius-none: 0rem;
   --chatbox-radius-xs: 0.125rem;
@@ -334,6 +338,21 @@ div[data-vaul-drawer] {
   z-index: 2000;
 }
 
+/* Vaul writes a 500ms inline transition while settling a drag. Keep the
+   visual rhythm aligned with the rest of the app without disabling its
+   pointer-driven cancellation and reverse behavior. */
+[data-vaul-drawer],
+[data-vaul-overlay] {
+  transition-duration: var(--chatbox-motion-duration-standard) !important;
+  animation-duration: var(--chatbox-motion-duration-standard) !important;
+}
+
+.vaul-dragging,
+.vaul-dragging * {
+  transition-duration: 0ms !important;
+  animation-duration: 0ms !important;
+}
+
 @keyframes chatbox-settings-route-enter {
   from {
     opacity: 0;
@@ -345,15 +364,30 @@ div[data-vaul-drawer] {
   }
 }
 
+@keyframes chatbox-settings-nav-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(-10px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 .settings-route-content {
-  animation: chatbox-settings-route-enter 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: chatbox-settings-route-enter var(--chatbox-motion-duration-standard) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.settings-nav-content {
+  animation: chatbox-settings-nav-enter var(--chatbox-motion-duration-standard) cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .settings-nav-item {
   transition:
-    background-color 150ms ease,
-    color 150ms ease,
-    transform 120ms ease;
+    background-color var(--chatbox-motion-duration-short) ease,
+    color var(--chatbox-motion-duration-short) ease,
+    transform var(--chatbox-motion-duration-short) ease;
 }
 
 .settings-nav-item:active {
@@ -361,7 +395,7 @@ div[data-vaul-drawer] {
 }
 
 .settings-model-drawer {
-  animation: chatbox-settings-drawer-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: chatbox-settings-drawer-enter var(--chatbox-motion-duration-standard) cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes chatbox-settings-drawer-enter {
@@ -376,13 +410,36 @@ div[data-vaul-drawer] {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --chatbox-motion-duration-short: 0ms;
+    --chatbox-motion-duration-standard: 0ms;
+    --chatbox-motion-duration-long: 0ms;
+  }
+
   .settings-route-content,
+  .settings-nav-content,
   .settings-model-drawer {
     animation: none;
   }
 
   .settings-nav-item {
     transition: none;
+  }
+
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  [data-vaul-drawer],
+  [data-vaul-overlay],
+  .MuiDrawer-paper,
+  .MuiBackdrop-root,
+  .mantine-Modal-content,
+  .mantine-Modal-overlay,
+  .mantine-Menu-dropdown {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 

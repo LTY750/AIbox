@@ -184,12 +184,17 @@ const KnowledgeBaseDocuments: React.FC<KnowledgeBaseDocumentsProps> = ({ knowled
   // Get supported file types
   const getSupportedFileTypes = useCallback(() => {
     const effectiveParserType = knowledgeBase?.documentParser?.type || globalDocumentParserType || 'local'
+    const isDoc2xParser = effectiveParserType === 'doc2x'
     const isLocalParser = effectiveParserType === 'local'
 
     const baseDocumentTypes = ['.pdf', '.docx', '.txt', '.md', '.rtf', '.pptx', '.xlsx', '.csv', '.epub']
     const extendedDocumentTypes = ['.doc', '.ppt', '.xls']
-    const documentTypes = isLocalParser ? baseDocumentTypes : [...baseDocumentTypes, ...extendedDocumentTypes]
-    const imageTypes = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
+    const documentTypes = isDoc2xParser
+      ? ['.pdf']
+      : isLocalParser
+        ? baseDocumentTypes
+        : [...baseDocumentTypes, ...extendedDocumentTypes]
+    const imageTypes = isDoc2xParser ? [] : ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
 
     // Add MIME types for better Windows compatibility
     const baseDocumentMimeTypes = [
@@ -208,10 +213,12 @@ const KnowledgeBaseDocuments: React.FC<KnowledgeBaseDocumentsProps> = ({ knowled
       'application/vnd.ms-powerpoint',
       'application/vnd.ms-excel',
     ]
-    const documentMimeTypes = isLocalParser
-      ? baseDocumentMimeTypes
-      : [...baseDocumentMimeTypes, ...extendedDocumentMimeTypes]
-    const imageMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp']
+    const documentMimeTypes = isDoc2xParser
+      ? ['application/pdf']
+      : isLocalParser
+        ? baseDocumentMimeTypes
+        : [...baseDocumentMimeTypes, ...extendedDocumentMimeTypes]
+    const imageMimeTypes = isDoc2xParser ? [] : ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp']
 
     const hasVisionModel = knowledgeBase?.visionModel && knowledgeBase.visionModel.trim() !== ''
 
@@ -595,6 +602,8 @@ const KnowledgeBaseDocuments: React.FC<KnowledgeBaseDocumentsProps> = ({ knowled
               return t('LlamaParse failed')
             case 'textin':
               return t('TextIn parse failed')
+            case 'doc2x':
+              return t('Doc2X parse failed')
             default:
               return t('Local parse failed')
           }
@@ -604,7 +613,8 @@ const KnowledgeBaseDocuments: React.FC<KnowledgeBaseDocumentsProps> = ({ knowled
               limit: KNOWLEDGE_BASE_MAX_PARSED_CONTENT_SIZE_LABEL,
             })
           : error || t('Processing failed')
-        const isRemoteParser = parserType === 'mineru' || parserType === 'llamaparse' || parserType === 'textin'
+        const isRemoteParser =
+          parserType === 'mineru' || parserType === 'llamaparse' || parserType === 'textin' || parserType === 'doc2x'
         return (
           <Flex gap={4} align="center">
             <Tooltip label={errorLabel} multiline w={300} withArrow position="top">
@@ -890,7 +900,9 @@ const KnowledgeBaseDocuments: React.FC<KnowledgeBaseDocumentsProps> = ({ knowled
                                             ? 'MinerU'
                                             : doc.parser_type === 'textin'
                                               ? 'TextIn XParse'
-                                              : 'Local'}
+                                              : doc.parser_type === 'doc2x'
+                                                ? 'Doc2X'
+                                                : 'Local'}
                                       </Pill>
                                     )}
                                   </>

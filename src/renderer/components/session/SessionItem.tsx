@@ -3,7 +3,7 @@ import NiceModal from '@ebay/nice-modal-react'
 import { ActionIcon, Flex, Text } from '@mantine/core'
 import { TestId } from '@shared/automation/testids'
 import type { SessionMetaRecord } from '@shared/types'
-import { IconArchive, IconArrowsMoveVertical, IconPinned, IconPinnedFilled } from '@tabler/icons-react'
+import { IconArchive, IconArrowsMoveVertical, IconDots, IconPinned, IconPinnedFilled } from '@tabler/icons-react'
 import clsx from 'clsx'
 import dayjs from 'dayjs'
 import { type MouseEvent, memo, type PointerEvent, useRef, useState } from 'react'
@@ -270,6 +270,33 @@ function SessionItem(props: Props) {
         {session.name}
       </Text>
 
+      {isSmallScreen && !props.isReordering && (
+        <ActionMenu
+          type="mobile"
+          trigger="manual"
+          items={mobileMenuItems}
+          opened={mobileMenuOpened}
+          onChange={handleMobileMenuChange}
+          position="bottom-end"
+          offset={0}
+        >
+          <ActionIcon
+            data-testid={`${TestId.sidebar.sessionItem}-menu`}
+            aria-label={t('More')}
+            variant="subtle"
+            size={28}
+            className="mobile-touch-target"
+            onPointerDown={stopItemClick}
+            onClick={(event) => {
+              stopItemClick(event)
+              setMobileMenuOpened(true)
+            }}
+          >
+            <ScalableIcon icon={IconDots} size={20} />
+          </ActionIcon>
+        </ActionMenu>
+      )}
+
       {!isSmallScreen && (
         <Text
           span
@@ -332,19 +359,7 @@ function SessionItem(props: Props) {
     return content
   }
 
-  return (
-    <ActionMenu
-      type="contextual"
-      trigger="manual"
-      items={mobileMenuItems}
-      opened={mobileMenuOpened}
-      onChange={handleMobileMenuChange}
-      position="bottom-end"
-      offset={0}
-    >
-      {content}
-    </ActionMenu>
-  )
+  return content
 }
 
 export default memo(SessionItem)

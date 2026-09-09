@@ -1,4 +1,4 @@
-import { Collapse, Flex, Stack, Tabs, Text, TextInput } from '@mantine/core'
+import { Button, Collapse, Flex, Stack, Tabs, Text, TextInput } from '@mantine/core'
 import type { ProviderModelInfo } from '@shared/types'
 import { IconSearch } from '@tabler/icons-react'
 import clsx from 'clsx'
@@ -8,6 +8,8 @@ import { useTranslation } from 'react-i18next'
 import SwipeableViews from 'react-swipeable-views'
 import { Drawer } from 'vaul'
 import { useProviders } from '@/hooks/useProviders'
+import { navigateToSettings } from '@/modals/Settings'
+import { useMobileBackHandler } from '@/platform/mobile_back_navigation'
 import { collapsedProvidersAtom } from '@/stores/atoms/uiAtoms'
 import { ScalableIcon } from '../common/ScalableIcon'
 import { ProviderHeader } from './ProviderHeader'
@@ -65,6 +67,15 @@ export const MobileModelSelector = forwardRef<HTMLDivElement, MobileModelSelecto
     }, [allFavoritedModels, modelFilter])
     const [open, setOpen] = useState(false)
 
+    useMobileBackHandler(
+      () => {
+        setOpen(false)
+        return true
+      },
+      open,
+      100
+    )
+
     // Convert activeTab to index for SwipeableViews (0 = 'all', 1 = 'favorite')
     const swipeIndex = useMemo(() => {
       return activeTab === 'favorite' ? 1 : 0
@@ -85,6 +96,13 @@ export const MobileModelSelector = forwardRef<HTMLDivElement, MobileModelSelecto
       onOptionSubmit(val)
       setOpen(false)
     }
+
+    const openProviderSettings = () => {
+      setOpen(false)
+      navigateToSettings('/provider')
+    }
+
+    const hasEligibleModels = filteredProviders.some((provider) => (provider.models?.length || 0) > 0)
 
     // Render favorite tab content
     const renderFavoriteTab = () => {
@@ -206,6 +224,18 @@ export const MobileModelSelector = forwardRef<HTMLDivElement, MobileModelSelecto
                         </Text>
                       </Flex>
                     )}
+                    {!hasEligibleModels && !showAuto && (
+                      <Stack gap="xs" py="md" px="sm" align="center">
+                        <Text c="chatbox-tertiary" size="sm">
+                          {t('No eligible models available')}
+                        </Text>
+                        {!search.trim() && (
+                          <Button variant="transparent" size="xs" onClick={openProviderSettings}>
+                            {t('Add provider')}
+                          </Button>
+                        )}
+                      </Stack>
+                    )}
                     {filteredProviders.map((provider) => {
                       const isCollapsed = collapsedProviders[provider.id] || false
                       if (!provider.models?.length) return null
@@ -250,13 +280,13 @@ export const MobileModelSelector = forwardRef<HTMLDivElement, MobileModelSelecto
                       )
                     })}
 
-                    <div className="h-[--mobile-safe-area-inset-bottom] min-h-4" />
+                    <div className="mobile-bottom-inset" />
                   </Stack>
 
                   {/* Favorite Tab Content */}
                   <Stack gap="md" className="px-2 h-full overflow-y-auto scrollbar-none">
                     {renderFavoriteTab()}
-                    <div className="h-[--mobile-safe-area-inset-bottom] min-h-4" />
+                    <div className="mobile-bottom-inset" />
                   </Stack>
                 </SwipeableViews>
               </Stack>

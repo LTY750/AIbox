@@ -64,6 +64,21 @@ describe('streaming ZIP', () => {
     expect(restored.get('sessions/session-1/resources/resource-000001.pptx')).toEqual(officeDocument)
   })
 
+  it('can read explicit directory marker entries when requested', async () => {
+    const archive = zipSync({ 'output/': new Uint8Array(), 'output/full.md': strToU8('# Parsed') })
+    const restored: string[] = []
+
+    await readZipFileEntries(
+      asFile(archive),
+      (entry) => {
+        restored.push(entry.path)
+      },
+      { allowDirectoryEntries: true }
+    )
+
+    expect(restored).toEqual(['output/', 'output/full.md'])
+  })
+
   it('rejects path traversal entries', async () => {
     const archive = zipSync({ '../outside.txt': strToU8('bad') })
     await expect(readZipFileEntries(asFile(archive), async () => undefined)).rejects.toThrow('Unsafe ZIP entry path')

@@ -5,6 +5,7 @@ import {
   Group,
   Paper,
   PasswordInput,
+  SegmentedControl,
   Stack,
   Switch,
   Text,
@@ -12,7 +13,7 @@ import {
   TextInput,
 } from '@mantine/core'
 import { useForm } from '@mantine/form'
-import { IconEye, IconEyeOff } from '@tabler/icons-react'
+import { IconCode, IconEye, IconEyeOff } from '@tabler/icons-react'
 import pTimeout from 'p-timeout'
 import { type CSSProperties, type FC, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -20,8 +21,14 @@ import { AdaptiveModal } from '@/components/common/AdaptiveModal'
 import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
 import { MCPServer } from '@/packages/mcp/controller'
 import type { MCPServerConfig } from '@/packages/mcp/types'
+import platform from '@/platform'
 import { trackEvent } from '@/utils/track'
-import { getConfigFromFormValues, getFormValuesFromConfig, type MCPServerConfigFormValues } from './utils'
+import {
+  getConfigFromFormValues,
+  getFormValuesFromConfig,
+  type MCPServerConfigFormValues,
+  parseServerFromJson,
+} from './utils'
 
 interface ConnectionTestingResult {
   config: MCPServerConfig
@@ -76,6 +83,17 @@ const ConfigForm: FC<{
   const [testing, setTesting] = useState(false)
   const [testingResult, setTestingResult] = useState<ConnectionTestingResult | null>()
   const [showHeaders, setShowHeaders] = useState(false)
+  const [jsonInput, setJsonInput] = useState('')
+  const [jsonError, setJsonError] = useState<string>()
+  const [inputMode, setInputMode] = useState<'manual' | 'json'>(() =>
+    props.mode === 'add' &&
+    platform.type === 'mobile' &&
+    props.config.name.trim().length === 0 &&
+    props.config.transport.type === 'http' &&
+    props.config.transport.url.trim().length === 0
+      ? 'json'
+      : 'manual'
+  )
   const testingAbortController = useRef<AbortController | null>(null)
 
   const form = useForm<MCPServerConfigFormValues>({
@@ -135,72 +153,130 @@ const ConfigForm: FC<{
     form.setFieldValue('disabledTools', [...disabledTools])
   }
 
+  const handleJsonImport = () => {
+    try {
+      const config = parseServerFromJson(jsonInput)
+      if (!config) {
+        setJsonError(String(t('Invalid MCP JSON configuration')))
+        return
+      }
+      form.setValues({
+        ...getFormValuesFromConfig(config),
+        enabled: form.getValues().enabled,
+      })
+      setJsonError(undefined)
+      setTestingResult(null)
+      setInputMode('manual')
+    } catch (error) {
+      setJsonError(error instanceof Error ? error.message : String(t('Invalid MCP JSON configuration')))
+    }
+  }
+
   return (
     <form ref={formRef} onSubmit={form.onSubmit(handleSubmit)}>
       <Stack gap="md">
-        <TextInput label={t('Name')} data-autofocus required {...form.getInputProps('name')} />
-        <PasswordInput
-          label="URL"
-          required
-          placeholder="https://..."
-          visibilityToggleButtonProps={{ 'aria-label': t('Show') }}
-          {...form.getInputProps('transport.url')}
-        />
-        <Textarea
-          label="HTTP Header"
-          placeholder="NAME=VALUE"
-          autosize
-          minRows={3}
-          rightSection={
-            <ActionIcon
-              variant="subtle"
-              aria-label={showHeaders ? t('Hide') : t('Show')}
-              onClick={() => setShowHeaders((visible) => !visible)}
-            >
-              {showHeaders ? <IconEyeOff size={16} /> : <IconEye size={16} />}
-            </ActionIcon>
-          }
-          styles={{
-            input: {
-              WebkitTextSecurity: showHeaders ? 'none' : 'disc',
-            } as CSSProperties,
-          }}
-          {...form.getInputProps('transport.headers')}
-        />
-        <Group justify="space-between">
-          {props.mode === 'edit' ? (
-            <Anchor c="chatbox-error" onClick={() => props.onDelete(props.config.id)}>
-              {t('Delete')}
-            </Anchor>
-          ) : (
-            <Text />
-          )}
-          <Group justify="flex-end" gap="sm">
-            {testing && (
-              <Button variant="subtle" color="red" onClick={() => testingAbortController.current?.abort()}>
-                {t('Cancel')}
-              </Button>
-            )}
-            <Button variant="outline" onClick={testConnection} loading={testing} disabled={testing}>
-              {t('Test')}
-            </Button>
-            {props.mode === 'edit' || testingResult ? (
-              <Button type="submit">{t('Save')}</Button>
-            ) : (
-              <Tooltip label={t('Please test before saving')} withArrow zIndex={3000}>
-                <Button data-disabled type="submit" onClick={(e) => e.preventDefault()}>
-                  {t('Save')}
-                </Button>
-              </Tooltip>
-            )}
-          </Group>
-        </Group>
-        {testingResult && (
-          <TestingResult
-            result={testingResult}
-            disabledTools={form.values.disabledTools ?? []}
-            onToolEnabledChange={handleToolEnabledChange}
+        {props.mode === 'add' && (
+          <SegmentedControl
+            fullWidth
+            value={inputMode}
+            onChange={(value) => {
+              setInputMode(value as 'manual' | 'json')
+              setJsonError(undefined)
+            }}
+            data={[
+              { label: t('Manual'), value: 'manual' },
+              { label: t('JSON'), value: 'json' },
+            ]}
           />
+        )}
+        {inputMode === 'json' && props.mode === 'add' ? (
+          <Stack gap="sm">
+            <Textarea
+              label={t('MCP JSON configuration')}
+              placeholder={
+                '{\n  "mcpServers": {\n    "fetch": {\n      "type": "streamable_http",\n      "url": "https://..."\n    }\n  }\n}'
+              }
+              autosize
+              minRows={10}
+              data-autofocus
+              value={jsonInput}
+              onChange={(event) => {
+                setJsonInput(event.currentTarget.value)
+                setJsonError(undefined)
+              }}
+              error={jsonError}
+            />
+            <Button type="button" leftSection={<IconCode size={16} />} onClick={handleJsonImport}>
+              {t('Use JSON configuration')}
+            </Button>
+          </Stack>
+        ) : (
+          <>
+            <TextInput label={t('Name')} data-autofocus required {...form.getInputProps('name')} />
+            <PasswordInput
+              label="URL"
+              required
+              placeholder="https://..."
+              visibilityToggleButtonProps={{ 'aria-label': t('Show') }}
+              {...form.getInputProps('transport.url')}
+            />
+            <Textarea
+              label="HTTP Header"
+              placeholder="NAME=VALUE"
+              autosize
+              minRows={3}
+              rightSection={
+                <ActionIcon
+                  variant="subtle"
+                  aria-label={showHeaders ? t('Hide') : t('Show')}
+                  onClick={() => setShowHeaders((visible) => !visible)}
+                >
+                  {showHeaders ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+                </ActionIcon>
+              }
+              styles={{
+                input: {
+                  WebkitTextSecurity: showHeaders ? 'none' : 'disc',
+                } as CSSProperties,
+              }}
+              {...form.getInputProps('transport.headers')}
+            />
+            <Group justify="space-between">
+              {props.mode === 'edit' ? (
+                <Anchor c="chatbox-error" onClick={() => props.onDelete(props.config.id)}>
+                  {t('Delete')}
+                </Anchor>
+              ) : (
+                <Text />
+              )}
+              <Group justify="flex-end" gap="sm">
+                {testing && (
+                  <Button variant="subtle" color="red" onClick={() => testingAbortController.current?.abort()}>
+                    {t('Cancel')}
+                  </Button>
+                )}
+                <Button variant="outline" onClick={testConnection} loading={testing} disabled={testing}>
+                  {t('Test')}
+                </Button>
+                {props.mode === 'edit' || testingResult ? (
+                  <Button type="submit">{t('Save')}</Button>
+                ) : (
+                  <Tooltip label={t('Please test before saving')} withArrow zIndex={3000}>
+                    <Button data-disabled type="submit" onClick={(e) => e.preventDefault()}>
+                      {t('Save')}
+                    </Button>
+                  </Tooltip>
+                )}
+              </Group>
+            </Group>
+            {testingResult && (
+              <TestingResult
+                result={testingResult}
+                disabledTools={form.values.disabledTools ?? []}
+                onToolEnabledChange={handleToolEnabledChange}
+              />
+            )}
+          </>
         )}
       </Stack>
     </form>

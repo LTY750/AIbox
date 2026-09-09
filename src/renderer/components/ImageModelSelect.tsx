@@ -1,9 +1,10 @@
-import { Combobox, type ComboboxProps, Flex, Text, useCombobox } from '@mantine/core'
+import { Button, Combobox, type ComboboxProps, Flex, Stack, Text, useCombobox } from '@mantine/core'
 import type { ModelProvider } from '@shared/types'
 import { IconServer } from '@tabler/icons-react'
 import { forwardRef, type PropsWithChildren } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ImageModelGroup } from '@/hooks/useImageModelGroups'
+import { navigateToSettings } from '@/modals/Settings'
 import { ScalableIcon } from './common/ScalableIcon'
 import ProviderIcon from './icons/ProviderIcon'
 
@@ -46,6 +47,11 @@ export const ImageModelSelect = forwardRef<HTMLButtonElement, ImageModelSelectPr
       combobox.closeDropdown()
     }
 
+    const openProviderSettings = () => {
+      combobox.closeDropdown()
+      navigateToSettings('/provider')
+    }
+
     return (
       <Combobox
         store={combobox}
@@ -64,9 +70,14 @@ export const ImageModelSelect = forwardRef<HTMLButtonElement, ImageModelSelectPr
         <Combobox.Dropdown className="!rounded-lg !border-[var(--chatbox-border-primary)] !shadow-lg overflow-hidden">
           <Combobox.Options mah={400} style={{ overflowY: 'auto' }} className="p-1">
             {modelGroups.length === 0 ? (
-              <Text size="sm" c="dimmed" px="sm" py="xs">
-                {t('No models available')}
-              </Text>
+              <Stack align="center" gap="xs" px="sm" py="md">
+                <Text size="sm" c="dimmed">
+                  {t('No models available')}
+                </Text>
+                <Button variant="transparent" size="xs" onClick={openProviderSettings}>
+                  {t('Add provider')}
+                </Button>
+              </Stack>
             ) : (
               modelGroups.map((group) => (
                 <div key={group.providerId}>

@@ -94,6 +94,7 @@ import {
 } from './message-action-state'
 import { isMessageReminderPresentation, resolveMessageErrorPresentation } from './message-error-presentation'
 import { shouldRightAlignMessage } from './message-layout'
+import { getMessageModelLabel } from './message-model-label'
 import { getMessageRoleClass } from './message-role-class'
 import { createMessageTimelineLayout } from './message-timeline'
 import { getMessageTokenDisplay } from './message-token-display'
@@ -412,9 +413,10 @@ const _Message: FC<Props> = (props) => {
   // Units like "tokens", "words", "tkn", "s" are intentionally kept as hardcoded English
   // because they are technical/universal abbreviations that remain readable across all locales.
   const tips: { label: string; tooltip?: string }[] = []
+  const messageModelLabel = getMessageModelLabel(props.msg.model)
   if (props.sessionType === 'chat' || !props.sessionType) {
-    if (showModelName && props.msg.role === 'assistant') {
-      tips.push({ label: props.msg.model || 'unknown', tooltip: t('Model') as string })
+    if (showModelName && props.msg.role === 'assistant' && messageModelLabel) {
+      tips.push({ label: messageModelLabel, tooltip: t('Model') as string })
     }
     if (showTokenUsed && msg.role === 'assistant' && !msg.generating) {
       const consumedTokens = getMessageTokenDisplay(msg)
@@ -437,8 +439,8 @@ const _Message: FC<Props> = (props) => {
         })
     }
   } else if (props.sessionType === 'picture') {
-    if (showModelName && props.msg.role === 'assistant') {
-      tips.push({ label: props.msg.model || 'unknown', tooltip: t('Model') as string })
+    if (showModelName && props.msg.role === 'assistant' && messageModelLabel) {
+      tips.push({ label: messageModelLabel, tooltip: t('Model') as string })
       if (props.msg.style) tips.push({ label: props.msg.style })
     }
   }

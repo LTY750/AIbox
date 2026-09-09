@@ -95,8 +95,9 @@ export function HistoryItem({ record, isActive, isMobile, modelDisplayName, onCl
             variant="transparent"
             color="gray"
             size="sm"
+            aria-label={t('Delete')}
             onClick={handleDeleteClick}
-            className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+            className="mobile-touch-target shrink-0 opacity-60 hover:opacity-100 transition-opacity"
           >
             <IconTrash size={16} />
           </ActionIcon>

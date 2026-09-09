@@ -6,7 +6,8 @@ import { IconDots, IconEdit, IconSwitch, IconTrash, IconX } from '@tabler/icons-
 import { useAtom, useAtomValue } from 'jotai'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useIsSmallScreen } from '@/hooks/useScreenChange'
+import { useIsSmallScreen, usePrefersReducedMotion } from '@/hooks/useScreenChange'
+import { useMobileBackHandler } from '@/platform/mobile_back_navigation'
 import { currentSessionIdAtom, showThreadHistoryDrawerAtom } from '@/stores/atoms'
 import { scrollToIndex } from '@/stores/scrollActions'
 import { removeCurrentThread, removeThread, switchThread as switchThreadAction } from '@/stores/sessionActions'
@@ -20,6 +21,16 @@ export default function ThreadHistoryDrawer({ session }: { session: Session }) {
   const { t } = useTranslation()
   const language = useLanguage()
   const [showDrawer, setShowDrawer] = useAtom(showThreadHistoryDrawerAtom)
+  const prefersReducedMotion = usePrefersReducedMotion()
+
+  useMobileBackHandler(
+    () => {
+      setShowDrawer(false)
+      return true
+    },
+    Boolean(showDrawer),
+    60
+  )
 
   const currentMessageList = useMemo(() => getAllMessageList(session), [session])
 
@@ -59,13 +70,14 @@ export default function ThreadHistoryDrawer({ session }: { session: Session }) {
       open={!!showDrawer}
       onClose={() => setShowDrawer(false)}
       onOpen={() => setShowDrawer(true)}
+      transitionDuration={prefersReducedMotion ? 0 : 200}
       title={t('Thread History') || ''}
       ModalProps={{
         keepMounted: true, // Better open performance on mobile.
       }}
       classes={{
         paper:
-          'bg-none box-border max-w-75vw min-w-[240px] flex flex-col gap-0 pt-[var(--mobile-safe-area-inset-top)] pb-[var(--mobile-safe-area-inset-bottom)]',
+          'bg-none box-border max-w-75vw min-w-[240px] flex flex-col gap-0 pt-[var(--mobile-safe-area-inset-top)] mobile-drawer-bottom-inset',
       }}
       SlideProps={language === 'ar' ? { direction: 'right' } : undefined}
       PaperProps={
@@ -78,7 +90,14 @@ export default function ThreadHistoryDrawer({ session }: { session: Session }) {
         <Text size="md" fw={600}>
           {t('Thread History')}
         </Text>
-        <ActionIcon variant="transparent" color="chatbox-primary" onClick={() => setShowDrawer(false)}>
+        <ActionIcon
+          variant="transparent"
+          color="chatbox-primary"
+          size={28}
+          className="mobile-touch-target"
+          aria-label={t('Close')}
+          onClick={() => setShowDrawer(false)}
+        >
           <ScalableIcon icon={IconX} size={20} />
         </ActionIcon>
       </Flex>
@@ -170,7 +189,11 @@ function ThreadItem(props: {
         <ActionIcon
           variant="transparent"
           color="chatbox-primary"
-          className={isSmallScreen || menuOpened ? '' : 'group-hover/thread-item:visible invisible'}
+          size={isSmallScreen ? 28 : undefined}
+          className={
+            isSmallScreen ? 'mobile-touch-target' : menuOpened ? '' : 'group-hover/thread-item:visible invisible'
+          }
+          aria-label={t('More')}
           onClick={(e) => e.stopPropagation()}
         >
           <ScalableIcon icon={IconDots} />

@@ -13,6 +13,7 @@ import { IconBrain, IconCircleOff, IconSparkles } from '@tabler/icons-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
 interface ReasoningControlButtonProps {
   provider?: string
@@ -57,7 +58,10 @@ export default function ReasoningControlButton({
         <span>
           <UnstyledButton
             data-testid={TestId.reasoning.trigger}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg cursor-not-allowed opacity-60"
+            className={cn(
+              'flex items-center gap-1 px-2 py-1 rounded-lg cursor-not-allowed opacity-60',
+              compact && 'mobile-touch-target justify-center'
+            )}
             style={{ color: 'var(--chatbox-tint-tertiary)' }}
             disabled
           >
@@ -86,10 +90,10 @@ export default function ReasoningControlButton({
           <Tooltip label={t('Thinking: {{level}}', { level: levelLabel })} position="top" withArrow>
             <UnstyledButton
               data-testid={TestId.reasoning.trigger}
-              className={
-                'flex items-center gap-1 px-2 py-1 rounded-lg ' +
-                'hover:bg-[var(--chatbox-background-tertiary)] transition-colors'
-              }
+              className={cn(
+                'flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--chatbox-background-tertiary)] transition-colors',
+                compact && 'mobile-touch-target justify-center'
+              )}
               style={{ color: LEVEL_COLORS[level] }}
               aria-label={t('Thinking: {{level}}', { level: levelLabel })}
             >

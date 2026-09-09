@@ -1,4 +1,4 @@
-import { Combobox, Flex, SegmentedControl, Stack, Text, TextInput, useCombobox } from '@mantine/core'
+import { Button, Combobox, Flex, SegmentedControl, Stack, Text, TextInput, useCombobox } from '@mantine/core'
 import { TestId } from '@shared/automation/testids'
 import { ModelProviderEnum } from '@shared/types'
 import { IconSearch } from '@tabler/icons-react'
@@ -22,6 +22,8 @@ import { Drawer } from 'vaul'
 import { trackListModelClick, trackSelectModelClick, trackUpgradeModelClick } from '@/analytics/model-selection'
 import { useProviders } from '@/hooks/useProviders'
 import { useIsSmallScreen } from '@/hooks/useScreenChange'
+import { navigateToSettings } from '@/modals/Settings'
+import { useMobileBackHandler } from '@/platform/mobile_back_navigation'
 import { collapsedProvidersAtom } from '@/stores/atoms/uiAtoms'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { ScalableIcon } from '../common/ScalableIcon'
@@ -73,6 +75,23 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
     const desktopDropdownRef = useRef<HTMLDivElement>(null)
     const desktopDetailRef = useRef<HTMLDivElement>(null)
     const desktopDetailCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    useMobileBackHandler(
+      () => {
+        setMobileDetail(null)
+        return true
+      },
+      Boolean(mobileDetail),
+      110
+    )
+    useMobileBackHandler(
+      () => {
+        setMobileOpen(false)
+        return true
+      },
+      mobileOpen,
+      100
+    )
 
     const handleDropdownOpen = useCallback(() => {
       onDropdownOpen?.()
@@ -204,7 +223,17 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
       if (open && pageName) {
         trackListModelClick(pageName, selectedModelId)
       }
-      blurActiveElement()
+      // Only dismiss the keyboard when opening the selector. Closing a drawer
+      // should never steal focus from the input after a viewport resize.
+      if (open) {
+        blurActiveElement()
+      }
+    }
+
+    const openProviderSettings = () => {
+      setMobileOpen(false)
+      combobox.closeDropdown()
+      navigateToSettings('/provider')
     }
 
     const toggleProvider = (providerId: string) => {
@@ -272,14 +301,7 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
         : genericProviders.reduce((count, provider) => count + (provider.models?.length || 0), 0)
 
       return genericCount
-    }, [
-      activeTab,
-      favoritedModels,
-      favoritedModelsSetting,
-      genericProviders,
-      modelFilter,
-      search,
-    ])
+    }, [activeTab, favoritedModels, genericProviders, modelFilter, search])
 
     const content = (
       <Stack
@@ -363,6 +385,11 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
                 <Text c="chatbox-tertiary" size="xs">
                   {activeTab === 'favorite' ? t('No favorite models') : t('No eligible models available')}
                 </Text>
+                {activeTab === 'all' && !search.trim() && (
+                  <Button variant="transparent" size="xs" onClick={openProviderSettings}>
+                    {t('Add provider')}
+                  </Button>
+                )}
               </Stack>
             )
           ) : activeTab === 'favorite' ? (
@@ -432,7 +459,7 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
                   <div aria-hidden className="mx-auto my-3 h-1 w-14 rounded-full bg-chatbox-tint-tertiary opacity-70" />
                   <Drawer.Title className="hidden">{t('Select Model')}</Drawer.Title>
                   {content}
-                  <div className="h-[--mobile-safe-area-inset-bottom] min-h-4" />
+                  <div className="mobile-bottom-inset" />
                 </Stack>
               </Drawer.Content>
             </Drawer.Portal>
@@ -441,7 +468,7 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
             open={!!mobileDetail}
             onOpenChange={(open) => {
               if (!open) setMobileDetail(null)
-              blurActiveElement()
+              if (open) blurActiveElement()
             }}
             noBodyStyles
           >
@@ -465,7 +492,7 @@ export const ModelSelectorV2 = forwardRef<HTMLDivElement, ModelSelectorV2Props>(
                       mobile
                     />
                   )}
-                  <div className="h-[--mobile-safe-area-inset-bottom] min-h-4" />
+                  <div className="mobile-bottom-inset" />
                 </Stack>
               </Drawer.Content>
             </Drawer.Portal>

@@ -1,4 +1,5 @@
 import { Box, Button, Flex, Text, Title } from '@mantine/core'
+import { SystemProviders } from '@shared/defaults'
 import { IconX } from '@tabler/icons-react'
 import {
   createMemoryHistory,
@@ -6,10 +7,11 @@ import {
   createRoute,
   createRouter,
   RouterProvider,
+  useRouterState,
   useLocation,
 } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { type FC, useCallback, useEffect } from 'react'
+import { type FC, useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Toaster } from 'sonner'
 import { z } from 'zod'
@@ -33,6 +35,8 @@ import { RouteComponent as SettingsProviderRouteRouteComponent } from '@/routes/
 import { SettingsRoot } from '@/routes/settings/route'
 import { RouteComponent as SettingsSkillsRouteComponent } from '@/routes/settings/skills'
 import { RouteComponent as SettingsWebSearchRouteComponent } from '@/routes/settings/web-search'
+import { useSettingsStore } from '@/stores/settingsStore'
+import { getSettingsPageTitle } from '@/utils/settingsPageTitle'
 
 export type SettingsModalProps = {}
 
@@ -41,6 +45,10 @@ export const SettingsModal: FC<SettingsModalProps> = (props) => {
   const location = useLocation()
   const search = location.search as { settings?: string }
   const { needRoomForMacWindowControls } = useNeedRoomForWinControls()
+  const modalPathname = useRouterState({ router: modalRouter, select: (state) => state.location.pathname })
+  const customProviders = useSettingsStore((state) => state.customProviders)
+  const providers = useMemo(() => [...SystemProviders(), ...(customProviders || [])], [customProviders])
+  const title = useMemo(() => getSettingsPageTitle(modalPathname, t, providers), [modalPathname, providers, t])
 
   useEffect(() => {
     if (search.settings) {
@@ -78,7 +86,7 @@ export const SettingsModal: FC<SettingsModalProps> = (props) => {
         <div className={clsx('flex-[1_1_0]', needRoomForMacWindowControls ? 'min-w-16' : '')} />
         <Flex p="sm" align="center" w={'100%'} maw={1200} gap="xs">
           <Title order={3} flex={1}>
-            {t('Settings')}
+            {title}
           </Title>
 
           <Text c="chatbox-tertiary" size="xs">

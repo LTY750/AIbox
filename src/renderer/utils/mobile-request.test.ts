@@ -95,6 +95,30 @@ describe('mobile request transport', () => {
     ])
   })
 
+  test('serializes binary request bodies for native file uploads', async () => {
+    capacitorRequest.mockResolvedValue({
+      data: '',
+      status: 200,
+      headers: {},
+    })
+
+    await handleMobileRequest(
+      'https://doc2x-upload.example.com/file.pdf',
+      'PUT',
+      new Headers({ 'Content-Type': 'application/pdf' }),
+      new Blob([new Uint8Array([37, 80, 68, 70])], { type: 'application/pdf' })
+    )
+
+    expect(capacitorRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'PUT',
+        dataType: 'file',
+        data: 'JVBERg==',
+        headers: { 'content-type': 'application/pdf' },
+      })
+    )
+  })
+
   test('restores native Base64 arraybuffer responses to binary data', async () => {
     capacitorRequest.mockResolvedValue({
       data: 'AQID',
@@ -159,6 +183,52 @@ describe('mobile request transport', () => {
 
     expect(nativeReadableStream).toHaveBeenCalledOnce()
     expect(capacitorRequest).not.toHaveBeenCalled()
+  })
+
+  test('preserves MCP Streamable HTTP content negotiation for JSON responses', async () => {
+    const body = '{"jsonrpc":"2.0","id":1,"result":{"tools":[]}}'
+    nativeReadableStream.mockReturnValue(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(body))
+          controller.close()
+        },
+      })
+    )
+    nativeStreamHandle.mockReturnValue({
+      ready: Promise.resolve({ id: 'mcp-json', state: 'running', lastSequence: 0 }),
+      getState: vi.fn().mockResolvedValue({
+        id: 'mcp-json',
+        state: 'completed',
+        lastSequence: 1,
+        status: 200,
+        headers: { 'content-type': 'application/json; charset=utf-8' },
+      }),
+    })
+
+    const response = await handleMobileRequest(
+      'https://mcp.modelscope.example/mcp',
+      'POST',
+      new Headers({ accept: 'application/json, text/event-stream', 'content-type': 'application/json' }),
+      '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}',
+      undefined,
+      undefined,
+      true
+    )
+
+    expect(nativeReadableStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          accept: 'application/json, text/event-stream',
+        }),
+      })
+    )
+    expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8')
+    await expect(response.json()).resolves.toEqual({
+      jsonrpc: '2.0',
+      id: 1,
+      result: { tools: [] },
+    })
   })
 })
 

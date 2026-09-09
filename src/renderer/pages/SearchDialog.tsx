@@ -11,6 +11,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { useIsSmallScreen } from '@/hooks/useScreenChange'
 import { cn } from '@/lib/utils'
 import { currentSessionIdAtom } from '@/stores/atoms'
+import { useMobileBackHandler } from '@/platform/mobile_back_navigation'
 import { searchSessions } from '@/stores/sessionHelpers'
 import { useUIStore } from '@/stores/uiStore'
 import * as scrollActions from '../stores/scrollActions'
@@ -33,6 +34,15 @@ export default function SearchDialog(props: Props) {
   const ref = useRef<HTMLInputElement>(null)
 
   const currentSessionId = useAtomValue(currentSessionIdAtom)
+
+  useMobileBackHandler(
+    () => {
+      setOpen(false)
+      return true
+    },
+    open,
+    90
+  )
 
   useEffect(() => {
     if (open) {

@@ -14,6 +14,7 @@ import { Drawer } from 'vaul'
 import { ScalableIcon } from '@/components/common/ScalableIcon'
 import { useIsSmallScreen } from '@/hooks/useScreenChange'
 import platform from '@/platform'
+import { useMobileBackHandler } from '@/platform/mobile_back_navigation'
 import classes from './ProviderSpotlight.module.css'
 import { FEATURED_PROVIDER_IDS, ProviderIconImage } from './providerIcons'
 
@@ -154,6 +155,15 @@ const MobileProviderPicker: FC<ProviderPickerProps> = (props) => {
   const groups = useProviderPickerGroups(props)
   const filtered = useMemo(() => filterPickerGroups(query, groups), [query, groups])
 
+  useMobileBackHandler(
+    () => {
+      providerSpotlight.close()
+      return true
+    },
+    opened,
+    100
+  )
+
   useEffect(() => {
     if (!opened) setQuery('')
   }, [opened])
@@ -233,7 +243,7 @@ const MobileProviderPicker: FC<ProviderPickerProps> = (props) => {
             )}
           </div>
 
-          <div className="h-[var(--mobile-safe-area-inset-bottom)] min-h-3 shrink-0" />
+          <div className="mobile-bottom-inset shrink-0" />
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>

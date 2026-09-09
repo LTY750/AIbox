@@ -26,10 +26,11 @@ import ThemeSwitchButton from './components/dev/ThemeSwitchButton'
 import SessionList from './components/session/SessionList'
 import { FORCE_ENABLE_DEV_PAGES } from './dev/devToolsConfig'
 import useNeedRoomForMacWinControls from './hooks/useNeedRoomForWinControls'
-import { useIsSmallScreen, useSidebarWidth } from './hooks/useScreenChange'
+import { useIsSmallScreen, usePrefersReducedMotion, useSidebarWidth } from './hooks/useScreenChange'
 import useVersion from './hooks/useVersion'
 import { navigateToSettings } from './modals/Settings'
 import { trackingEvent } from './packages/event'
+import { useMobileBackHandler } from './platform/mobile_back_navigation'
 import { getSidebarModalSx } from './sidebar-drawer'
 import icon from './static/icon.png'
 import { useLanguage } from './stores/settingsStore'
@@ -68,6 +69,7 @@ export default function Sidebar() {
   const sidebarWidth = useSidebarWidth()
 
   const isSmallScreen = useIsSmallScreen()
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   const [isResizing, setIsResizing] = useState(false)
   const resizeStartX = useRef<number>(0)
@@ -135,6 +137,22 @@ export default function Sidebar() {
     }
   }, [isSmallScreen, showSidebar])
 
+  useMobileBackHandler(
+    () => {
+      setShowSidebar(false)
+      return true
+    },
+    isSmallScreen && showSidebar,
+    50
+  )
+
+  const drawerPaperSx = {
+    overflowY: 'initial',
+    width: isSmallScreen ? '75vw' : sidebarWidth,
+    maxWidth: '75vw',
+    ...(language === 'ar' ? { direction: 'rtl' } : {}),
+  }
+
   return (
     <SwipeableDrawer
       anchor={language === 'ar' ? 'right' : 'left'}
@@ -142,6 +160,7 @@ export default function Sidebar() {
       open={showSidebar}
       onClose={() => setShowSidebar(false)}
       onOpen={() => setShowSidebar(true)}
+      transitionDuration={prefersReducedMotion ? 0 : 200}
       ModalProps={{
         keepMounted: true, // Better open performance on mobile.
         disableEnforceFocus: true, // 关闭 focus trap，避免在侧边栏打开时弹出的 modal 中 input 无法点击
@@ -153,14 +172,10 @@ export default function Sidebar() {
           backgroundImage: 'none',
           border: 0,
           boxSizing: 'border-box',
-          width: isSmallScreen ? '75vw' : sidebarWidth,
-          maxWidth: '75vw',
         },
       }}
       SlideProps={language === 'ar' ? { direction: 'left' } : undefined}
-      PaperProps={
-        language === 'ar' ? { sx: { direction: 'rtl', overflowY: 'initial' } } : { sx: { overflowY: 'initial' } }
-      }
+      PaperProps={{ sx: drawerPaperSx }}
       disableSwipeToOpen={CHATBOX_BUILD_PLATFORM !== 'ios'} // 只在iOS设备上启用SwipeToOpen
     >
       <Stack
@@ -197,6 +212,8 @@ export default function Sidebar() {
           <Flex align="center" gap={2} style={{ flexShrink: 0 }}>
             <Tooltip label={t('Search')} openDelay={1000} withArrow>
               <ActionIcon
+                className={isSmallScreen ? 'mobile-touch-target' : undefined}
+                aria-label={t('Search')}
                 variant="subtle"
                 color="chatbox-tertiary"
                 size={26}
@@ -208,6 +225,8 @@ export default function Sidebar() {
             </Tooltip>
             <Tooltip label={t('Clear Conversation List')} openDelay={1000} withArrow>
               <ActionIcon
+                className={isSmallScreen ? 'mobile-touch-target' : undefined}
+                aria-label={t('Clear Conversation List')}
                 variant="subtle"
                 color="chatbox-tertiary"
                 size={26}
@@ -219,6 +238,8 @@ export default function Sidebar() {
             </Tooltip>
             <Tooltip label={t('Collapse')} openDelay={1000} withArrow>
               <ActionIcon
+                className={isSmallScreen ? 'mobile-touch-target' : undefined}
+                aria-label={t('Collapse')}
                 variant="subtle"
                 color="chatbox-tertiary"
                 size={26}
@@ -279,6 +300,8 @@ export default function Sidebar() {
 
               <ActionIcon
                 data-testid={TestId.sidebar.settingsTrigger}
+                aria-label={t('Settings')}
+                className="mobile-touch-target"
                 variant="transparent"
                 color="chatbox-secondary"
                 size={24}

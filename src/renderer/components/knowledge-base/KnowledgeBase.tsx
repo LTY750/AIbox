@@ -217,6 +217,8 @@ const KnowledgeBasePage: React.FC = () => {
         return 'MinerU'
       case 'textin':
         return 'TextIn XParse'
+      case 'doc2x':
+        return 'Doc2X (PDF)'
       default:
         return t('Local')
     }
@@ -269,6 +271,9 @@ const KnowledgeBasePage: React.FC = () => {
         (!newDocumentParser.textin?.appId || !newDocumentParser.textin.secretCode)
       ) {
         return { ...newDocumentParser, textin: globalDocumentParser?.textin }
+      }
+      if (newDocumentParser.type === 'doc2x' && !newDocumentParser.doc2x?.apiKey) {
+        return { ...newDocumentParser, doc2x: globalDocumentParser?.doc2x }
       }
       return newDocumentParser
     })()

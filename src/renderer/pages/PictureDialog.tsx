@@ -9,6 +9,7 @@ import { Img } from '@/components/Image'
 import { useBlob, useFetchBlob } from '@/hooks/useBlob'
 import platform from '@/platform'
 import { shareMobileUrl } from '@/platform/mobile_share'
+import { useMobileBackHandler } from '@/platform/mobile_back_navigation'
 import { useUIStore } from '@/stores/uiStore'
 
 export default function PictureDialog(props: {}) {
@@ -48,6 +49,14 @@ function _PictureDialog(props: {
   const shareUrl = picture.url
 
   const onClose = () => setPictureShow(null)
+  useMobileBackHandler(
+    () => {
+      onClose()
+      return true
+    },
+    true,
+    100
+  )
   const onSaveDefault = async () => {
     if (!picture) {
       return

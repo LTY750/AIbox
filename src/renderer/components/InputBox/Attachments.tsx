@@ -249,6 +249,8 @@ export function getParserDisplayName(
       return t('Parser: {{parser}}', { parser: 'MinerU' })
     case 'textin':
       return t('Parser: {{parser}}', { parser: 'TextIn XParse' })
+    case 'doc2x':
+      return t('Parser: {{parser}}', { parser: 'Doc2X' })
     default:
       return undefined
   }

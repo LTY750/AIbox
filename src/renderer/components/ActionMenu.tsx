@@ -4,6 +4,7 @@ import { type FC, type MouseEventHandler, type ReactElement, useEffect, useRef, 
 import { useTranslation } from 'react-i18next'
 import { Drawer } from 'vaul'
 import { useIsSmallScreen } from '@/hooks/useScreenChange'
+import { useMobileBackHandler } from '@/platform/mobile_back_navigation'
 import { Divider } from './common/Divider'
 import { ScalableIcon } from './common/ScalableIcon'
 
@@ -298,6 +299,15 @@ const MobileActionMenu: FC<ActionMenuProps> = ({
     }
   }
 
+  useMobileBackHandler(
+    () => {
+      setOpen(false)
+      return true
+    },
+    open,
+    120
+  )
+
   const handleItemClick = (onClick?: MouseEventHandler<HTMLButtonElement>) => {
     return async (e: React.MouseEvent<HTMLButtonElement>) => {
       if (onClick) {
@@ -339,7 +349,7 @@ const MobileActionMenu: FC<ActionMenuProps> = ({
                     data-testid={item.testId}
                     onClick={handleItemClick(item.onClick)}
                     disabled={item.disabled}
-                    className="border-0 bg-transparent p-2.5"
+                    className="min-h-12 border-0 bg-transparent p-2.5"
                   >
                     <Text span lineClamp={1} fw={600} c={item.color || 'chatbox-primary'}>
                       {item.text}
@@ -348,7 +358,7 @@ const MobileActionMenu: FC<ActionMenuProps> = ({
                 )
               )}
             </Stack>
-            <div className="h-[--mobile-safe-area-inset-bottom] min-h-4" />
+            <div className="mobile-bottom-inset" />
           </div>
         </Drawer.Content>
       </Drawer.Portal>
@@ -365,6 +375,15 @@ const MobileDoubleCheckMenuItem: FC<{
   const confirmingRef = useRef(false)
   const { t } = useTranslation()
 
+  useMobileBackHandler(
+    () => {
+      setConfirmOpen(false)
+      return true
+    },
+    confirmOpen,
+    130
+  )
+
   if (!item.doubleCheck) return null
 
   const doubleCheckConfig = item.doubleCheck === true ? {} : item.doubleCheck
@@ -374,7 +393,7 @@ const MobileDoubleCheckMenuItem: FC<{
   return (
     <Drawer.NestedRoot noBodyStyles open={confirmOpen} onOpenChange={setConfirmOpen}>
       <Drawer.Trigger asChild>
-        <button className="border-0 bg-transparent p-2.5" disabled={item.disabled} data-testid={item.testId}>
+        <button className="min-h-12 border-0 bg-transparent p-2.5" disabled={item.disabled} data-testid={item.testId}>
           <Text
             span
             lineClamp={1}
@@ -409,7 +428,7 @@ const MobileDoubleCheckMenuItem: FC<{
                       setConfirming(false)
                     }
                   }}
-                  className="border-0 bg-transparent p-2.5"
+                  className="min-h-12 border-0 bg-transparent p-2.5"
                 >
                   <Text span lineClamp={1} fw={600} c={doubleCheckColor}>
                     {doubleCheckText}
@@ -420,14 +439,14 @@ const MobileDoubleCheckMenuItem: FC<{
               <Divider className="my-2" />
 
               <Drawer.Close asChild>
-                <button className="border-0 bg-transparent p-2.5">
+                <button className="min-h-12 border-0 bg-transparent p-2.5">
                   <Text c="chatbox-tertiary" span lineClamp={1} fw={600}>
                     {t('Cancel')}
                   </Text>
                 </button>
               </Drawer.Close>
 
-              <div className="h-[--mobile-safe-area-inset-bottom] min-h-4" />
+              <div className="mobile-bottom-inset" />
             </Stack>
           </div>
         </Drawer.Content>

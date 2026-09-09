@@ -2,15 +2,25 @@ import type { CopilotDetail } from '@shared/types'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useAtom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
+import { seedDefaultCopilots } from '@/copilots/defaults'
 import * as remote from '@/packages/remote'
 import storage, { StorageKey } from '@/storage'
 import { useLanguage } from '@/stores/settingsStore'
 
 const myCopilotsAtom = atomWithStorage<CopilotDetail[]>(StorageKey.MyCopilots, [], storage)
+const defaultCopilotsSeededAtom = atomWithStorage<boolean>(StorageKey.DefaultCopilotsSeeded, false, storage)
 
 export function useMyCopilots() {
   const [copilots, setCopilots] = useAtom(myCopilotsAtom)
+  const [defaultCopilotsSeeded, setDefaultCopilotsSeeded] = useAtom(defaultCopilotsSeededAtom)
+
+  useEffect(() => {
+    if (defaultCopilotsSeeded) return
+
+    setCopilots(async (previous) => seedDefaultCopilots(await previous))
+    setDefaultCopilotsSeeded(true)
+  }, [defaultCopilotsSeeded, setCopilots, setDefaultCopilotsSeeded])
 
   // Sort my copilots: starred first
   const sortedCopilots = useMemo(() => {

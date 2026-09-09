@@ -54,16 +54,33 @@ describe('remote MCP config conversion', () => {
 })
 
 describe('remote MCP JSON import', () => {
-  it('imports ModelScope-style remote entries and skips local commands', () => {
+  it('imports a single ModelScope registry entry for the add form', () => {
+    const server = parseServerFromJson(
+      JSON.stringify({
+        mcpServers: {
+          fetch: {
+            type: 'streamable_http',
+            url: 'https://mcp.api-inference.modelscope.net/3c092f5',
+          },
+        },
+      })
+    )
+
+    expect(server).toMatchObject({
+      name: 'fetch',
+      enabled: false,
+      transport: { type: 'http', url: 'https://mcp.api-inference.modelscope.net/3c092f5' },
+    })
+  })
+
+  it('imports ModelScope streamable HTTP entries and skips local commands', () => {
     const servers = parseServersFromJson(
       JSON.stringify({
         mcpServers: {
           modelscope: {
-            transport: {
-              type: 'sse',
-              url: 'https://mcp.example.com/sse',
-              headers: { Authorization: 'Bearer example-token' },
-            },
+            type: 'streamable_http',
+            url: 'https://mcp.api-inference.modelscope.net/3c092f5',
+            headers: { Authorization: 'Bearer example-token' },
           },
           local: { command: 'npx', args: ['local-mcp-server'] },
         },
@@ -77,9 +94,30 @@ describe('remote MCP JSON import', () => {
       disabledTools: [],
       transport: {
         type: 'http',
-        url: 'https://mcp.example.com/sse',
+        url: 'https://mcp.api-inference.modelscope.net/3c092f5',
         headers: { Authorization: 'Bearer example-token' },
       },
+    })
+  })
+
+  it('imports entries that wrap the transport object', () => {
+    const servers = parseServersFromJson(
+      JSON.stringify({
+        mcpServers: {
+          wrapped: {
+            transport: {
+              type: 'sse',
+              url: 'https://mcp.example.com/wrapped',
+            },
+          },
+        },
+      })
+    )
+
+    expect(servers).toHaveLength(1)
+    expect(servers[0]).toMatchObject({
+      name: 'wrapped',
+      transport: { type: 'http', url: 'https://mcp.example.com/wrapped' },
     })
   })
 
@@ -90,9 +128,7 @@ describe('remote MCP JSON import', () => {
   })
 
   it('keeps a standalone imported server disabled until the user enables it', () => {
-    const server = parseServerFromJson(
-      JSON.stringify({ url: 'https://mcp.example.com/sse', name: 'Imported server' })
-    )
+    const server = parseServerFromJson(JSON.stringify({ url: 'https://mcp.example.com/sse', name: 'Imported server' }))
 
     expect(server).toMatchObject({ enabled: false, name: 'Imported server' })
   })

@@ -4,6 +4,7 @@ import type { HTMLAttributes, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Drawer } from 'vaul'
 import { useIsSmallScreen } from '@/hooks/useScreenChange'
+import { useMobileBackHandler } from '@/platform/mobile_back_navigation'
 import { Modal } from '../layout/Overlay'
 
 export interface AdaptiveModalProps extends Omit<MantineModalProps, 'opened' | 'onClose'> {
@@ -13,6 +14,15 @@ export interface AdaptiveModalProps extends Omit<MantineModalProps, 'opened' | '
 
 export function AdaptiveModal({ opened, onClose, onExitTransitionEnd, children, title, ...props }: AdaptiveModalProps) {
   const isSmallScreen = useIsSmallScreen()
+
+  useMobileBackHandler(
+    () => {
+      onClose()
+      return true
+    },
+    isSmallScreen && opened,
+    100
+  )
 
   if (isSmallScreen) {
     return (
@@ -36,7 +46,7 @@ export function AdaptiveModal({ opened, onClose, onExitTransitionEnd, children, 
               {title && typeof title !== 'string' && <div>{title}</div>}
               {children}
             </Stack>
-            <div className="h-[--mobile-safe-area-inset-bottom] min-h-4" />
+            <div className="mobile-bottom-inset" />
           </Drawer.Content>
         </Drawer.Portal>
       </Drawer.Root>

@@ -32,7 +32,7 @@ import LayoutShrink from '../icons/LayoutShrink'
  * 顶部标题工具栏（右侧）
  * @returns
  */
-export default function Toolbar({ sessionId }: { sessionId: string }) {
+export default function Toolbar({ sessionId, mobileMinimal = false }: { sessionId: string; mobileMinimal?: boolean }) {
   const { t } = useTranslation()
   const isSmallScreen = useIsSmallScreen()
   const isLargeScreen = useIsLargeScreen()
@@ -43,7 +43,7 @@ export default function Toolbar({ sessionId }: { sessionId: string }) {
   const setWidthFull = useUIStore((s) => s.setWidthFull)
 
   const handleExportAndSave = () => {
-    NiceModal.show('export-chat')
+    void NiceModal.show('export-chat')
   }
   const handleSessionClean = () => {
     void clearSession(sessionId)
@@ -170,19 +170,37 @@ export default function Toolbar({ sessionId }: { sessionId: string }) {
           },
         ]}
       >
-        <ActionIcon variant="subtle" size={28} color="chatbox-secondary">
+        <ActionIcon variant="subtle" size={28} color="chatbox-secondary" aria-label={t('More')}>
           <IconDots strokeWidth={1.8} />
         </ActionIcon>
       </ActionMenu>
     </Flex>
   ) : (
     <Flex align="center" gap="xs">
-      <ActionIcon variant="subtle" size={24} color="chatbox-secondary" onClick={() => setOpenSearchDialog(true)}>
-        <IconSearch strokeWidth={1.8} />
-      </ActionIcon>
+      {!mobileMinimal && (
+        <ActionIcon
+          variant="subtle"
+          size={24}
+          color="chatbox-secondary"
+          className="mobile-touch-target"
+          aria-label={t('Search')}
+          onClick={() => setOpenSearchDialog(true)}
+        >
+          <IconSearch strokeWidth={1.8} />
+        </ActionIcon>
+      )}
       <ActionMenu
         position="bottom-end"
         items={[
+          ...(mobileMinimal
+            ? [
+                {
+                  text: t('Search'),
+                  icon: IconSearch,
+                  onClick: () => setOpenSearchDialog(true),
+                },
+              ]
+            : []),
           {
             text: t('Thread History'),
             icon: IconHistory,
@@ -235,7 +253,13 @@ export default function Toolbar({ sessionId }: { sessionId: string }) {
           },
         ]}
       >
-        <ActionIcon variant="subtle" size={24} color="chatbox-secondary">
+        <ActionIcon
+          variant="subtle"
+          size={mobileMinimal ? 36 : 24}
+          color="chatbox-secondary"
+          className={mobileMinimal ? 'mobile-touch-target mobile-chat-floating-action' : 'mobile-touch-target'}
+          aria-label={t('More')}
+        >
           <IconDots strokeWidth={1.8} />
         </ActionIcon>
       </ActionMenu>

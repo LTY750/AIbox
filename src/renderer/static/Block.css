@@ -217,6 +217,15 @@ html[data-theme="dark"] {
   }
 }
 
+/* Streaming updates can arrive many times per second on touch devices. Keep
+   the text stable so reading is not interrupted by a per-token animation. */
+@media (pointer: coarse) {
+  .chatbox-streaming-text-fade,
+  [data-streaming-fade-key] {
+    animation: none;
+  }
+}
+
 @keyframes loadingrotation {
   0% {
     transform: rotate(0deg);

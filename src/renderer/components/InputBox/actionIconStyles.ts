@@ -5,6 +5,7 @@ export const mobileActionIconProps = {
   miw: 20,
   mih: 20,
   bd: 'none',
+  className: 'mobile-touch-target',
 }
 
 export const desktopActionIconProps = {

@@ -165,7 +165,10 @@ const SkillsSpotlight: FC<{
 
   // Register in overlay stack so ESC only closes the topmost layer
   const [opened, setOpened] = useState(false)
-  useOverlayManager(opened)
+  useOverlayManager(opened, () => {
+    skillsSpotlight.close()
+    setOpened(false)
+  })
 
   const [translatedPopular, setTranslatedPopular] = useState<Map<string, { title: string; description: string }>>(
     new Map()

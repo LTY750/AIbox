@@ -179,6 +179,11 @@ const PARSER_OPTIONS: { value: DocumentParserType; label: string; description: s
     description:
       'TextIn XParse converts PDF, Office, images and other documents to structured Markdown. Requires an App ID and Secret Code.',
   },
+  {
+    value: 'doc2x',
+    label: 'Doc2X (PDF)',
+    description: 'Doc2X converts PDF files to Markdown. Requires an API key. Other Office formats are not supported.',
+  },
 ]
 
 interface DocumentParserSelectorProps {
@@ -196,6 +201,7 @@ export const DocumentParserSelector: React.FC<DocumentParserSelectorProps> = ({
   const [mineruToken, setMineruToken] = useState(parserConfig.mineru?.apiToken || '')
   const [textinAppId, setTextinAppId] = useState(parserConfig.textin?.appId || '')
   const [textinSecretCode, setTextinSecretCode] = useState(parserConfig.textin?.secretCode || '')
+  const [doc2xApiKey, setDoc2xApiKey] = useState(parserConfig.doc2x?.apiKey || '')
   const [testingConnection, setTestingConnection] = useState(false)
   const [connectionResult, setConnectionResult] = useState<{ success: boolean; error?: string } | null>(null)
 
@@ -213,11 +219,14 @@ export const DocumentParserSelector: React.FC<DocumentParserSelectorProps> = ({
       if (newType === 'textin' && (textinAppId || textinSecretCode)) {
         newConfig.textin = { appId: textinAppId, secretCode: textinSecretCode }
       }
+      if (newType === 'doc2x' && doc2xApiKey) {
+        newConfig.doc2x = { apiKey: doc2xApiKey }
+      }
 
       onParserConfigChange(newConfig)
       setConnectionResult(null)
     },
-    [onParserConfigChange, mineruToken, textinAppId, textinSecretCode]
+    [onParserConfigChange, mineruToken, textinAppId, textinSecretCode, doc2xApiKey]
   )
 
   const handleMineruTokenChange = useCallback(
@@ -242,7 +251,9 @@ export const DocumentParserSelector: React.FC<DocumentParserSelectorProps> = ({
     setConnectionResult(null)
 
     try {
-      const result = await platform.getKnowledgeBaseController().testMineruConnection(mineruToken)
+      const result = platform.testMineruConnection
+        ? await platform.testMineruConnection(mineruToken)
+        : await platform.getKnowledgeBaseController().testMineruConnection(mineruToken)
       setConnectionResult(result)
 
       if (result.success) {
@@ -279,6 +290,17 @@ export const DocumentParserSelector: React.FC<DocumentParserSelectorProps> = ({
       })
     },
     [onParserConfigChange, textinAppId]
+  )
+
+  const handleDoc2xApiKeyChange = useCallback(
+    (value: string) => {
+      setDoc2xApiKey(value)
+      onParserConfigChange({
+        type: 'doc2x',
+        doc2x: { apiKey: value },
+      })
+    },
+    [onParserConfigChange]
   )
 
   const selectedOption = PARSER_OPTIONS.find((opt) => opt.value === parserConfig.type)
@@ -356,6 +378,25 @@ export const DocumentParserSelector: React.FC<DocumentParserSelectorProps> = ({
             value={textinSecretCode}
             onChange={(e) => handleTextinSecretCodeChange(e.currentTarget.value)}
           />
+        </Stack>
+      )}
+
+      {parserConfig.type === 'doc2x' && !disabled && (
+        <Stack gap="xs">
+          <PasswordInput
+            label={t('Doc2X API Key')}
+            value={doc2xApiKey}
+            onChange={(e) => handleDoc2xApiKeyChange(e.target.value)}
+          />
+          <Button
+            variant="transparent"
+            size="compact-xs"
+            px={0}
+            className="self-start"
+            onClick={() => platform.openLink('https://open.noedgeai.com')}
+          >
+            {t('Get API Key')}
+          </Button>
         </Stack>
       )}
     </Stack>

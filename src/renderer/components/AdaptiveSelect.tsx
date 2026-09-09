@@ -1,8 +1,10 @@
 import type { SelectProps as MantineSelectProps } from '@mantine/core'
 import { Button, Select, Stack, Text } from '@mantine/core'
+import { IconCheck } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Drawer } from 'vaul'
 import { useIsSmallScreen } from '@/hooks/useScreenChange'
+import { useMobileBackHandler } from '@/platform/mobile_back_navigation'
 
 export interface AdaptiveSelectProps extends Omit<MantineSelectProps, 'onChange'> {
   onChange?: (value: string | null) => void
@@ -11,6 +13,15 @@ export interface AdaptiveSelectProps extends Omit<MantineSelectProps, 'onChange'
 export function AdaptiveSelect(props: AdaptiveSelectProps) {
   const isSmallScreen = useIsSmallScreen()
   const [drawerOpened, setDrawerOpened] = useState(false)
+
+  useMobileBackHandler(
+    () => {
+      setDrawerOpened(false)
+      return true
+    },
+    drawerOpened,
+    110
+  )
 
   return isSmallScreen ? (
     <Drawer.NestedRoot open={drawerOpened} onOpenChange={(open) => setDrawerOpened(open)} noBodyStyles>
@@ -41,13 +52,17 @@ export function AdaptiveSelect(props: AdaptiveSelectProps) {
               }
 
               if (!value || !label) return null
+              const isSelected = props.value === value
 
               return (
                 <Drawer.Close key={value} asChild>
                   <Button
-                    variant="transparent"
-                    color="chatbox-primary"
-                    className="flex-none"
+                    variant={isSelected ? 'light' : 'transparent'}
+                    color={isSelected ? 'chatbox-brand' : 'chatbox-primary'}
+                    rightSection={isSelected ? <IconCheck size={16} aria-hidden /> : undefined}
+                    aria-current={isSelected ? 'true' : undefined}
+                    fullWidth
+                    className="flex-none justify-between"
                     onClick={() => props.onChange?.(value)}
                   >
                     {label}
@@ -56,7 +71,7 @@ export function AdaptiveSelect(props: AdaptiveSelectProps) {
               )
             })}
 
-            <div className="h-[--mobile-safe-area-inset-bottom] min-h-4" />
+            <div className="mobile-bottom-inset" />
           </Stack>
         </Drawer.Content>
       </Drawer.Portal>

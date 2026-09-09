@@ -102,17 +102,18 @@ function InputToolbar({
   const { t } = useTranslation()
 
   return (
-    <Flex align="center" gap={0} className="shrink-0 w-full" justify="space-between">
+    <Flex align="center" gap={0} className="shrink-0 w-full" justify="space-between" wrap="nowrap">
       {/* Left Group: Model, Ratio, Reference */}
-      <Flex align="center" gap={0}>
+      <Flex align="center" gap={0} className="min-w-0 flex-1">
         {/* Model Select */}
         {isSmallScreen ? (
           <UnstyledButton
+            aria-label={t('Select Model')}
             onClick={onModelDrawerOpen}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--chatbox-background-tertiary)] transition-colors"
+            className="mobile-touch-target flex max-w-[148px] items-center gap-1 rounded-lg px-2 py-1 transition-colors hover:bg-[var(--chatbox-background-tertiary)]"
           >
             <IconSparkles size={16} className="text-[var(--chatbox-tint-secondary)]" />
-            <Text size="sm" className="text-[var(--chatbox-tint-secondary)] max-w-[120px] truncate">
+            <Text size="sm" className="min-w-0 max-w-[120px] truncate text-[var(--chatbox-tint-secondary)]">
               {modelDisplayName}
             </Text>
             <IconChevronRight size={14} className="text-[var(--chatbox-tint-tertiary)] rotate-90" />
@@ -132,8 +133,9 @@ function InputToolbar({
         {/* Ratio Select */}
         {isSmallScreen ? (
           <UnstyledButton
+            aria-label={t('Aspect Ratio')}
             onClick={onRatioDrawerOpen}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--chatbox-background-tertiary)] transition-colors"
+            className="mobile-touch-target flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--chatbox-background-tertiary)] transition-colors"
           >
             <IconAspectRatio size={16} className="text-[var(--chatbox-tint-secondary)]" />
             <Text size="sm" className="text-[var(--chatbox-tint-secondary)]">
@@ -166,8 +168,9 @@ function InputToolbar({
 
         {/* Reference Image Button */}
         <UnstyledButton
+          aria-label={t('Upload')}
           onClick={onAddReference}
-          className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--chatbox-background-tertiary)] transition-colors"
+          className="mobile-touch-target flex items-center justify-center gap-1 rounded-lg px-2 py-1 transition-colors hover:bg-[var(--chatbox-background-tertiary)]"
         >
           <IconPhoto size={16} className="text-[var(--chatbox-tint-secondary)]" />
           <Text size="sm" className="text-[var(--chatbox-tint-secondary)]">
@@ -177,10 +180,17 @@ function InputToolbar({
       </Flex>
 
       {/* Right Group: New Creation */}
-      <Flex align="center" gap={4}>
+      <Flex align="center" gap={4} className="shrink-0">
         {/* New Creation Button */}
         {isSmallScreen ? (
-          <ActionIcon variant="light" size="md" radius="lg" onClick={onNewCreation}>
+          <ActionIcon
+            variant="light"
+            size="md"
+            radius="lg"
+            aria-label={t('New Creation')}
+            className="mobile-touch-target"
+            onClick={onNewCreation}
+          >
             <IconPlus size={18} />
           </ActionIcon>
         ) : (
@@ -497,8 +507,9 @@ function ImageCreatorPage() {
       color="gray"
       size="md"
       radius="lg"
+      aria-label={t('History')}
       onClick={() => setShowMobileHistory(true)}
-      className="controls"
+      className="controls mobile-touch-target"
     >
       <IconHistory size={20} />
     </ActionIcon>
@@ -569,7 +580,6 @@ function ImageCreatorPage() {
           {/* Input Area */}
           <Box py="md" px="sm" className="image-creator-input-area">
             <Stack gap="sm" maw={800} mx="auto">
-
               <ReferenceImagesPreview
                 images={referenceImages}
                 onRemove={handleRemoveReferenceImage}
@@ -627,9 +637,10 @@ function ImageCreatorPage() {
                       variant="filled"
                       color={isCurrentlyGenerating ? 'dark' : 'chatbox-brand'}
                       radius="lg"
+                      aria-label={isCurrentlyGenerating ? t('Stop') : t('Send')}
                       onClick={isCurrentlyGenerating ? cancelGeneration : handleSubmit}
                       disabled={(!prompt.trim() || !selectedModel) && !isCurrentlyGenerating}
-                      className={`shrink-0 mb-1 ${(!prompt.trim() || !selectedModel) && !isCurrentlyGenerating ? 'disabled:!opacity-100 !text-white' : ''}`}
+                      className={`shrink-0 mb-1 mobile-touch-target ${(!prompt.trim() || !selectedModel) && !isCurrentlyGenerating ? 'disabled:!opacity-100 !text-white' : ''}`}
                       style={{
                         cursor: isCurrentlyGenerating ? 'pointer' : undefined,
                         ...((!prompt.trim() || !selectedModel) && !isCurrentlyGenerating
@@ -662,6 +673,7 @@ function ImageCreatorPage() {
                 {t('AI-generated images may not be accurate. Review output carefully.')}
               </Text>
             </Stack>
+            {isSmallScreen && <Box aria-hidden className="mobile-bottom-inset" />}
           </Box>
         </Flex>
 

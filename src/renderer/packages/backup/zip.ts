@@ -28,6 +28,8 @@ export interface ZipReadOptions {
   limits?: ZipReadLimits
   entryLimits?: (path: string) => Partial<Pick<ZipReadLimits, 'maxEntryUncompressedBytes' | 'maxCompressionRatio'>>
   signal?: AbortSignal
+  /** Permit explicit directory marker entries such as `output/`. */
+  allowDirectoryEntries?: boolean
 }
 
 function throwIfAborted(signal?: AbortSignal) {
@@ -220,7 +222,8 @@ export async function readZipFileEntries(
   const unzip = new Unzip((entry) => {
     try {
       throwIfAborted(options.signal)
-      assertSafeArchivePath(entry.name)
+      const entryPath = options.allowDirectoryEntries && entry.name.endsWith('/') ? entry.name.slice(0, -1) : entry.name
+      assertSafeArchivePath(entryPath)
       if (seenPaths.has(entry.name)) throw new Error(`Duplicate ZIP entry: ${entry.name}`)
       seenPaths.add(entry.name)
       entryCount++

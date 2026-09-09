@@ -113,7 +113,7 @@ export function ProviderList({ providers, onAddProvider }: ProviderListProps) {
           ))}
         </Stack>
       </ScrollArea>
-      <Stack gap="xs" mx="md" my="sm">
+      <Stack gap="xs" mx="md" my="sm" className={isSmallScreen ? 'mobile-drawer-bottom-inset' : undefined}>
         <Button variant="outline" leftSection={<ScalableIcon icon={IconPlus} />} onClick={onAddProvider}>
           {t('Add')}
         </Button>

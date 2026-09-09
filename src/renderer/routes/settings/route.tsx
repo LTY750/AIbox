@@ -1,4 +1,5 @@
 import { ActionIcon, Box, Flex, Stack, Text } from '@mantine/core'
+import { SystemProviders } from '@shared/defaults'
 import {
   IconAdjustmentsHorizontal,
   IconArchive,
@@ -17,6 +18,7 @@ import {
 } from '@tabler/icons-react'
 import { createFileRoute, Link, Outlet, useCanGoBack, useRouter, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Toaster } from 'sonner'
 import Divider from '@/components/common/Divider'
@@ -24,7 +26,9 @@ import { ScalableIcon } from '@/components/common/ScalableIcon'
 import Page from '@/components/layout/Page'
 import { useIsSmallScreen } from '@/hooks/useScreenChange'
 import platform from '@/platform'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { featureFlags } from '@/utils/feature-flags'
+import { getSettingsPageTitle } from '@/utils/settingsPageTitle'
 
 const ITEMS = [
   {
@@ -110,10 +114,14 @@ export function RouteComponent() {
   const router = useRouter()
   const canGoBack = useCanGoBack()
   const isSmallScreen = useIsSmallScreen()
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const customProviders = useSettingsStore((state) => state.customProviders)
+  const providers = useMemo(() => [...SystemProviders(), ...(customProviders || [])], [customProviders])
+  const title = useMemo(() => getSettingsPageTitle(pathname, t, providers), [pathname, providers, t])
 
   return (
     <Page
-      title={t('Settings')}
+      title={title}
       left={
         isSmallScreen && canGoBack ? (
           <ActionIcon
@@ -149,7 +157,7 @@ export function SettingsRoot() {
           maw={isSmallScreen ? undefined : 256}
           className={clsx(
             'border-solid border-0 border-r overflow-auto border-chatbox-border-primary',
-            isSmallScreen ? 'w-full border-r-0' : 'flex-[1_0_auto]'
+            isSmallScreen ? 'w-full border-r-0 settings-nav-content' : 'flex-[1_0_auto]'
           )}
         >
           {ITEMS.map((item) => (

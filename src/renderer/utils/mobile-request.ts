@@ -34,6 +34,26 @@ function base64ToBytes(base64: string): Uint8Array {
   return bytes
 }
 
+function isBinaryRequestBody(body: RequestInit['body']): boolean {
+  return (
+    (typeof Blob !== 'undefined' && body instanceof Blob) ||
+    (typeof ArrayBuffer !== 'undefined' && body instanceof ArrayBuffer) ||
+    (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView(body))
+  )
+}
+
+async function binaryRequestBodyToBytes(body: RequestInit['body']): Promise<Uint8Array> {
+  if (typeof Blob !== 'undefined' && body instanceof Blob) {
+    return new Uint8Array(await body.arrayBuffer())
+  }
+  if (body instanceof ArrayBuffer) return new Uint8Array(body)
+  if (ArrayBuffer.isView(body)) {
+    const view = body as ArrayBufferView<ArrayBuffer>
+    return new Uint8Array(view.buffer, view.byteOffset, view.byteLength)
+  }
+  throw new TypeError('Expected a binary request body')
+}
+
 async function serializeFormData(formData: FormData): Promise<NativeFormDataEntry[]> {
   const entries: NativeFormDataEntry[] = []
   const formEntries: [string, FormDataEntryValue][] = []
@@ -139,10 +159,14 @@ export async function handleMobileRequest(
   const isStreaming = isStreamingRequest(url, method, headers, body)
 
   if (isStreaming) {
-    // Preserve the caller's header casing instead of sending duplicate Accept headers.
+    // Preserve an explicit Accept value so protocols such as MCP Streamable
+    // HTTP can negotiate either application/json or text/event-stream. A
+    // missing value still defaults to SSE for URL/body-based streaming APIs.
     const streamHeaders = { ...headerObj }
-    const acceptHeader = Object.keys(streamHeaders).find((key) => key.toLowerCase() === 'accept') || 'Accept'
-    streamHeaders[acceptHeader] = 'text/event-stream'
+    const acceptHeader = Object.keys(streamHeaders).find((key) => key.toLowerCase() === 'accept')
+    if (!acceptHeader) {
+      streamHeaders.Accept = 'text/event-stream'
+    }
 
     const stream = createNativeReadableStream({
       url,
@@ -190,8 +214,14 @@ export async function handleMobileRequest(
 
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
   let requestData: unknown = body
-  let dataType: 'formData' | undefined
-  if (isFormData) {
+  let dataType: 'file' | 'formData' | undefined
+  if (isBinaryRequestBody(body)) {
+    requestData = bytesToBase64(await binaryRequestBodyToBytes(body))
+    dataType = 'file'
+    if (!Object.keys(headerObj).some((key) => key.toLowerCase() === 'content-type')) {
+      headerObj['content-type'] = 'application/octet-stream'
+    }
+  } else if (isFormData) {
     const boundary = `----ChatboxBoundary${Date.now().toString(16)}`
     headerObj['content-type'] = `multipart/form-data; boundary=${boundary}`
     requestData = await serializeFormData(body)

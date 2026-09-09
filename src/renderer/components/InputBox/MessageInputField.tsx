@@ -3,6 +3,7 @@ import { TestId } from '@shared/automation/testids'
 import type React from 'react'
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef } from 'react'
 import { useMessageInput } from '@/hooks/useMessageInput'
+import { useIsSmallScreen } from '@/hooks/useScreenChange'
 import * as dom from '../../hooks/dom'
 
 export type MessageInputFieldRef = {
@@ -45,6 +46,7 @@ export const MessageInputField = memo(
       ref
     ) => {
       const { messageInput, setMessageInput, clearDraft } = useMessageInput('', { isNewSession })
+      const isSmallScreen = useIsSmallScreen()
       const inputRef = useRef<HTMLTextAreaElement | null>(null)
       const messageInputRef = useRef(messageInput)
       messageInputRef.current = messageInput
@@ -89,7 +91,7 @@ export const MessageInputField = memo(
           aria-label={ariaLabel}
           bg="transparent"
           autosize={true}
-          minRows={2}
+          minRows={isSmallScreen ? 1 : 2}
           maxRows={Math.max(4, Math.floor(viewportHeight / 100))}
           value={messageInput}
           autoFocus={autoFocus}
