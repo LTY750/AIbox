@@ -18,6 +18,7 @@ import i18n from '@/i18n'
 import { formatChatAsHtml, formatChatAsMarkdown, formatChatAsTxt } from '@/lib/format-chat'
 import { getLogger } from '@/lib/utils'
 import { PREVIEW_LINES } from '@/packages/context-management/attachment-payload'
+import { parseFileWithDoc2x } from '@/packages/doc2x'
 import { parseFileWithLlamaParse as parseLlamaParseApi } from '@/packages/llamaparse'
 import * as localParser from '@/packages/local-parser'
 import { estimateTokens } from '@/packages/token'
@@ -96,7 +97,25 @@ const EXPECTED_FILE_PREPROCESS_ERROR_CODES = new Set([
   EMPTY_ATTACHMENT_CONTENT_ERROR,
   'local_parser_failed',
   'mineru_api_token_required',
+  'mineru_connection_failed',
+  'mineru_parse_failed',
+  'mineru_result_empty',
+  'mineru_result_url_missing',
+  'mineru_result_download_failed',
+  'mineru_status_failed',
+  'mineru_submit_failed',
+  'mineru_timeout',
+  'mineru_token_invalid',
+  'mineru_upload_failed',
+  'mineru_upload_url_missing',
   'textin_credentials_required',
+  'doc2x_api_key_required',
+  'doc2x_file_not_pdf',
+  'doc2x_preupload_failed',
+  'doc2x_upload_failed',
+  'doc2x_status_failed',
+  'doc2x_parse_failed',
+  'doc2x_timeout',
   'parsing_cancelled',
   'third_party_parser_failed',
   'third_party_parser_not_supported_in_chat',
@@ -431,7 +450,7 @@ async function parseFileWithLlamaParse(
 }
 
 /**
- * Parse file using MinerU service (Desktop only)
+ * Parse file using MinerU service (desktop IPC or mobile HTTP bridge)
  */
 async function parseFileWithMineruService(
   file: File,
@@ -451,7 +470,11 @@ async function parseFileWithMineruService(
     throw new Error('parsing_cancelled')
   }
 
-  if (!result.success || !result.content || !hasParsedText(result.content)) {
+  if (!result.success) {
+    throw new Error(result.error || 'mineru_parse_failed')
+  }
+
+  if (!result.content || !hasParsedText(result.content)) {
     throw new Error(EMPTY_ATTACHMENT_CONTENT_ERROR)
   }
 
@@ -488,6 +511,23 @@ async function parseFileWithTextinService(
 
   await storage.setBlob(uniqKey, result.content)
   return { content: result.content, storageKey: uniqKey, tokenCountMap: {}, parserType: 'textin' }
+}
+
+/**
+ * Parse PDF files using Doc2X's documented pre-upload API.
+ */
+async function parseFileWithDoc2xService(
+  file: File,
+  uniqKey: string,
+  apiKey: string
+): Promise<{ content: string; storageKey: string; tokenCountMap: Record<string, number>; parserType: string }> {
+  const content = await parseFileWithDoc2x(file, { apiKey })
+  if (!hasParsedText(content)) {
+    throw new Error(EMPTY_ATTACHMENT_CONTENT_ERROR)
+  }
+
+  await storage.setBlob(uniqKey, content)
+  return { content, storageKey: uniqKey, tokenCountMap: {}, parserType: 'doc2x' }
 }
 
 /**
@@ -629,7 +669,7 @@ export async function prepareFileAttachment(
 
         case 'mineru': {
           const apiToken = parserConfig.mineru?.apiToken
-          if (!apiToken) {
+          if (!apiToken?.trim()) {
             throw new Error('mineru_api_token_required')
           }
           try {
@@ -638,11 +678,13 @@ export async function prepareFileAttachment(
             log.error(`MinerU parsing failed for "${file.name}":`, error)
             if (
               error instanceof Error &&
-              (error.message === EMPTY_ATTACHMENT_CONTENT_ERROR || error.message.startsWith('third_party_parser'))
+              (error.message === EMPTY_ATTACHMENT_CONTENT_ERROR ||
+                error.message === 'parsing_cancelled' ||
+                error.message.startsWith('mineru_'))
             ) {
               throw error
             }
-            throw new Error('third_party_parser_failed')
+            throw new Error('mineru_parse_failed')
           }
           break
         }
@@ -666,6 +708,26 @@ export async function prepareFileAttachment(
               throw error
             }
             throw new Error('third_party_parser_failed')
+          }
+          break
+        }
+
+        case 'doc2x': {
+          const apiKey = parserConfig.doc2x?.apiKey
+          if (!apiKey?.trim()) {
+            throw new Error('doc2x_api_key_required')
+          }
+          try {
+            result = await parseFileWithDoc2xService(file, uniqKey, apiKey)
+          } catch (error) {
+            log.error(`Doc2X parsing failed for "${file.name}":`, error)
+            if (
+              error instanceof Error &&
+              (error.message === EMPTY_ATTACHMENT_CONTENT_ERROR || error.message.startsWith('doc2x_'))
+            ) {
+              throw error
+            }
+            throw new Error('doc2x_parse_failed')
           }
           break
         }

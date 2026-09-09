@@ -41,6 +41,7 @@ function credentialSettings(): Settings {
         type: 'mineru',
         mineru: { apiToken: 'extension-mineru-token' },
         textin: { appId: 'textin-app-id', secretCode: 'textin-secret-code' },
+        doc2x: { apiKey: 'doc2x-api-key' },
       },
     },
     mcp: {
@@ -114,6 +115,7 @@ describe('cleanSettingsForBackup', () => {
         documentParser: {
           mineru: { apiToken: 'extension-mineru-token' },
           textin: { appId: 'textin-app-id', secretCode: 'textin-secret-code' },
+          doc2x: { apiKey: 'doc2x-api-key' },
         },
       },
       mcp: {

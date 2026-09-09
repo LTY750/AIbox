@@ -45,6 +45,7 @@ describe('SettingsSchema document parser credentials', () => {
           llamaParse: {},
           mineru: {},
           textin: {},
+          doc2x: {},
         },
       },
     })
@@ -52,6 +53,7 @@ describe('SettingsSchema document parser credentials', () => {
     expect(parsed.extension.documentParser?.llamaParse?.apiKey).toBeUndefined()
     expect(parsed.extension.documentParser?.mineru?.apiToken).toBeUndefined()
     expect(parsed.extension.documentParser?.textin).toEqual({})
+    expect(parsed.extension.documentParser?.doc2x).toEqual({})
   })
 
   test('recovers from malformed persisted parser credentials', () => {
@@ -64,6 +66,7 @@ describe('SettingsSchema document parser credentials', () => {
           llamaParse: { apiKey: null },
           mineru: { apiToken: 123 },
           textin: { appId: {}, secretCode: false },
+          doc2x: { apiKey: 123 },
         },
       },
     })
@@ -74,6 +77,7 @@ describe('SettingsSchema document parser credentials', () => {
       appId: undefined,
       secretCode: undefined,
     })
+    expect(parsed.extension.documentParser?.doc2x?.apiKey).toBeUndefined()
   })
 })
 

@@ -19,13 +19,14 @@ export { ModelProviderType } from './provider'
  * - local: Local parsing using built-in libraries (desktop default)
  * - llamaparse: Local-first parsing with LlamaParse fallback
  * - chatbox-ai: Legacy value accepted only to migrate old settings
- * - mineru: Third-party MinerU parsing service (desktop only)
- * - textin: TextIn XParse cloud parsing service (desktop only)
+ * - mineru: Third-party MinerU parsing service (desktop and mobile)
+ * - textin: TextIn XParse cloud parsing service (desktop and mobile)
+ * - doc2x: Doc2X cloud parsing service for PDF files
  */
-export type DocumentParserType = 'none' | 'local' | 'llamaparse' | 'chatbox-ai' | 'mineru' | 'textin'
+export type DocumentParserType = 'none' | 'local' | 'llamaparse' | 'chatbox-ai' | 'mineru' | 'textin' | 'doc2x'
 
 export const DocumentParserConfigSchema = z.object({
-  type: z.enum(['none', 'local', 'llamaparse', 'chatbox-ai', 'mineru', 'textin']),
+  type: z.enum(['none', 'local', 'llamaparse', 'chatbox-ai', 'mineru', 'textin', 'doc2x']),
   llamaParse: z
     .object({
       // Mobile settings snapshots redact this value before persisting. Keep
@@ -42,6 +43,13 @@ export const DocumentParserConfigSchema = z.object({
     .object({
       appId: z.string().optional().catch(undefined),
       secretCode: z.string().optional().catch(undefined),
+    })
+    .optional(),
+  doc2x: z
+    .object({
+      // Mobile settings snapshots redact this value before persisting. Keep
+      // the section valid while the credential is restored from secure storage.
+      apiKey: z.string().optional().catch(undefined),
     })
     .optional(),
 })

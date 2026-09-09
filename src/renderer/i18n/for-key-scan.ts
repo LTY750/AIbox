@@ -177,6 +177,9 @@ function _otherI18nKeys(t: (key: string) => string) {
   // src/renderer/components/settings/DocumentParserSettings.tsx
   t('Local')
   t('MinerU')
+  t('Doc2X (PDF)')
+  t('Doc2X API Key')
+  t('Doc2X parse failed')
   t('No points consumed')
   t(
     'Only supports basic text files (.txt, .md, .json, code files, etc.). For PDF and Office files, please switch to Chatbox AI.'
@@ -191,6 +194,15 @@ function _otherI18nKeys(t: (key: string) => string) {
     'Tries local parsing first without consuming compute points. If local parsing fails, Chatbox AI cloud parsing will be used and compute points will be consumed.'
   )
   t('Third-party cloud parsing service, supports PDF and most Office files. Requires API token.')
+  t('Uses local parsing first and LlamaParse for files the device cannot read.')
+  t(
+    'Tries local parsing first. If local parsing fails, LlamaParse will parse PDF, Office and other document formats.'
+  )
+  t('Legacy setting. It is migrated to local-first parsing with LlamaParse.')
+  t(
+    'TextIn XParse converts PDF, Office, images and other documents to structured Markdown. Requires an App ID and Secret Code.'
+  )
+  t('Doc2X converts PDF files to Markdown. Requires an API key. Other Office formats are not supported.')
 
   // src/renderer/components/knowledge-base/KnowledgeBaseForm.tsx
   t('Parser used to process uploaded documents')

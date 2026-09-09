@@ -129,11 +129,15 @@ export interface Platform extends Storage {
     edits?: Array<{ search: string; replace: string }>
   }): Promise<{ success: boolean; error?: string }>
 
-  // Parse file using MinerU service (Desktop only)
+  // Parse file using MinerU service (Desktop and mobile)
   parseFileWithMineru?(
     file: File,
     apiToken: string
   ): Promise<{ success: boolean; content?: string; error?: string; cancelled?: boolean }>
+
+  // Validate a MinerU API token on platforms that call the service directly.
+  // Desktop keeps this check behind its knowledge-base IPC controller.
+  testMineruConnection?(apiToken: string): Promise<{ success: boolean; error?: string }>
 
   // Cancel MinerU parsing task (Desktop only)
   cancelMineruParse?(filePath: string): Promise<{ success: boolean; error?: string }>

@@ -1,6 +1,7 @@
 import { isTextFilePath } from '../../../shared/file-extensions'
 import type { DocumentParserConfig, DocumentParserType } from '../../../shared/types/settings'
 import { getLogger } from '../../util'
+import { Doc2xParser } from './doc2x-parser'
 import { LlamaParseParser } from './llamaparse-parser'
 import { LocalParser } from './local-parser'
 import { MineruParser } from './mineru-parser'
@@ -9,6 +10,7 @@ import type { DocumentParser, ParserFileMeta, ParserResult } from './types'
 
 const log = getLogger('knowledge-base:parser-router')
 
+export { Doc2xParser } from './doc2x-parser'
 export { MineruParser, testMineruConnection } from './mineru-parser'
 export { TextInParser } from './textin-parser'
 export * from './types'
@@ -37,6 +39,11 @@ export function createParser(config: DocumentParserConfig, kbId?: number): Docum
         throw new Error('TextIn App ID and Secret Code are required')
       }
       return new TextInParser(config.textin.appId, config.textin.secretCode)
+    case 'doc2x':
+      if (!config.doc2x?.apiKey) {
+        throw new Error('Doc2X API key is required')
+      }
+      return new Doc2xParser(config.doc2x.apiKey)
     default:
       log.warn(`Unknown parser type: ${config.type}, falling back to local parser`)
       return new LocalParser(kbId)
@@ -123,6 +130,8 @@ export function getParserDisplayName(type: DocumentParserType): string {
       return 'MinerU'
     case 'textin':
       return 'TextIn XParse'
+    case 'doc2x':
+      return 'Doc2X (PDF)'
     default:
       return type
   }

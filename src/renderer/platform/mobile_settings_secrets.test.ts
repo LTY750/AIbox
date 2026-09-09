@@ -34,6 +34,7 @@ describe('mobile settings secret registry', () => {
           llamaParse: { apiKey: 'llama-key' },
           mineru: { apiToken: 'mineru-token' },
           textin: { appId: 'app-id', secretCode: 'secret-code' },
+          doc2x: { apiKey: 'doc2x-key' },
         },
       },
       customProviders: [
@@ -82,6 +83,7 @@ describe('mobile settings secret registry', () => {
         'extension.documentParser.mineru.apiToken',
         'extension.documentParser.textin.appId',
         'extension.documentParser.textin.secretCode',
+        'extension.documentParser.doc2x.apiKey',
         'customProviders.custom-provider.defaultSettings.apiKey',
         'customProviders.custom-provider.defaultSettings.oauth.accessToken',
         'customProviders.custom-provider.defaultSettings.oauth.refreshToken',
@@ -92,7 +94,7 @@ describe('mobile settings secret registry', () => {
       providers: { openai: { oauth: {}, model: 'gpt-4o' } },
       extension: {
         webSearch: {},
-        documentParser: { llamaParse: {}, mineru: {}, textin: {} },
+        documentParser: { llamaParse: {}, mineru: {}, textin: {}, doc2x: {} },
       },
       customProviders: [{ id: 'custom-provider', defaultSettings: { oauth: {} } }],
       mcp: {

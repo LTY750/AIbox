@@ -1,6 +1,6 @@
-import * as defaults from '../defaults'
-import { SettingsSchema, type Settings } from '../types'
 import deepmerge from 'deepmerge'
+import * as defaults from '../defaults'
+import { type Settings, SettingsSchema } from '../types'
 
 function withoutProviderCredentials(provider: object): Record<string, unknown> {
   const cleanedProvider: Record<string, unknown> = { ...provider }
@@ -57,6 +57,11 @@ export function cleanSettingsForBackup(settings: Settings, includeKeys: boolean)
       if (settings.extension.documentParser?.textin) {
         const documentParser = { ...(extension.documentParser ?? settings.extension.documentParser) }
         delete documentParser.textin
+        extension.documentParser = documentParser
+      }
+      if (settings.extension.documentParser?.doc2x) {
+        const documentParser = { ...(extension.documentParser ?? settings.extension.documentParser) }
+        delete documentParser.doc2x
         extension.documentParser = documentParser
       }
       cleaned.extension = extension

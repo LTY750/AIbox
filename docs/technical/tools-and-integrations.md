@@ -20,6 +20,31 @@ AIbox Mobile 的工具系统为 AI 模型提供外部能力调用，使模型不
 
 另有一类与工具构建紧耦合的能力是 **Agent Skills**：它不是传统的业务 API 工具，而是通过元数据注入 + 按需加载工具扩展模型行为。详细设计见 [`./agent-skills.md`](./agent-skills.md)。
 
+## 文件解析器与 Doc2X
+
+文件解析器由设置中的 `extension.documentParser` 选择，聊天附件和桌面端知识库复用同一套解析器配置。Doc2X 是其中的云端解析选项，官方 v2 PDF 接口只明确支持 PDF 输入并返回按页组织的 Markdown；不能因为导出接口支持 `md`、`tex`、`docx` 就将 Excel、Word 或 PPT 视为 Doc2X 的输入格式。
+
+Doc2X 的接入流程严格遵循官方 API 文档：
+
+1. 使用 `POST https://v2.doc2x.noedgeai.com/api/v2/parse/preupload`，通过 `Authorization: Bearer <API Key>` 获取 `uid` 和一次性 OSS 上传 URL。省略 `model` 时使用官方默认的 v2 模型。
+2. 对返回 URL 执行一次带 PDF 二进制请求体的 `PUT`。Android 通过 Capacitor HTTP bridge 将二进制转换为 Base64，并设置 `dataType: 'file'`；桌面/Web 直接使用 `fetch`。
+3. 以 1.5 秒间隔请求 `/api/v2/parse/status?uid=...`，直到状态为 `success` 或 `failed`。成功时按 `page_idx` 排序并合并 `result.pages[].md`，结果立即保存到本地附件缓存。
+
+API Key 在 Android 设置中走 Keystore 安全存储，不进入无密钥备份。Doc2X 选项会在 PDF 以外的聊天附件上快速拒绝；知识库的 Doc2X 选项同样只适用于 PDF。官方文档还列出了单文件大小、页数和 15 分钟处理时限，解析结果在服务端仅临时保留 24 小时。
+
+## MinerU 文档解析器
+
+MinerU 是可选的第三方云端文档解析器，桌面端和 Android 均可使用。实现使用 MinerU v4 批量文件接口，统一把服务端返回的 ZIP 转换为 Markdown 后再交给聊天附件或知识库流程；模型不会直接接收 ZIP 二进制。
+
+一次解析任务包含以下步骤：
+
+1. 向 `POST https://mineru.net/api/v4/file-urls/batch` 申请任务和一次性签名上传 URL。默认使用推荐的 `vlm` 模型；HTML 文件自动使用 `MinerU-HTML`，并启用公式、表格识别。
+2. 对签名 URL 执行 `PUT` 上传原始文件。签名上传不要求额外的 `Content-Type`；Android 通过 Capacitor 原生 HTTP bridge 发送二进制，桌面/Web 使用 `fetch`。
+3. 轮询 `GET /api/v4/extract-results/batch/{batch_id}`，直到对应 `data_id` 的状态为 `done` 或 `failed`。客户端最多等待 5 分钟。
+4. 下载 `full_zip_url`，使用受限 ZIP 读取器在内存中提取 `full.md`（兼容根目录和嵌套目录；找不到时回退到 ZIP 中的其他 Markdown 文件），提取出的文本写入附件缓存。
+
+单文件限制遵循 MinerU 文档：最大 200 MB、最多 200 页。Token 在 Android 设置中写入 Android Keystore，SQLite 设置快照和备份只保存脱敏结构；桌面端仍由现有知识库 IPC 控制器保存和调用。解析失败、超时、上传失败和结果为空都会转换为稳定的文件预处理错误，不把 ZIP 或上游响应原文注入模型上下文。
+
 ## MCP 集成
 
 ### 设计动机
@@ -30,7 +55,7 @@ AIbox Mobile 的工具系统为 AI 模型提供外部能力调用，使模型不
 
 所有平台只支持远程 HTTPS MCP，不提供本地 stdio 进程入口。持久化 schema 暂时保留 `stdio` 结构用于读取旧设置，但加载后会强制禁用；运行时、设置列表、配置导入和备份均不会执行或传播这类条目。
 
-**HTTP 传输**：优先尝试 Streamable HTTP，失败后自动降级为 SSE（Server-Sent Events）。桌面/Web 使用标准 `fetch`，Android 通过 Capacitor 原生 HTTP bridge 发出请求以避开 WebView CORS 限制。
+**HTTP 传输**：优先尝试 Streamable HTTP，失败后自动降级为 SSE（Server-Sent Events）。Streamable HTTP 的 POST 响应可以是 `application/json` 或 `text/event-stream`，客户端会保留协议声明的 `Accept` 并按实际响应头解析。桌面/Web 使用标准 `fetch`，Android 通过 Capacitor 原生 HTTP bridge 发出请求以避开 WebView CORS 限制。
 
 **远程 MCP 安全边界**：设置页只显示 HTTP/SSE，拒绝明文 HTTP、URL 用户信息、localhost、私有/保留 IP、`.local`/`.internal`/`.lan` 主机以及危险或超长 header。客户端跟随 MCP 会话请求时还会限制在已配置的 server origin 内。Android 上的 MCP URL、headers 和各类 provider credential 使用 Android Keystore；原生安全存储不可用时只保留在当前 WebView 进程内存中，绝不降级写入 SQLite、localStorage 或备份。普通设置快照和无密钥备份只包含脱敏结构。
 
@@ -47,7 +72,7 @@ AIbox Mobile 的工具系统为 AI 模型提供外部能力调用，使模型不
 
 ### 设置与配置导入
 
-设置 → MCP 提供全局启用开关、服务器启停和单个工具开关。可从剪贴板导入常见的 `mcpServers` JSON，包括魔塔社区常用的顶层 `mcpServers` 和嵌套 `transport` 结构；每个条目只接受远程 URL，非法或本地 stdio 条目会跳过，剪贴板原文不会写入日志。保存前可测试连接并查看工具列表。
+设置 → MCP 提供全局启用开关、服务器启停和单个工具开关。新增服务器弹窗支持直接粘贴单个 `mcpServers` JSON；也可从剪贴板批量导入常见配置，包括魔塔社区常用的顶层 `mcpServers` 和嵌套 `transport` 结构。每个条目只接受远程 URL，非法或本地 stdio 条目会跳过，剪贴板原文不会写入日志。保存前可测试连接并查看工具列表。
 
 MCP 工具只有在以下条件同时满足时才会注入模型请求：全局开关开启、服务器运行、工具未禁用，以及模型声明支持 MCP/tool use。模型能力测试使用本地合成工具，只有检测到真实 tool-call、工具执行成功并在最终文本使用返回 marker 时才通过，不会因模型仅声称“使用了工具”而通过。
 

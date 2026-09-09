@@ -52,7 +52,7 @@ AIbox Mobile 通过工具系统扩展 AI 的能力，使 AI 不仅能生成文�
 |------|------|---------|
 | 远程 HTTPS（Streamable HTTP / SSE） | 通过网络连接用户配置的 MCP 服务器 | Android、桌面和 Web |
 
-本地进程（stdio）不受支持。魔塔社区等平台提供的 `mcpServers` JSON 可以从剪贴板导入；只有包含公开 HTTPS URL 的条目会被接受。每次工具调用默认需要用户批准，服务器 URL 和认证 header 不会进入普通 Android SQLite 设置快照或无密钥备份。
+本地进程（stdio）不受支持。添加服务器时可以直接粘贴单个 `mcpServers` JSON，也可以从剪贴板批量导入；只有包含公开 HTTPS URL 的条目会被接受。每次工具调用默认需要用户批准，服务器 URL 和认证 header 不会进入普通 Android SQLite 设置快照或无密钥备份。
 
 ## Agent Skills
 

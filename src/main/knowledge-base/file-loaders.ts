@@ -114,7 +114,12 @@ export async function processFileWithMastra(
     if (!allChunks || allChunks.length === 0) {
       // Cloud parsing resulted in 0 chunks - mark as done (truly empty file)
       // Local parsing resulted in 0 chunks - mark as failed so user can retry with server parsing
-      if (parserConfig.type === 'llamaparse' || parserConfig.type === 'mineru' || parserConfig.type === 'textin') {
+      if (
+        parserConfig.type === 'llamaparse' ||
+        parserConfig.type === 'mineru' ||
+        parserConfig.type === 'textin' ||
+        parserConfig.type === 'doc2x'
+      ) {
         await db.execute({
           sql: 'UPDATE kb_file SET chunk_count = 0, status = ? WHERE id = ?',
           args: ['done', fileMeta.fileId],
@@ -318,7 +323,7 @@ async function processPendingFiles() {
       // A retry uses the knowledge base's selected cloud parser. Legacy local
       // configurations continue to fall back to LlamaParse.
       const configuredCloudParser =
-        kbParserConfig && ['llamaparse', 'mineru', 'textin'].includes(kbParserConfig.type)
+        kbParserConfig && ['llamaparse', 'mineru', 'textin', 'doc2x'].includes(kbParserConfig.type)
           ? kbParserConfig
           : { type: 'llamaparse' as const, llamaParse: kbParserConfig?.llamaParse }
       const effectiveParserConfig: DocumentParserConfig = useRemoteParsing

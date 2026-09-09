@@ -12,6 +12,7 @@ const {
   mockParseLlamaParse,
   mockParseFileWithMineru,
   mockParseFileWithTextin,
+  mockParseFileWithDoc2x,
   mockGetSessionRagConfig,
   mockUploadAndCreateUserFile,
   mockSetBlob,
@@ -25,7 +26,9 @@ const {
   const licenseActivation = { method: 'manual' as 'login' | 'manual' | undefined }
   const authTokens = { hasTokens: true }
   const sessionRagCapability = { enabled: true }
-  const parser = { type: 'local' as 'local' | 'chatbox-ai' | 'none' | 'llamaparse' | 'mineru' | 'textin' }
+  const parser = {
+    type: 'local' as 'local' | 'chatbox-ai' | 'none' | 'llamaparse' | 'mineru' | 'textin' | 'doc2x',
+  }
   const defaultEmbeddingModel = {
     value: undefined as { provider: string; model: string } | undefined,
   }
@@ -42,6 +45,7 @@ const {
     mockParseLlamaParse: vi.fn(),
     mockParseFileWithMineru: vi.fn(),
     mockParseFileWithTextin: vi.fn(),
+    mockParseFileWithDoc2x: vi.fn(),
     mockGetSessionRagConfig: vi.fn(async () => ({
       models: { embedding: 'chatbox-ai:text-embedding-3-small', rerank: 'chatbox-ai:rerank' },
       capabilities: {
@@ -50,7 +54,7 @@ const {
       },
     })),
     mockUploadAndCreateUserFile: vi.fn(),
-    mockSetBlob: vi.fn(async (key: string, value: string) => {
+    mockSetBlob: vi.fn((key: string, value: string) => {
       blobs.set(key, value)
     }),
     mockGetBlob: vi.fn(async (key: string) => blobs.get(key) ?? null),
@@ -66,6 +70,7 @@ vi.mock('@/platform', () => ({
     parseFileLocally: mockParseFileLocally,
     parseFileWithMineru: mockParseFileWithMineru,
     parseFileWithTextin: mockParseFileWithTextin,
+    parseFileWithDoc2x: mockParseFileWithDoc2x,
   },
 }))
 
@@ -85,6 +90,10 @@ vi.mock('@/packages/remote', () => ({
 
 vi.mock('@/packages/llamaparse', () => ({
   parseFileWithLlamaParse: mockParseLlamaParse,
+}))
+
+vi.mock('@/packages/doc2x', () => ({
+  parseFileWithDoc2x: mockParseFileWithDoc2x,
 }))
 
 vi.mock('./settingActions', () => ({
@@ -112,6 +121,7 @@ vi.mock('./settingsStore', () => ({
           type: parserState.type,
           mineru: { apiToken: 'mineru-token' },
           textin: { appId: 'textin-app-id', secretCode: 'textin-secret-code' },
+          doc2x: { apiKey: 'doc2x-api-key' },
         },
       },
     }),
@@ -190,6 +200,7 @@ describe('preprocessFile local parser fallback', () => {
     mockParseLlamaParse.mockReset()
     mockParseFileWithMineru.mockReset()
     mockParseFileWithTextin.mockReset()
+    mockParseFileWithDoc2x.mockReset()
     mockGetSessionRagConfig.mockClear()
     mockUploadAndCreateUserFile.mockReset()
     mockSetBlob.mockClear()
@@ -362,6 +373,16 @@ describe('preprocessFile local parser fallback', () => {
     expect(result.error).toBe('empty_attachment_content')
   })
 
+  it('preserves stable MinerU failures returned by the platform adapter', async () => {
+    const file = createFile('failed-mineru.pdf')
+    parserState.type = 'mineru'
+    mockParseFileWithMineru.mockResolvedValueOnce({ success: false, error: 'mineru_upload_failed' })
+
+    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
+
+    expect(result.error).toBe('mineru_upload_failed')
+  })
+
   it('parses non-text attachments with TextIn when selected', async () => {
     const file = createFile('textin-report.pdf')
     parserState.type = 'textin'
@@ -376,6 +397,29 @@ describe('preprocessFile local parser fallback', () => {
     expect(result.error).toBeUndefined()
     expect(result.content).toBe('# TextIn result')
     expect(result.parserType).toBe('textin')
+  })
+
+  it('parses PDF attachments with Doc2X when selected', async () => {
+    const file = createFile('doc2x-report.pdf')
+    parserState.type = 'doc2x'
+    mockParseFileWithDoc2x.mockResolvedValueOnce('# Doc2X result')
+
+    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
+
+    expect(mockParseFileWithDoc2x).toHaveBeenCalledWith(file, { apiKey: 'doc2x-api-key' })
+    expect(result.error).toBeUndefined()
+    expect(result.content).toBe('# Doc2X result')
+    expect(result.parserType).toBe('doc2x')
+  })
+
+  it('keeps Doc2X failures as stable attachment errors', async () => {
+    const file = createFile('doc2x-failure.pdf')
+    parserState.type = 'doc2x'
+    mockParseFileWithDoc2x.mockRejectedValueOnce(new Error('doc2x_parse_failed'))
+
+    const result = await prepareFileAttachment(file, { provider: '', modelId: '' })
+
+    expect(result.error).toBe('doc2x_parse_failed')
   })
 
   it('preserves storage quota failures thrown during the cloud parser fallback', async () => {

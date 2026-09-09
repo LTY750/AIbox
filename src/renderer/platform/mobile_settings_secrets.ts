@@ -17,6 +17,7 @@ export const MOBILE_SETTINGS_SECRET_PATHS = [
   'extension.documentParser.mineru.apiToken',
   'extension.documentParser.textin.appId',
   'extension.documentParser.textin.secretCode',
+  'extension.documentParser.doc2x.apiKey',
   'extension.webSearch.tavilyApiKey',
   'extension.webSearch.bochaApiKey',
   'extension.webSearch.queritApiKey',
@@ -40,6 +41,7 @@ const PARSER_SECRET_FIELDS = {
   llamaParse: ['apiKey'],
   mineru: ['apiToken'],
   textin: ['appId', 'secretCode'],
+  doc2x: ['apiKey'],
 } as const
 const WEB_SEARCH_SECRET_FIELDS = ['tavilyApiKey', 'bochaApiKey', 'queritApiKey'] as const
 

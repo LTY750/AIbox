@@ -15,8 +15,9 @@ const ALL_PARSER_OPTIONS: {
 }[] = [
   { value: 'local', label: 'Local', desktopOnly: true }, // Only available on desktop
   { value: 'llamaparse', label: 'LlamaParse' },
-  { value: 'mineru', label: 'MinerU', desktopOnly: true }, // Only available on desktop (requires IPC)
+  { value: 'mineru', label: 'MinerU', platforms: ['desktop', 'mobile'] },
   { value: 'textin', label: 'TextIn XParse', platforms: ['desktop', 'mobile'] },
+  { value: 'doc2x', label: 'Doc2X (PDF)' },
 ]
 
 const PARSER_DESCRIPTIONS: Record<DocumentParserType, string> = {
@@ -29,6 +30,7 @@ const PARSER_DESCRIPTIONS: Record<DocumentParserType, string> = {
   mineru: 'Third-party cloud parsing service, supports PDF and most Office files. Requires API token.',
   textin:
     'TextIn XParse converts PDF, Office, images and other documents to structured Markdown. Requires an App ID and Secret Code.',
+  doc2x: 'Doc2X converts PDF files to Markdown. Requires an API key. Other Office formats are not supported.',
 }
 
 interface DocumentParserSettingsProps {
@@ -46,6 +48,7 @@ export function DocumentParserSettings({ showTitle = true }: DocumentParserSetti
   const llamaParseToken = documentParser?.llamaParse?.apiKey || ''
   const textinAppId = documentParser?.textin?.appId || ''
   const textinSecretCode = documentParser?.textin?.secretCode || ''
+  const doc2xApiKey = documentParser?.doc2x?.apiKey || ''
 
   const [testingConnection, setTestingConnection] = useState(false)
   const [connectionResult, setConnectionResult] = useState<boolean | undefined>()
@@ -132,6 +135,22 @@ export function DocumentParserSettings({ showTitle = true }: DocumentParserSetti
     [setSettings, extension, documentParser, textinAppId, textinSecretCode]
   )
 
+  const handleDoc2xApiKeyChange = useCallback(
+    (value: string) => {
+      setSettings({
+        extension: {
+          ...extension,
+          documentParser: {
+            ...documentParser,
+            type: 'doc2x',
+            doc2x: { apiKey: value },
+          },
+        },
+      })
+    },
+    [setSettings, extension, documentParser]
+  )
+
   const handleTestConnection = useCallback(async () => {
     if (!mineruToken.trim()) return
 
@@ -139,7 +158,9 @@ export function DocumentParserSettings({ showTitle = true }: DocumentParserSetti
     setConnectionResult(undefined)
 
     try {
-      const result = await platform.getKnowledgeBaseController().testMineruConnection(mineruToken)
+      const result = platform.testMineruConnection
+        ? await platform.testMineruConnection(mineruToken)
+        : await platform.getKnowledgeBaseController().testMineruConnection(mineruToken)
       setConnectionResult(result.success)
     } catch {
       setConnectionResult(false)
@@ -257,6 +278,26 @@ export function DocumentParserSettings({ showTitle = true }: DocumentParserSetti
             onClick={() => platform.openLink('https://www.textin.com/console/dashboard/setting')}
           >
             {t('Get API Credentials')}
+          </Button>
+        </Stack>
+      )}
+
+      {currentParserType === 'doc2x' && (
+        <Stack gap="xs">
+          <Text fw="600">{t('Doc2X API Key')}</Text>
+          <PasswordInput
+            maw={320}
+            value={doc2xApiKey}
+            onChange={(e) => handleDoc2xApiKeyChange(e.currentTarget.value)}
+          />
+          <Button
+            variant="transparent"
+            size="compact-xs"
+            px={0}
+            className="self-start"
+            onClick={() => platform.openLink('https://open.noedgeai.com')}
+          >
+            {t('Get API Key')}
           </Button>
         </Stack>
       )}
