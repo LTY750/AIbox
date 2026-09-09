@@ -391,7 +391,7 @@ async function createWindow() {
     y: state.y,
     minWidth: windowState.minWidth,
     minHeight: windowState.minHeight,
-    icon: getAssetPath('icon.png'),
+    icon: getAssetPath(process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
     webPreferences: {
       spellcheck: true,
       webSecurity: false, // 其中一个作用是解决跨域问题

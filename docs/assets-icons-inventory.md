@@ -57,7 +57,7 @@ Electron Builder 配置(`electron-builder.yml`)关键项:
 
 ## 2. Mobile(Android + iOS)——`resources/`
 
-由 `pnpm mobile:assets`(`corepack pnpm exec capacitor-assets generate --ios --android`)从 `resources/` 生成两端的图标和启动屏。**与 `assets/` 完全独立。**
+由 `pnpm mobile:assets`(`corepack pnpm exec capacitor-assets generate --ios --android`)从 `resources/` 生成两端的图标和启动屏。桌面端 `assets/` 与 Web `src/renderer/` 也同步使用同一份蓝紫母版；平台输出仍保持各自的尺寸与自适应图层格式。
 
 | 源文件 (1024 / 2732) | 生成目标 | 平台 |
 |------|------|------|
@@ -83,7 +83,7 @@ Web/renderer 的图标独立于桌面端,在 `src/renderer/`:
 
 ---
 
-## 总结:三套互相独立的图标体系
+## 总结:统一母版的多平台图标体系
 
 | 平台 | 目录 | 工具/约定 |
 |------|------|-----------|
@@ -91,4 +91,4 @@ Web/renderer 的图标独立于桌面端,在 `src/renderer/`:
 | Mobile(iOS/Android) | `resources/` | `pnpm mobile:assets`(capacitor-assets) |
 | Web | `src/renderer/` | `index.html` 直接引用 |
 
-改某个平台的图标只动它对应的目录即可,互不影响。
+各平台输出由统一的蓝紫母版生成；修改母版后重新运行对应平台的资源生成命令即可同步更新。

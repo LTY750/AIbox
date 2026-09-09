@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="AIbox Mobile — transparent">
+  <title>AIbox Mobile — transparent foreground</title>
+  <g transform="translate(-32 29)">
+    <rect x="372" y="382" width="448" height="344" rx="112" fill="#FFFFFF"/>
+    <path d="M790 154 Q810 232 888 252 Q810 272 790 350 Q770 272 692 252 Q770 232 790 154 Z" fill="#FFFFFF"/>
+    <rect x="200" y="206" width="432" height="336" rx="104" fill="#0B1030" fill-opacity="0.26"/>
+    <path d="M420 700 L330 792 Q322 800 332 806 Q342 812 350 802 L470 726 Z" fill="#FFFFFF"/>
+  </g>
+</svg>

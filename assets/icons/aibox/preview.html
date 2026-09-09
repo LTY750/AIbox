@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>AIbox Mobile · 应用图标预览</title>
+<style>
+  :root { --bg:#0B0D13; --ink:#FFFFFF; --mute:#A9B2C6; --accent:#22D3EE; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.5 -apple-system, "Segoe UI", "PingFang SC", sans-serif; background:var(--bg); color:var(--ink); padding:48px; }
+  h1 { font-size:40px; font-weight:700; margin:0 0 8px; }
+  h2 { font-size:22px; margin:48px 0 16px; color:var(--accent); font-weight:600; }
+  .sub { color:var(--mute); margin-bottom:32px; }
+  .row { display:flex; gap:24px; align-items:flex-end; flex-wrap:wrap; padding:32px; border-radius:16px; }
+  .row.light { background:#FFFFFF; }
+  .row.dark  { background:#141827; border:1px solid #262C3D; }
+  .item { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .item span { font-size:11px; color:var(--mute); }
+  .row.light .item span { color:#5A6472; }
+  img.pixelated { image-rendering: pixelated; image-rendering: crisp-edges; }
+</style>
+</head>
+<body>
+  <h1>AIbox Mobile · 应用图标预览</h1>
+  <p class="sub">浅色 / 深色双适配 · 16 → 512 px 全尺寸一览</p>
+
+  <h2>浅色背景 · 桌面与浅色应用场景</h2>
+  <div class="row light" id="light"></div>
+
+  <h2>深色背景 · 深色模式与系统托盘</h2>
+  <div class="row dark" id="dark"></div>
+
+<script>
+const sizes = [16,20,24,32,40,48,64,96,128,192,256,512];
+function build(container, base){
+  sizes.forEach(function(s){
+    var it = document.createElement('div'); it.className = 'item';
+    var img = document.createElement('img');
+    img.src = base + s + '.png';
+    img.width = s; img.height = s;
+    if (s <= 32) img.classList.add('pixelated');
+    var cap = document.createElement('span');
+    cap.textContent = s + 'px';
+    it.appendChild(img); it.appendChild(cap);
+    container.appendChild(it);
+  });
+}
+build(document.getElementById('light'), 'light/');
+build(document.getElementById('dark'),  'dark/');
+</script>
+</body>
+</html>

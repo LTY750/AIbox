@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="AIbox Mobile background">
+  <title>AIbox Mobile — 棱芯立方背景</title>
+  <defs>
+    <linearGradient id="bB" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2A1E6B"/><stop offset="0.55" stop-color="#16123A"/><stop offset="1" stop-color="#0A0E1C"/>
+    </linearGradient>
+    <radialGradient id="bG" cx="0.74" cy="0.2" r="0.66">
+      <stop offset="0" stop-color="#22D3EE" stop-opacity="0.28"/><stop offset="1" stop-color="#22D3EE" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bB)"/>
+  <rect width="1024" height="1024" fill="url(#bG)"/>
+</svg>

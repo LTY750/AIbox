@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="AIbox Mobile foreground">
+  <title>AIbox Mobile — 棱芯立方前景</title>
+  <defs>
+    <linearGradient id="fL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4A33B8"/><stop offset="1" stop-color="#2A1E72"/>
+    </linearGradient>
+    <linearGradient id="fR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8B6CFF"/><stop offset="1" stop-color="#4F35E8"/>
+    </linearGradient>
+    <linearGradient id="fT" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#C6FCF7"/><stop offset="0.5" stop-color="#6FE9E4"/><stop offset="1" stop-color="#2FD0E0"/>
+    </linearGradient>
+    <radialGradient id="fA" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="0.42" stop-color="#B4F7F1"/><stop offset="1" stop-color="#25C9DC"/>
+    </radialGradient>
+  </defs>
+  <path d="M256 418 L512 566 L512 862 L256 714 Z" fill="url(#fL)" stroke="url(#fL)" stroke-width="26" stroke-linejoin="round"/>
+  <path d="M768 418 L768 714 L512 862 L512 566 Z" fill="url(#fR)" stroke="url(#fR)" stroke-width="26" stroke-linejoin="round"/>
+  <path d="M512 270 L768 418 L512 566 L256 418 Z" fill="url(#fT)" stroke="url(#fT)" stroke-width="26" stroke-linejoin="round"/>
+  <path d="M512 309 L701 418 L512 528 L323 418 Z" fill="url(#fA)" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M512 94 Q524 140 570 152 Q524 164 512 210 Q500 164 442 152 Q500 140 512 94 Z" fill="#FFC53D"/>
+  <path d="M726 236 Q732 256 752 262 Q732 268 726 288 Q720 268 700 262 Q720 256 726 236 Z" fill="#7CF3EA" fill-opacity="0.9"/>
+</svg>

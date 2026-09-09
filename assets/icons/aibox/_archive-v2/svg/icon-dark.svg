@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="AIbox Mobile on dark">
+  <title>AIbox Mobile — 棱芯立方（深色场景）</title>
+  <defs>
+    <linearGradient id="dP" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#33247E"/><stop offset="0.55" stop-color="#1A1444"/><stop offset="1" stop-color="#0C1020"/></linearGradient>
+    <radialGradient id="dPG" cx="0.74" cy="0.2" r="0.66"><stop offset="0" stop-color="#22D3EE" stop-opacity="0.40"/><stop offset="1" stop-color="#22D3EE" stop-opacity="0"/></radialGradient>
+    <radialGradient id="dPS" cx="0.68" cy="0.96" r="0.72"><stop offset="0" stop-color="#000000" stop-opacity="0.34"/><stop offset="1" stop-color="#000000" stop-opacity="0"/></radialGradient>
+    <radialGradient id="dG" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#22D3EE" stop-opacity="0.52"/><stop offset="0.6" stop-color="#22D3EE" stop-opacity="0.17"/><stop offset="1" stop-color="#22D3EE" stop-opacity="0"/></radialGradient>
+    <linearGradient id="dL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#523AC6"/><stop offset="1" stop-color="#2F2280"/></linearGradient>
+    <linearGradient id="dR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9A7CFF"/><stop offset="1" stop-color="#5A3FF2"/></linearGradient>
+    <linearGradient id="dT" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D6FDFA"/><stop offset="0.5" stop-color="#7DF0EB"/><stop offset="1" stop-color="#35DCEA"/></linearGradient>
+    <radialGradient id="dA" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.42" stop-color="#C0FAF5"/><stop offset="1" stop-color="#2AD4E6"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#dP)"/>
+  <rect width="1024" height="1024" rx="232" fill="url(#dPG)"/>
+  <rect width="1024" height="1024" rx="232" fill="url(#dPS)"/>
+  <ellipse cx="512" cy="530" rx="330" ry="300" fill="url(#dG)"/>
+  <path d="M256 418 L512 566 L512 862 L256 714 Z" fill="url(#dL)" stroke="url(#dL)" stroke-width="26" stroke-linejoin="round"/>
+  <path d="M768 418 L768 714 L512 862 L512 566 Z" fill="url(#dR)" stroke="url(#dR)" stroke-width="26" stroke-linejoin="round"/>
+  <path d="M512 270 L768 418 L512 566 L256 418 Z" fill="url(#dT)" stroke="url(#dT)" stroke-width="26" stroke-linejoin="round"/>
+  <path d="M512 309 L701 418 L512 528 L323 418 Z" fill="url(#dA)" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M512 94 Q524 140 570 152 Q524 164 512 210 Q500 164 442 152 Q500 140 512 94 Z" fill="#FFC53D"/>
+  <path d="M726 236 Q732 256 752 262 Q732 268 726 288 Q720 268 700 262 Q720 256 726 236 Z" fill="#7CF3EA" fill-opacity="0.9"/>
+  <rect x="3" y="3" width="1018" height="1018" rx="229" fill="none" stroke="#FFFFFF" stroke-opacity="0.26" stroke-width="6"/>
+</svg>
