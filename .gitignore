@@ -207,3 +207,16 @@ tmp_*.*
 
 # Temporary Git metadata used by restricted workspaces
 .git-sync/
+
+# Local Android toolchain and SDK copies (machine-specific, hundreds of MB)
+.tools/
+android/.sdk-local/
+
+# Local QA / agent scratch artifacts (emulator UI dumps and summaries)
+.workbuddy/
+android-emulator-*.xml
+android-emulator-*.txt
+android-window.xml
+
+# npm lockfile; this workspace is managed exclusively by pnpm
+package-lock.json
