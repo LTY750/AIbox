@@ -11,7 +11,7 @@ const isSmallScreenViewport = () => {
   return (
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
-    window.matchMedia('(max-width: 599.95px)').matches
+    window.matchMedia('(max-width: 639.95px)').matches
   )
 }
 

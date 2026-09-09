@@ -1,7 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { App } from '@capacitor/app'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { clearMobileBackHandlers, setMobileBackHistoryState } from './mobile_back_navigation'
 import MobilePlatform from './mobile_platform'
 
-type UrlOpenHandler = (event: { url: string }) => void
+type AppEvent = { url: string } | { canGoBack: boolean } | { isActive: boolean }
+type AppEventHandler = (event: AppEvent) => void
 
 const browserPlugin = vi.hoisted(() => ({ open: vi.fn(() => Promise.resolve()) }))
 
@@ -9,15 +12,18 @@ const browserPlugin = vi.hoisted(() => ({ open: vi.fn(() => Promise.resolve()) }
 // can emit appUrlOpen events, and controls what getLaunchUrl() resolves with
 // (the cold-start path that only exists natively).
 const appPlugin = vi.hoisted(() => {
+  const toggleBackButtonHandler = vi.fn(() => Promise.resolve())
   const state = {
-    listeners: new Map<string, UrlOpenHandler[]>(),
+    listeners: new Map<string, AppEventHandler[]>(),
     launchUrl: undefined as { url: string } | undefined,
-    emit(event: string, payload: { url: string }) {
+    toggleBackButtonHandler,
+    emit(event: string, payload: AppEvent) {
       for (const cb of state.listeners.get(event) ?? []) cb(payload)
     },
     reset() {
       state.listeners.clear()
       state.launchUrl = undefined
+      toggleBackButtonHandler.mockClear()
     },
   }
   return state
@@ -25,7 +31,7 @@ const appPlugin = vi.hoisted(() => {
 
 vi.mock('@capacitor/app', () => ({
   App: {
-    addListener: vi.fn((event: string, cb: UrlOpenHandler) => {
+    addListener: vi.fn((event: string, cb: AppEventHandler) => {
       const list = appPlugin.listeners.get(event) ?? []
       list.push(cb)
       appPlugin.listeners.set(event, list)
@@ -34,6 +40,8 @@ vi.mock('@capacitor/app', () => ({
     getLaunchUrl: vi.fn(() => Promise.resolve(appPlugin.launchUrl)),
     getInfo: vi.fn(() => Promise.resolve({ version: '0.0.1' })),
     getState: vi.fn(() => Promise.resolve({ isActive: true })),
+    exitApp: vi.fn(() => Promise.resolve()),
+    toggleBackButtonHandler: appPlugin.toggleBackButtonHandler,
   },
 }))
 
@@ -66,8 +74,14 @@ const flushMicrotasks = async () => {
 describe('MobilePlatform deep links', () => {
   beforeEach(() => {
     appPlugin.reset()
+    clearMobileBackHandlers()
     browserPlugin.open.mockReset()
     browserPlugin.open.mockResolvedValue(undefined)
+    vi.stubGlobal('window', { history: { back: vi.fn() } })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('flushes a cold-start launch URL once navigation is wired', async () => {
@@ -144,5 +158,33 @@ describe('MobilePlatform deep links', () => {
     platform.onNavigate(navigate)
 
     expect(navigate).not.toHaveBeenCalled()
+  })
+
+  it('uses JS router history when native WebView history is unavailable', () => {
+    new MobilePlatform()
+    setMobileBackHistoryState(true)
+    const historyBack = window.history.back as ReturnType<typeof vi.fn>
+    appPlugin.emit('backButton', { canGoBack: false })
+
+    expect(historyBack).toHaveBeenCalledOnce()
+    expect(vi.mocked(App.exitApp)).not.toHaveBeenCalled()
+  })
+
+  it('keeps the native handler disabled at the root and enables it for history', async () => {
+    new MobilePlatform()
+    await flushMicrotasks()
+    expect(appPlugin.toggleBackButtonHandler).toHaveBeenLastCalledWith({ enabled: false })
+
+    setMobileBackHistoryState(true)
+    await flushMicrotasks()
+    expect(appPlugin.toggleBackButtonHandler).toHaveBeenLastCalledWith({ enabled: true })
+  })
+
+  it('exits when back has no JS router history', () => {
+    new MobilePlatform()
+    appPlugin.emit('backButton', { canGoBack: true })
+
+    expect(vi.mocked(App.exitApp)).toHaveBeenCalledOnce()
+    expect(window.history.back).not.toHaveBeenCalled()
   })
 })

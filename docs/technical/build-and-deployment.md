@@ -1,6 +1,6 @@
 # 构建与部署
 
-> Last updated: 2026-04
+> Last updated: 2026-09
 
 本文档描述 Chatbox Pro 的构建系统、依赖管理策略及各平台部署流程，聚焦关键决策的**原因**和踩过的坑。项目结构与命令清单见 [`AGENTS.md`](../../AGENTS.md)。
 
@@ -187,6 +187,8 @@ alpha 通道沿用原行为，不注入签名 secrets，因此会跳过 Windows 
 Release Android 构建启用 Android Gradle Plugin 的 R8 压缩与混淆（`minifyEnabled true`、`shrinkResources true`）；debug 构建保持未压缩，便于调试。FileProvider 仅暴露应用专属的 cache/external-files 子目录。
 
 移动端与桌面端共享同一份 renderer 代码，通过 Platform 抽象层（`src/renderer/platform/`）屏蔽 API 差异。iOS 的构建脚本和 Capacitor 依赖暂时保留，但本阶段不进行 Xcode 构建、签名或发布验证。
+
+Android 目标 SDK 35 默认采用 edge-to-edge 窗口。渲染层通过 `capacitor-plugin-safe-area` 将系统 inset 应用到页面布局；Android 原生 `SystemBars` 插件只负责显示状态栏并根据渲染层的明暗主题切换状态栏图标颜色。这样白色页面使用深色时间、电量图标，深色页面使用浅色图标，同时不会改变现有内容的安全区间距。
 
 已知限制：
 - Android 端已升级至 `targetSdkVersion=35`（Android 15），最低支持 API 23

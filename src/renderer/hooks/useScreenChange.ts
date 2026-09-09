@@ -5,16 +5,32 @@ import { useUIStore } from '../stores/uiStore'
 
 export default function useScreenChange() {
   const setShowSidebar = useUIStore((s) => s.setShowSidebar)
-  const realIsSmallScreen = useIsSmallScreen()
+  const windowSizeClass = useWindowSizeClass()
   useEffect(() => {
-    setShowSidebar(!realIsSmallScreen)
-  }, [realIsSmallScreen, setShowSidebar])
+    setShowSidebar(windowSizeClass !== 'compact')
+  }, [windowSizeClass, setShowSidebar])
 }
 
 export function useIsSmallScreen() {
   const theme = useTheme()
   const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'))
   return isSmallScreen
+}
+
+export function usePrefersReducedMotion() {
+  return useMediaQuery('(prefers-reduced-motion: reduce)', { noSsr: true })
+}
+
+export type WindowSizeClass = 'compact' | 'medium' | 'expanded'
+
+/** Material responsive tiers shared by mobile and desktop layouts. */
+export function useWindowSizeClass(): WindowSizeClass {
+  const theme = useTheme()
+  const isExpanded = useMediaQuery(theme.breakpoints.up('md'))
+  const isMedium = useMediaQuery(theme.breakpoints.up('sm'))
+  if (isExpanded) return 'expanded'
+  if (isMedium) return 'medium'
+  return 'compact'
 }
 
 export function useScreenDownToMD() {

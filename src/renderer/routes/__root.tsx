@@ -27,7 +27,7 @@ import {
 import { Box, Grid } from '@mui/material'
 import CssBaseline from '@mui/material/CssBaseline'
 import { ThemeProvider } from '@mui/material/styles'
-import { type RemoteConfig, Theme } from '@shared/types'
+import { Theme } from '@shared/types'
 import { useQuery } from '@tanstack/react-query'
 import { createRootRoute, Outlet, useLocation } from '@tanstack/react-router'
 import { useSetAtom } from 'jotai'
@@ -43,7 +43,7 @@ import useAppTheme from '@/hooks/useAppTheme'
 import { useSystemLanguageWhenInit } from '@/hooks/useDefaultSystemLanguage'
 import { useI18nEffect } from '@/hooks/useI18nEffect'
 import useNeedRoomForWinControls from '@/hooks/useNeedRoomForWinControls'
-import useScreenChange, { useSidebarWidth } from '@/hooks/useScreenChange'
+import useScreenChange, { usePrefersReducedMotion, useSidebarWidth, useWindowSizeClass } from '@/hooks/useScreenChange'
 import useShortcut from '@/hooks/useShortcut'
 import useVersion from '@/hooks/useVersion'
 import '@/modals'
@@ -147,8 +147,10 @@ function useHasBackgroundImage() {
 
 function Root() {
   useScreenChange()
+  const windowSizeClass = useWindowSizeClass()
+  const prefersReducedMotion = usePrefersReducedMotion()
 
-  const { isExceeded, isExceededResolved } = useVersion()
+  const { isExceededResolved } = useVersion()
   const location = useLocation()
   const spellCheck = useSettingsStore((state) => state.spellCheck)
   const language = useLanguage()
@@ -156,6 +158,10 @@ function Root() {
   const initialized = useRef(false)
 
   const setRemoteConfig = useSetAtom(atoms.remoteConfigAtom)
+
+  useEffect(() => {
+    document.documentElement.dataset.windowSizeClass = windowSizeClass
+  }, [windowSizeClass])
 
   useEffect(() => {
     if (initialized.current) {
@@ -203,7 +209,7 @@ function Root() {
       // Users can configure any supported provider from Settings without being
       // redirected to a hosted login flow.
     })()
-  }, [setRemoteConfig, location.pathname, isExceeded, isExceededResolved])
+  }, [setRemoteConfig, location.pathname, isExceededResolved])
 
   const showSidebar = useUIStore((s) => s.showSidebar)
   const sidebarWidth = useSidebarWidth()
@@ -327,9 +333,11 @@ function Root() {
             transition: (theme) =>
               theme.transitions.create('padding', {
                 easing: showSidebar ? theme.transitions.easing.easeOut : theme.transitions.easing.sharp,
-                duration: showSidebar
-                  ? theme.transitions.duration.enteringScreen
-                  : theme.transitions.duration.leavingScreen,
+                duration: prefersReducedMotion
+                  ? 0
+                  : showSidebar
+                    ? theme.transitions.duration.enteringScreen
+                    : theme.transitions.duration.leavingScreen,
               }),
             ...(showSidebar
               ? language === 'ar'
@@ -349,9 +357,11 @@ function Root() {
               transition: (theme) =>
                 theme.transitions.create('padding', {
                   easing: showSidebar ? theme.transitions.easing.easeOut : theme.transitions.easing.sharp,
-                  duration: showSidebar
-                    ? theme.transitions.duration.enteringScreen
-                    : theme.transitions.duration.leavingScreen,
+                  duration: prefersReducedMotion
+                    ? 0
+                    : showSidebar
+                      ? theme.transitions.duration.enteringScreen
+                      : theme.transitions.duration.leavingScreen,
                 }),
             }}
           >

@@ -13,6 +13,7 @@ import omit from 'lodash/omit'
 import platform from '@/platform'
 import { router } from '@/router'
 import { sortSessionRecords } from '@/storage/SessionMetaStorage'
+import { CHATBOX_BUILD_PLATFORM } from '@/variables'
 import * as atoms from '../atoms'
 import * as chatStore from '../chatStore'
 import * as scrollActions from '../scrollActions'
@@ -137,6 +138,10 @@ export function switchCurrentSession(sessionId: string) {
   router.navigate({
     to: '/session/$sessionId',
     params: { sessionId },
+    // Switching conversations is a replacement of the chat surface, not a
+    // nested destination. Keeping it out of the mobile history prevents the
+    // system back gesture from walking through every previously viewed chat.
+    replace: CHATBOX_BUILD_PLATFORM === 'android',
   })
   scrollActions.clearAutoScroll()
 }

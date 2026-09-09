@@ -611,6 +611,7 @@ describe('fork actions', () => {
     expect(routerNavigateMock).toHaveBeenCalledWith({
       to: '/session/$sessionId',
       params: { sessionId: 'new-session-thread' },
+      replace: false,
     })
   })
 
@@ -677,6 +678,7 @@ describe('fork actions', () => {
     expect(routerNavigateMock).toHaveBeenCalledWith({
       to: '/session/$sessionId',
       params: { sessionId: 'new-session-current' },
+      replace: false,
     })
   })
 
@@ -773,6 +775,7 @@ describe('fork actions', () => {
     expect(routerNavigateMock).toHaveBeenCalledWith({
       to: '/session/$sessionId',
       params: { sessionId: 'new-session-copy' },
+      replace: false,
     })
   })
 

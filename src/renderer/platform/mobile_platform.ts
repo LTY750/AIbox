@@ -6,6 +6,7 @@ import type { Config, Settings, ShortcutSetting } from '@shared/types'
 import localforage from 'localforage'
 import { v4 as uuidv4 } from 'uuid'
 import { parseLocale } from '@/i18n/parser'
+import { parseFileWithMineru, testMineruConnection } from '@/packages/mineru'
 import { parseFileWithTextIn } from '@/packages/textin'
 import type { ImageGenerationStorage } from '@/storage/ImageGenerationStorage'
 import type { SessionMetaStorage } from '@/storage/SessionMetaStorage'
@@ -16,6 +17,10 @@ import { getBrowser, getOS } from '../packages/navigator'
 import { handleMobileRequest } from '../utils/mobile-request'
 import type { Platform, PlatformType } from './interfaces'
 import type { KnowledgeBaseController } from './knowledge-base/interface'
+import {
+  dispatchMobileBack,
+  subscribeMobileBackNavigationState,
+} from './mobile_back_navigation'
 import MobileExporter from './mobile_exporter'
 import mobileLogger from './mobile_logger'
 import { getSecureValue, removeSecureValue, setSecureValue } from './mobile_secure_storage'
@@ -63,6 +68,9 @@ export default class MobilePlatform extends MobileSQLiteStorage implements Platf
   private _imageGenerationStorage: ImageGenerationStorage | null = null
   private _sessionMetaStorage: SessionMetaStorage | null = null
   private appStateCallbacks = new Set<(state: { isActive: boolean }) => void>()
+  private backButtonToggleQueue = Promise.resolve()
+  private lastBackButtonHandlerEnabled: boolean | null = null
+  private canGoBackInHistory = false
 
   constructor() {
     super()
@@ -96,6 +104,47 @@ export default class MobilePlatform extends MobileSQLiteStorage implements Platf
     void Promise.resolve(appStateListener).catch((error) => {
       console.warn('Failed to listen appStateChange:', error)
     })
+
+    const backButtonListener = App.addListener('backButton', ({ canGoBack }) => {
+      if (dispatchMobileBack({ canGoBack })) {
+        return
+      }
+
+      // Hash-router entries live in the WebView's JS history, which can differ
+      // from the native WebView back stack reported by Capacitor.
+      if (this.canGoBackInHistory) {
+        window.history.back()
+        return
+      }
+
+      // The native callback is disabled at the chat boundary, so Android
+      // normally handles this gesture and plays its back-to-home animation.
+      // Keep an explicit exit only as a fallback for a callback toggle race.
+      void App.exitApp().catch((error) => {
+        console.warn('Failed to exit app after back navigation:', error)
+      })
+    })
+    void Promise.resolve(backButtonListener).catch((error) => {
+      console.warn('Failed to listen backButton:', error)
+    })
+
+    subscribeMobileBackNavigationState(({ canGoBackInHistory, shouldInterceptBack }) => {
+      this.canGoBackInHistory = canGoBackInHistory
+      this.syncBackButtonHandler(shouldInterceptBack)
+    })
+  }
+
+  private syncBackButtonHandler(enabled: boolean): void {
+    if (this.lastBackButtonHandlerEnabled === enabled) {
+      return
+    }
+    this.lastBackButtonHandlerEnabled = enabled
+    this.backButtonToggleQueue = this.backButtonToggleQueue
+      .catch(() => undefined)
+      .then(() => App.toggleBackButtonHandler({ enabled }))
+      .catch((error) => {
+        console.warn('Failed to synchronize native back button handler:', error)
+      })
   }
 
   // 处理深度链接
@@ -430,6 +479,28 @@ export default class MobilePlatform extends MobileSQLiteStorage implements Platf
     const key = `parseFile-${uuidv4()}`
     await this.setStoreBlob(key, result.text)
     return { key, isSupported: true }
+  }
+
+  async parseFileWithMineru(
+    file: File,
+    apiToken: string
+  ): Promise<{ success: boolean; content?: string; error?: string; cancelled?: boolean }> {
+    try {
+      const content = await parseFileWithMineru(file, { apiToken })
+      return { success: true, content }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return { success: false, cancelled: true, error: 'Operation cancelled' }
+      }
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  }
+
+  async testMineruConnection(apiToken: string): Promise<{ success: boolean; error?: string }> {
+    return testMineruConnection(apiToken)
   }
 
   async parseFileWithTextin(

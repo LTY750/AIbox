@@ -175,7 +175,7 @@ importers:
         specifier: ^7.0.0
         version: 7.4.5(@capacitor/core@7.4.5)
       '@capacitor/app':
-        specifier: ^7.0.0
+        specifier: ^7.1.0
         version: 7.1.1(@capacitor/core@7.4.5)
       '@capacitor/app-launcher':
         specifier: ^7.0.4

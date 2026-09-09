@@ -17,6 +17,8 @@ AIbox Mobile 是基于 Chatbox 共享渲染层和 Capacitor 的移动端工作�
 - 接入多个 AI 服务商和模型，支持流式回复、Markdown、LaTeX 与代码高亮。
 - 在设备本地保存设置和会话；移动端使用 SQLite 存储，API Key 等敏感值使用 Android Keystore 加密保存。
 - 支持移动端文件选择、内容读取、导出和系统分享，并适配安全区与软键盘行为。
+- Android 使用 edge-to-edge 窗口：页面、抽屉和输入面分别负责各自接触的系统栏 Insets；系统返回会先关闭顶层弹层，再回退菜单路由；聊天路由是返回边界，切换会话不累积历史，边界处交给系统播放返回桌面动画。
+- 窗口布局按 `compact`（小于 640px）、`medium`（640–899px）和 `expanded`（900px 及以上）分级；手机使用临时侧栏，较宽窗口保持会话列表与内容双窗格。
 - 支持深链接（`chatbox://provider/import?config=`，`chatbox-dev://` 自动归一化）：桌面端由 Electron 主进程处理，Android 端经 Manifest intent-filter + Capacitor App 插件 `appUrlOpen` 事件接线。
 - 支持 Android 原生 HTTP/流式请求，减少 WebView 环境下的跨域限制。
 - 复用桌面端的会话、模型、国际化和主题代码，平台差异集中在 `src/renderer/platform/`。
