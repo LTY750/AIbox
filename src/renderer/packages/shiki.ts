@@ -1,5 +1,6 @@
 import type { BundledLanguage } from 'shiki'
-import { createHighlighter } from 'shiki'
+import { createHighlighter, createJavaScriptRegexEngine } from 'shiki'
+import { CHATBOX_BUILD_TARGET } from '../variables'
 
 export type ShikiTheme = 'one-dark-pro' | 'one-light'
 
@@ -39,10 +40,17 @@ function cacheSet(code: string, language: string, theme: string, html: string): 
 
 function init(): Promise<Highlighter> {
   if (!initPromise) {
-    initPromise = createHighlighter({
+    const options = {
       themes: ['one-dark-pro', 'one-light'],
       langs: [],
-    }).then((h) => {
+      ...(CHATBOX_BUILD_TARGET === 'mobile_app'
+        ? {
+            // Android WebView blocks WASM compilation under its CSP implementation.
+            engine: createJavaScriptRegexEngine({ target: 'ES2018', forgiving: true }),
+          }
+        : {}),
+    }
+    initPromise = createHighlighter(options).then((h) => {
       instance = h
       return h
     })

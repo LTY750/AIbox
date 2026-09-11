@@ -188,6 +188,8 @@ Release Android 构建启用 Android Gradle Plugin 的 R8 压缩与混淆（`min
 
 移动端与桌面端共享同一份 renderer 代码，通过 Platform 抽象层（`src/renderer/platform/`）屏蔽 API 差异。iOS 的构建脚本和 Capacitor 依赖暂时保留，但本阶段不进行 Xcode 构建、签名或发布验证。
 
+代码块高亮在 Android WebView 中使用 Shiki 的 JavaScript 正则引擎；WebView 的 CSP 实现会拒绝 Oniguruma WASM 的编译。桌面端和 Web 构建仍使用默认的 Oniguruma 引擎。
+
 Android 目标 SDK 35 默认采用 edge-to-edge 窗口。渲染层通过 `capacitor-plugin-safe-area` 将系统 inset 应用到页面布局；Android 原生 `SystemBars` 插件只负责显示状态栏并根据渲染层的明暗主题切换状态栏图标颜色。这样白色页面使用深色时间、电量图标，深色页面使用浅色图标，同时不会改变现有内容的安全区间距。
 
 已知限制：
