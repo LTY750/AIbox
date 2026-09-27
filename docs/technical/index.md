@@ -28,6 +28,7 @@
 | [构建与部署](./build-and-deployment.md) | 构建工具链、依赖管理、签名打包、CI/CD |
 | [自动更新系统](./auto-updater.md) | electron-updater 机制、状态管理、Feed URL Fallback、本地测试方法 |
 | [本地诊断日志](./sentry-error-reporting.md) | 错误分类、本地日志、脱敏与导出规则 |
+| [Android 触觉反馈](./haptic-feedback.md) | 生成生命周期与流式输出的节流触觉反馈策略 |
 
 ## 文档定位
 

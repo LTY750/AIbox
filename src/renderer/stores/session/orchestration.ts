@@ -35,6 +35,7 @@ import { estimateTokensFromMessages } from '@/packages/token'
 import { FileMutationApprovalPausedError, UserExecApprovalPausedError } from '@/packages/user-exec-approval'
 import platform from '@/platform'
 import { triggerHaptic } from '@/platform/haptics'
+import { createStreamingHapticController } from '@/platform/streaming-haptics'
 import { createSandboxProvider } from '@/sandbox'
 import storage from '@/storage'
 import { StorageKeyGenerator } from '@/storage/StoreStorage'
@@ -757,6 +758,7 @@ export async function orchestrateGeneration(
     () => persistStreamingMessage(sessionId, targetMsg),
     () => controller.abort(Date.now())
   )
+  const streamingHaptics = createStreamingHapticController({ enabled: generationHapticsEnabled })
 
   try {
     const dependencies = await createModelDependencies()
@@ -949,6 +951,10 @@ export async function orchestrateGeneration(
           processorState = applyPersistentToolCallPause(processorState, result.persistentToolCallPause)
         }
 
+        if (chunk.type === 'text-delta') {
+          streamingHaptics.consumeTextDelta(chunk.text)
+        }
+
         if (result.skipUpdate) {
           if (result.statusChunk && result.statusChunk.type === 'status') {
             targetMsg = {
@@ -968,7 +974,6 @@ export async function orchestrateGeneration(
         const textLength = getMessageText(nextMsg, true, true).length
         if (!firstTokenLatency && textLength > 0) {
           firstTokenLatency = Date.now() - startTime
-          notifyGenerationHaptic('light')
         }
 
         targetMsg = {
@@ -1115,6 +1120,7 @@ export async function orchestrateGeneration(
     await persistStreamingMessage(sessionId, targetMsg, { refreshCounting: true })
     notifyGenerationHaptic('error')
   } finally {
+    streamingHaptics.dispose()
     unregisterMobileGenerationLifecycle()
   }
 }
