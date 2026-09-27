@@ -531,6 +531,8 @@ export const SettingsSchema = GlobalSessionSettingsSchema.extend({
   showModelName: z.boolean().optional().catch(undefined),
   showMessageTimestamp: z.boolean().optional().catch(undefined),
   showFirstTokenLatency: z.boolean().optional().catch(undefined),
+  enableHapticFeedback: z.boolean().optional().catch(undefined),
+  memoryEnabled: z.boolean().optional().catch(undefined),
 
   showAvatar: z.boolean().optional().catch(undefined),
   messageLayout: z.enum(['left', 'bubble']).optional().catch(undefined),

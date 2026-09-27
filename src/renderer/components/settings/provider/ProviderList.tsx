@@ -50,6 +50,8 @@ export function ProviderList({ providers, onAddProvider }: ProviderListProps) {
 
   return (
     <Stack
+      h="100%"
+      mih={0}
       maw={isSmallScreen ? undefined : 256}
       className={clsx(
         'border-solid border-0 border-r border-chatbox-border-primary',
@@ -57,7 +59,7 @@ export function ProviderList({ providers, onAddProvider }: ProviderListProps) {
       )}
       gap={0}
     >
-      <ScrollArea flex={1} type={isSmallScreen ? 'never' : 'hover'} scrollHideDelay={100}>
+      <ScrollArea flex="1 1 0%" mih={0} type={isSmallScreen ? 'never' : 'hover'} scrollHideDelay={100}>
         <Stack p={isSmallScreen ? 0 : 'xs'} gap={isSmallScreen ? 0 : 'xs'}>
           {sortedProviders.map((provider) => (
             <Link
@@ -96,7 +98,7 @@ export function ProviderList({ providers, onAddProvider }: ProviderListProps) {
                   flex={isSmallScreen ? 1 : undefined}
                   className="!text-inherit whitespace-nowrap overflow-hidden text-ellipsis"
                 >
-                  {t(provider.name)}
+                  {provider.name}
                 </Text>
 
                 {activatedProviderIds.has(provider.id) && (
@@ -113,7 +115,12 @@ export function ProviderList({ providers, onAddProvider }: ProviderListProps) {
           ))}
         </Stack>
       </ScrollArea>
-      <Stack gap="xs" mx="md" my="sm" className={isSmallScreen ? 'mobile-drawer-bottom-inset' : undefined}>
+      <Stack
+        gap="xs"
+        mx="md"
+        my="sm"
+        className={clsx('shrink-0', isSmallScreen ? 'mobile-drawer-bottom-inset' : undefined)}
+      >
         <Button variant="outline" leftSection={<ScalableIcon icon={IconPlus} />} onClick={onAddProvider}>
           {t('Add')}
         </Button>

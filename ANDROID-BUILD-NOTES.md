@@ -26,7 +26,7 @@
 
 ### 2. Java 缺失（但项目内有 JDK 21）
 - 系统 `JAVA_HOME` 为空、PATH 无 `java`、机器上没有 Android Studio / 全局 JDK。
-- 项目内已有 JDK 21：`C:\Users\LTY\Desktop\AIbox mobile\.tools\jdk-21.0.12.1+1`（Temurin 21.0.12.1，满足 `capacitor.build.gradle` 的 `JavaVersion.VERSION_21`）。
+- 构建工具目录内已有 JDK 21：`C:\\Users\\LTY\\Desktop\\chatbox-build-tools\\OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7\\jdk-21.0.6+7`（Temurin 21.0.6+7，满足 `capacitor.build.gradle` 的 `JavaVersion.VERSION_21`）。
 
 ### 3. Node 版本不符（已于 2026-08-30 解决）
 - 原状态：`engines.node` 要求 `>=22.13.0 <23.0.0`（Node 22），与系统默认 node v24.x 冲突，当时需临时改用 `C:\Users\LTY\Desktop\chatbox-build-tools\node-v22.14.0-win-x64\node.exe`。
@@ -48,16 +48,16 @@
 |---|---|---|
 | Node（正确版本） | v24.15.0 | 系统 node（`C:\Program Files\nodejs\node.exe`）；旧 node 22.14 已不需要 |
 | pnpm | 10.33.0（= packageManager） | `C:\Users\LTY\AppData\Roaming\npm\pnpm.cmd` |
-| JDK | 21.0.12.1 (Temurin LTS) | `C:\Users\LTY\Desktop\AIbox mobile\.tools\jdk-21.0.12.1+1` |
+| JDK | 21.0.6+7 (Temurin LTS) | `C:\Users\LTY\Desktop\chatbox-build-tools\OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7\jdk-21.0.6+7` |
 | Gradle | 8.11.1（AGP 8.7.2 要求 8.9–8.11） | `C:\Users\LTY\Desktop\chatbox-build-tools\gradle-8.11.1-bin\gradle-8.11.1\bin\gradle.bat` |
 | Android SDK | — | `C:\Users\LTY\AppData\Local\Android\Sdk`（`android\local.properties` 已指向它） |
 | Gradle 用户目录 | — | `C:\Users\LTY\Desktop\AIbox mobile\android\.gradle-local` |
 | npm registry | — | `https://registry.npmjs.org/`（node 可正常访问，慢时可用 `registry.npmmirror.com`） |
 | Release 签名 | RSA 4096，别名 `aibox-release`，有效期 30 年 | keystore：`C:\Users\LTY\.aibox-signing\aibox-release.keystore`；四个 `CHATBOX_ANDROID_*` 属性在 `android\.gradle-local\gradle.properties`（gitignored，随下方 `GRADLE_USER_HOME` 自动加载） |
 
-> **应用身份已统一（2026-08-23）**：`applicationId`/Capacitor `appId` = `com.aibox.mobile`，`versionName` `0.0.1`，`versionCode` `1`（与根 `package.json` 一致）；`namespace` 仍为 `xyz.chatboxapp.chatbox`（内部包名，勿混淆）。旧包 `xyz.chatboxapp.chatbox.debug` 在设备上是另一个应用，不会被覆盖安装。
+> **应用身份已统一（2026-08-23）**：`applicationId`/Capacitor `appId` = `com.aibox.mobile`，`versionName` `0.0.4`，`versionCode` `4`（与根 `package.json` 一致）；`namespace` 仍为 `xyz.chatboxapp.chatbox`（内部包名，勿混淆）。旧包 `xyz.chatboxapp.chatbox.debug` 在设备上是另一个应用，不会被覆盖安装。
 
-> **JDK 只保留一份（2026-08-23 清理）**：`.tools` 内曾按旧 README 的 JDK 17 错误指引误留 `jdk-17.0.20+8`，已移除（暂存于 `C:\Users\LTY\.workbuddy\trash\`，确认无需后可清空）。`.tools` 现仅有上表的 JDK 21，`JAVA_HOME` 固定指向它。工程要求 Java 21 编译工具链（app 模块及多数 Capacitor 插件为 `VERSION_21`，`@capacitor/filesystem` 直接请求 Java 21 编译器；README 与 AGENTS.md 已同步修正），**不要再引入 JDK 17**。
+> **JDK 只保留一份（2026-08-23 清理）**：`C:\Users\LTY\Desktop\chatbox-build-tools` 内同时存放构建工具与 JDK；实际使用上表的 JDK 21，`JAVA_HOME` 固定指向它。工程要求 Java 21 编译工具链（app 模块及多数 Capacitor 插件为 `VERSION_21`，`@capacitor/filesystem` 直接请求 Java 21 编译器；README 与 AGENTS.md 已同步修正），**不要再引入 JDK 17**。
 
 ---
 
@@ -68,7 +68,7 @@
 Set-ExecutionPolicy -Scope Process Bypass
 
 # 1. 环境变量（系统 node v24.15.0 已满足 engines，无需再 prepend node 22）
-$env:JAVA_HOME = 'C:\Users\LTY\Desktop\AIbox mobile\.tools\jdk-21.0.12.1+1'
+$env:JAVA_HOME = 'C:\Users\LTY\Desktop\chatbox-build-tools\OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7\jdk-21.0.6+7'
 $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 $env:GRADLE_USER_HOME = 'C:\Users\LTY\Desktop\AIbox mobile\android\.gradle-local'
 

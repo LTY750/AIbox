@@ -1,4 +1,5 @@
 import { buildContext } from '@shared/context'
+import { buildMemoriesPrompt, type MemoryEntry } from '@shared/memory'
 import { ChatboxAIAPIError, OCRError } from '@shared/models/errors'
 import type { ChatStreamOptions, ModelInterface } from '@shared/models/types'
 import type { SandboxProvider } from '@shared/sandbox-provider'
@@ -14,12 +15,13 @@ import type {
   SessionSettings,
   Settings,
 } from '@shared/types'
-import { ModelProviderEnum } from '@shared/types'
+import { MessageRoleEnum, ModelProviderEnum } from '@shared/types'
 import type { ModelDependencies } from '@shared/types/adapters'
 import { sequenceMessages } from '@shared/utils/message'
 import type { ToolSet } from 'ai'
 import { t } from 'i18next'
 import { getLogger } from '@/lib/utils'
+import { memoryStore } from '@/memory/memoryStore'
 import {
   hasAcceptedCallbackBackgroundTask,
   hasAcceptedCallbackBackgroundTaskResult,
@@ -40,6 +42,30 @@ const GLOBAL_RESPONSE_LANGUAGE_INSTRUCTION = `
 ## Response Language
 Unless the user requests otherwise, all visible assistant text must be in the same language as the user's latest message.
 `
+
+async function addMemoriesToPrompt(messages: Message[], enabled: boolean): Promise<Message[]> {
+  if (!enabled) return messages
+
+  let memories: MemoryEntry[]
+  try {
+    memories = await memoryStore.listMemories()
+  } catch {
+    return messages
+  }
+  const content = buildMemoriesPrompt(memories)
+  if (!content) return messages
+
+  return [
+    {
+      id: 'memory-context',
+      role: MessageRoleEnum.System,
+      timestamp: Date.now(),
+      contentParts: [{ type: 'text', text: content }],
+      tokenCalculatedAt: undefined,
+    },
+    ...messages,
+  ]
+}
 
 export interface AgentGenerationSideEffects {
   lockAgentMode?: (reason: Exclude<AgentModeLockReason, null>) => void
@@ -254,6 +280,7 @@ export async function prepareAgentGenerationHarness(
     preserveToolCallMessageIds,
     sandboxMode: canExecuteCode,
   })
+  promptMsgs = await addMemoriesToPrompt(promptMsgs, globalSettings.memoryEnabled !== false)
 
   const infoParts: MessageContentParts = []
 

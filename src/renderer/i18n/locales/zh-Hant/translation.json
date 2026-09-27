@@ -1322,5 +1322,8 @@
   "Doc2X (PDF)": "Doc2X (PDF)",
   "Doc2X API Key": "Doc2X API Key",
   "Doc2X parse failed": "Doc2X parse failed",
-  "Doc2X converts PDF files to Markdown. Requires an API key. Other Office formats are not supported.": "Doc2X converts PDF files to Markdown. Requires an API key. Other Office formats are not supported."
+  "Doc2X converts PDF files to Markdown. Requires an API key. Other Office formats are not supported.": "Doc2X converts PDF files to Markdown. Requires an API key. Other Office formats are not supported.",
+  "Manage recovery, backup, and diagnostic data": "管理数据恢复、备份与诊断日志",
+  "Manage your application data and diagnostic files": "管理应用数据与诊断文件",
+  "Export or import your application data": "导出或导入应用数据"
 }

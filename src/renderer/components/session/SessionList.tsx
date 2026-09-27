@@ -169,8 +169,8 @@ export default function SessionList(props: Props) {
             </Flex>
           )}
           <Virtuoso
+            className="mobile-overscroll-surface"
             style={{
-              flex: 1,
               ...(platform.type === 'web'
                 ? {
                     userSelect: 'none',

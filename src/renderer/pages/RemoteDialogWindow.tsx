@@ -36,6 +36,10 @@ export default function RemoteDialogWindow() {
     }
   }
   useEffect(() => {
+    // Mobile builds are distributed independently from the legacy Chatbox
+    // updater and must not show remote update/promotional dialogs at startup.
+    if (platform.type === 'mobile') return
+
     const initialCheck = window.setTimeout(() => void checkRemoteDialog(), 2500)
     const interval = window.setInterval(() => void checkRemoteDialog(), 1000 * 60 * 60 * 24) // 对于常年不关机的用户，也要每天检查一次
     return () => {
@@ -56,6 +60,8 @@ export default function RemoteDialogWindow() {
     }
     setOpen(false)
   }
+
+  if (platform.type === 'mobile') return null
 
   return (
     <Dialog open={open} onClose={onClose}>

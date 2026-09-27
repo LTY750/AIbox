@@ -319,7 +319,7 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>((props, ref) =>
     scrollActivityTimerRef.current = setTimeout(() => {
       props.onScrollActivityChange?.(false)
       scrollActivityTimerRef.current = null
-    }, 320)
+    }, 600)
   }, [isSmallScreen, props.onScrollActivityChange])
 
   const handleScrollTopThrottled = useThrottledCallback((scrollTop?: number) => {
@@ -499,7 +499,9 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>((props, ref) =>
           {/* Virtuoso smooths appended items but snaps same-item height growth; the controller below owns both cases. */}
           <Virtuoso
             style={{ scrollbarGutter: 'stable' }}
-            className={platformType === 'win32' ? 'scrollbar-custom' : ''}
+            className={
+              platformType === 'win32' ? 'scrollbar-custom mobile-overscroll-surface' : 'mobile-overscroll-surface'
+            }
             data={renderItems}
             ref={virtuoso}
             followOutput={false}

@@ -1,4 +1,3 @@
-import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import NiceModal from '@ebay/nice-modal-react'
 import { ActionIcon, Flex, Text } from '@mantine/core'
 import { TestId } from '@shared/automation/testids'
@@ -11,7 +10,7 @@ import { useTranslation } from 'react-i18next'
 import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
 import { useIsSmallScreen } from '@/hooks/useScreenChange'
 import { navigateToSettings } from '@/modals/Settings'
-import platform from '@/platform'
+import { triggerHaptic } from '@/platform/haptics'
 import { router } from '@/router'
 import { archiveSession, countArchivedSessionsMeta, updateSession as updateSessionStore } from '@/stores/chatStore'
 import { switchCurrentSession } from '@/stores/sessionActions'
@@ -40,13 +39,7 @@ function formatSessionTime(createdAt: number) {
 }
 
 function triggerLongPressHaptic() {
-  if (platform.type === 'mobile') {
-    void Haptics.impact({ style: ImpactStyle.Light }).catch(() => {
-      navigator.vibrate?.(10)
-    })
-    return
-  }
-  navigator.vibrate?.(10)
+  void triggerHaptic('light')
 }
 
 export interface Props {

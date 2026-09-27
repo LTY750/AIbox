@@ -198,7 +198,7 @@ Android 目标 SDK 35 默认采用 edge-to-edge 窗口。渲染层通过 `capaci
 
 Android 应用身份（2026-08 起）：
 - `applicationId` / Capacitor `appId` 统一为 `com.aibox.mobile`，与应用名 "AIbox Mobile"（`package.json#productName`）一致；`namespace` 保留上游 `xyz.chatboxapp.chatbox`（内部 R 类包名，避免迁移 Java 包目录）
-- `versionName` / `versionCode` 以根 `package.json#version` 为唯一事实来源（当前 `0.0.1` / `1`），升级时两处需同步修改
+- `versionName` / `versionCode` 以根 `package.json#version` 为唯一事实来源（当前 `0.0.4` / `4`），升级时两处需同步修改
 - Release 签名为 fail-closed：四个 `CHATBOX_ANDROID_*` 属性齐全才可出 release 包。本机签名材料放在 gitignored 的 `android/.gradle-local/gradle.properties`（随 NOTES 流程的 `GRADLE_USER_HOME` 自动加载）与 `~/.aibox-signing/` keystore；keystore 绝不进仓库
 
 Android 深链接：`chatbox://` 与 `chatbox-dev://` 在 `AndroidManifest.xml` 以 BROWSABLE intent-filter 声明，`singleTask` 启动模式下经 Capacitor App 插件 `appUrlOpen` 事件进入 `MobilePlatform.handleDeepLink`（与桌面端 `src/main/deeplinks.ts` 行为对齐）。

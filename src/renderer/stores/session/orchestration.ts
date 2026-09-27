@@ -34,6 +34,7 @@ import { MCPToolApprovalPausedError } from '@/packages/mcp/approval'
 import { estimateTokensFromMessages } from '@/packages/token'
 import { FileMutationApprovalPausedError, UserExecApprovalPausedError } from '@/packages/user-exec-approval'
 import platform from '@/platform'
+import { triggerHaptic } from '@/platform/haptics'
 import { createSandboxProvider } from '@/sandbox'
 import storage from '@/storage'
 import { StorageKeyGenerator } from '@/storage/StoreStorage'
@@ -672,6 +673,12 @@ export async function orchestrateGeneration(
   let firstTokenLatency: number | undefined
   const persistInterval = 2000
   let lastPersistTimestamp = Date.now()
+  const generationHapticsEnabled = platform.type === 'mobile' && globalSettings.enableHapticFeedback !== false
+  const notifyGenerationHaptic = (event: Parameters<typeof triggerHaptic>[0]) => {
+    if (generationHapticsEnabled) {
+      void triggerHaptic(event)
+    }
+  }
 
   targetMsg = await initializeTargetMessage(targetMsg, settings, globalSettings, session.type)
 
@@ -699,8 +706,10 @@ export async function orchestrateGeneration(
     // caller's chained controller); finalize as canceled instead of streaming.
     targetMsg = { ...targetMsg, generating: false, cancel: undefined, status: [], finishReason: 'canceled' }
     await persistStreamingMessage(sessionId, targetMsg, { refreshCounting: true })
+    notifyGenerationHaptic('warning')
     return
   }
+  notifyGenerationHaptic('light')
   // Wire the stop button to this controller before any pre-stream network work
   // runs (agent-mode suggestion classifier, MCP/tool harness setup). Those steps
   // issue real requests that can hang; without a cancel handler in the message
@@ -726,6 +735,7 @@ export async function orchestrateGeneration(
     if (controller.signal.aborted) {
       targetMsg = { ...targetMsg, generating: false, cancel: undefined, status: [], finishReason: 'canceled' }
       await persistStreamingMessage(sessionId, targetMsg, { refreshCounting: true })
+      notifyGenerationHaptic('warning')
       return
     }
   }
@@ -738,6 +748,7 @@ export async function orchestrateGeneration(
     const stoppedAt = getAbortStoppedAt(controller.signal)
     targetMsg = finishAbortedGeneration(targetMsg, [...infoParts, ...processorState.contentParts], stoppedAt)
     await persistStreamingMessage(sessionId, targetMsg, { refreshCounting: true })
+    notifyGenerationHaptic('warning')
     return true
   }
   const unregisterMobileGenerationLifecycle = registerMobileGenerationLifecycle(
@@ -957,6 +968,7 @@ export async function orchestrateGeneration(
         const textLength = getMessageText(nextMsg, true, true).length
         if (!firstTokenLatency && textLength > 0) {
           firstTokenLatency = Date.now() - startTime
+          notifyGenerationHaptic('light')
         }
 
         targetMsg = {
@@ -1069,6 +1081,7 @@ export async function orchestrateGeneration(
     }
 
     await persistStreamingMessage(sessionId, targetMsg, { refreshCounting: true })
+    notifyGenerationHaptic('success')
     if (options?.operationType === 'send_message') {
       markFirstSuccessfulChatCompleted()
     }
@@ -1100,6 +1113,7 @@ export async function orchestrateGeneration(
       operationType: options?.operationType,
     })
     await persistStreamingMessage(sessionId, targetMsg, { refreshCounting: true })
+    notifyGenerationHaptic('error')
   } finally {
     unregisterMobileGenerationLifecycle()
   }

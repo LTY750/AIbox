@@ -375,8 +375,105 @@ div[data-vaul-drawer] {
   }
 }
 
+/* ChatGPT-style mobile settings: quiet page, grouped surfaces, compact rows. */
+.settings-page {
+  min-height: 100%;
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  background: var(--chatbox-background-primary);
+}
+
+.settings-section {
+  gap: 0.5rem;
+}
+
+.settings-section-title {
+  padding: 0.25rem 1rem 0.125rem;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.settings-section-list {
+  overflow: hidden;
+  border: 0;
+  border-radius: 0.875rem;
+  background: color-mix(in srgb, var(--chatbox-background-secondary) 78%, var(--chatbox-background-primary));
+}
+
+.settings-row {
+  min-height: 3.75rem;
+  padding: 0.75rem 1rem;
+  transition: background-color 120ms ease;
+}
+
+.settings-row:active {
+  background: color-mix(in srgb, var(--chatbox-background-tertiary) 45%, transparent);
+}
+
+.settings-row:last-child {
+  border-bottom: 0;
+}
+
+.settings-row-icon {
+  color: var(--chatbox-tint-black);
+  opacity: 1;
+}
+
+:root[data-mantine-color-scheme="dark"] .settings-row-icon {
+  color: var(--chatbox-tint-white);
+}
+
+.settings-row-chevron {
+  color: var(--chatbox-tint-black);
+}
+
+:root[data-mantine-color-scheme="dark"] .settings-row-chevron {
+  color: var(--chatbox-tint-white);
+}
+
+.settings-section--compact .settings-section-list {
+  background: transparent;
+}
+
+.settings-section--compact .settings-row {
+  min-height: 3.5rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--chatbox-background-secondary) 78%, var(--chatbox-background-primary));
+}
+
+@media (max-width: 599.95px) {
+  .settings-page {
+    padding-inline: 0;
+  }
+
+  .settings-section-title {
+    padding-inline: 1rem;
+  }
+
+  .settings-row {
+    padding-inline: 1rem;
+  }
+}
+
 .settings-route-content {
   animation: chatbox-settings-route-enter var(--chatbox-motion-duration-standard) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* The provider shell owns the list and bottom Add action. Keep that shell
+   geometrically stable on mobile while still giving route changes visible feedback.
+   The nested provider detail surface retains the directional enter animation. */
+@keyframes chatbox-settings-route-fade-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 599.95px) {
+  .settings-route-content--stable-mobile {
+    animation: chatbox-settings-route-fade-enter var(--chatbox-motion-duration-standard) ease-out both;
+  }
 }
 
 .settings-nav-content {
@@ -486,4 +583,220 @@ div[data-vaul-drawer] {
   mask-composite: exclude;
   animation: chatbox-approval-ring-spin 2.5s linear infinite;
   pointer-events: none;
+}
+
+/* Compact mobile setting rows. Controls stay in normal flow so touch and scroll remain reliable. */
+.settings-mobile-summary {
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.settings-mobile-control {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+.settings-mobile-select-trigger {
+  position: absolute;
+  inset: 50% 0 auto auto;
+  width: 2.5rem;
+  height: 2.5rem;
+  transform: translateY(-50%);
+  opacity: 0;
+  z-index: 2;
+}
+
+.settings-mobile-select-trigger input,
+.settings-mobile-select-trigger button {
+  cursor: pointer;
+}
+
+.settings-mobile-proxy-input {
+  position: relative;
+  z-index: 2;
+  max-width: 45%;
+  border: 0;
+  background: transparent;
+  text-align: right;
+}
+
+.settings-mobile-proxy-input input {
+  padding-inline: 0;
+  text-align: right;
+}
+
+.settings-mobile-slider {
+  min-width: 7rem;
+  max-width: 10rem;
+}
+
+.settings-inline-detail {
+  padding: 0.75rem 1rem 1rem 3.25rem;
+  background: color-mix(in srgb, var(--chatbox-background-primary) 55%, transparent);
+}
+
+@media (max-width: 599.95px) {
+  .settings-row-icon {
+    width: 1rem;
+    opacity: 1;
+  }
+
+  .settings-row > .mantine-Flex-root {
+    min-height: 2.75rem;
+  }
+}
+
+.settings-section--data .settings-section-list {
+  display: grid;
+  gap: 0.5rem;
+  overflow: visible;
+  background: transparent;
+}
+
+.settings-section--data .settings-row--data {
+  border: 1px solid color-mix(in srgb, var(--chatbox-border-primary) 72%, transparent);
+  border-radius: 0.875rem;
+  background: color-mix(in srgb, var(--chatbox-background-secondary) 78%, var(--chatbox-background-primary));
+}
+
+.settings-row--data {
+  padding-block: 0.875rem;
+}
+
+.settings-data-row {
+  align-items: flex-start;
+}
+
+.settings-row--data > .mantine-Flex-root > .mantine-Box-root:last-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.settings-row--data-compact {
+  padding-block: 0.875rem;
+}
+
+.settings-data-panel {
+  min-width: 0;
+  padding-block: 0;
+}
+
+.settings-data-panel .mantine-Title-root {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.settings-data-panel .mantine-Text-root {
+  line-height: 1.35;
+}
+
+.settings-data-panel > .mantine-Stack-root {
+  gap: 0.75rem;
+}
+
+.settings-data-panel .mantine-Button-root {
+  align-self: flex-start;
+  min-width: 10rem;
+  min-height: 2.5rem;
+  border-radius: 999px;
+  padding-inline: 1.25rem;
+}
+
+.settings-data-panel .mantine-Checkbox-root {
+  margin: 0;
+}
+
+.settings-data-panel .mantine-Divider-root {
+  margin-block: 0.25rem;
+}
+
+.settings-section-list {
+  touch-action: pan-y;
+}
+
+.settings-page {
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.settings-data-entry {
+  display: flex;
+  align-items: center;
+  min-height: 3.5rem;
+  padding: 0.75rem 1rem;
+  color: inherit;
+  background: color-mix(in srgb, var(--chatbox-background-secondary) 78%, var(--chatbox-background-primary));
+  border-radius: 0.875rem;
+  transition: background-color 150ms ease;
+}
+
+.settings-data-entry:active {
+  background: color-mix(in srgb, var(--chatbox-background-tertiary) 45%, transparent);
+}
+
+.settings-data-entry__summary {
+  margin-top: 0.125rem;
+}
+
+.settings-data-page {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.settings-subsection {
+  padding: 1rem;
+  background: color-mix(in srgb, var(--chatbox-background-secondary) 78%, var(--chatbox-background-primary));
+  border: 1px solid color-mix(in srgb, var(--chatbox-border-primary) 72%, transparent);
+  border-radius: 0.875rem;
+}
+
+@media (max-width: 599.95px) {
+  .settings-data-page {
+    padding: 1rem;
+  }
+}
+
+.settings-font-size-header {
+  min-height: 2.75rem;
+  padding-inline: 0.25rem;
+}
+
+.settings-font-size-page {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 0.5rem 1rem 1rem;
+}
+
+.settings-font-size-preview {
+  padding: 1rem 0.25rem;
+}
+
+.settings-font-size-preview__title {
+  font-size: 1.35rem;
+  line-height: 1.45;
+}
+
+.settings-font-size-preview__body {
+  font-size: 1rem;
+  line-height: 1.8;
+}
+
+.settings-font-size-control {
+  padding: 1rem;
+  border-top: 1px solid var(--chatbox-border-primary);
+  border-bottom: 1px solid var(--chatbox-border-primary);
+}
+
+.settings-font-size-control .mantine-Slider-root {
+  padding-inline: 0.25rem;
 }

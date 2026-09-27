@@ -36,7 +36,7 @@ function RouteComponent() {
                   AIbox Mobile {/\d/.test(version.version) ? `(v${version.version})` : ''}
                 </Title>
 
-                <UpdateSection language={language} needCheckUpdate={version.needCheckUpdate} />
+                <UpdateSection />
               </Flex>
               <Text>{t('about-slogan')}</Text>
               <Text c="chatbox-tertiary">{t('about-introduction')}</Text>
@@ -83,51 +83,9 @@ function RouteComponent() {
   )
 }
 
-/**
- * Update section in the About page hero.
- * Desktop: check button, progress bar, error/retry, restart & install.
- * Mobile: "New version available" hint linking to app store.
- */
-function UpdateSection({ language, needCheckUpdate }: { language: string; needCheckUpdate: boolean }) {
-  const isDesktop = platform.type === 'desktop'
-
-  if (isDesktop) {
-    return <DesktopUpdateSection />
-  }
-
-  // Mobile and Web both use external link
-  return <MobileUpdateHint language={language} needCheckUpdate={needCheckUpdate} />
-}
-
-function MobileUpdateHint({ language, needCheckUpdate }: { language: string; needCheckUpdate: boolean }) {
-  const { t } = useTranslation()
-
-  if (needCheckUpdate) {
-    return (
-      <Button
-        size="xs"
-        variant="light"
-        color="chatbox-brand"
-        radius="lg"
-        className="flex-shrink-0"
-        onClick={() => platform.openLink(buildChatboxUrl(`/redirect_app/check_update/${language}`))}
-      >
-        {t('New version available')}
-      </Button>
-    )
-  }
-
-  return (
-    <Button
-      size="xs"
-      variant="default"
-      radius="lg"
-      className="flex-shrink-0"
-      onClick={() => platform.openLink(buildChatboxUrl(`/redirect_app/check_update/${language}`))}
-    >
-      {t('Check Update')}
-    </Button>
-  )
+/** Desktop-only update controls. Mobile does not expose the legacy Chatbox update entry. */
+function UpdateSection() {
+  return platform.type === 'desktop' ? <DesktopUpdateSection /> : null
 }
 
 function DesktopUpdateSection() {

@@ -51,6 +51,14 @@ export default function useVersion() {
       const settings = await platform.getSettings()
       const version = await platform.getVersion()
       _setVersion(version)
+
+      // Android builds are distributed independently from the legacy Chatbox
+      // updater. Do not contact the updater endpoint or surface its badge.
+      if (platform.type === 'mobile') {
+        setNeedCheckUpdate(false)
+        return
+      }
+
       try {
         const os = await platform.getPlatform()
         const needUpdate = await remote.checkNeedUpdate(version, os, config, settings)

@@ -9,7 +9,6 @@ import {
   FileButton,
   Flex,
   Radio,
-  SimpleGrid,
   Stack,
   Switch,
   Text,
@@ -22,8 +21,6 @@ import {
   INTERFACE_COLOR_PRESETS,
   INTERFACE_FONT_FAMILY_OPTIONS,
   type InterfaceColorPreset,
-  type InterfaceThemeColors,
-  isInterfaceBrandColorAllowed,
   resolveInterfaceBrandColor,
   resolveInterfaceBrandColors,
   withColorOpacity,
@@ -31,13 +28,23 @@ import {
 import { type Language, Theme } from '@shared/types'
 import { formatFileSize } from '@shared/utils'
 import { getBackupFilename } from '@shared/utils/backup'
-import { IconCheck, IconDeviceFloppy, IconInfoCircle, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
-import { createFileRoute } from '@tanstack/react-router'
+import {
+  IconAdjustmentsHorizontal,
+  IconCheck,
+  IconChevronRight,
+  IconDeviceFloppy,
+  IconDeviceMobileVibration,
+  IconHome,
+  IconInfoCircle,
+  IconPalette,
+  IconPencil,
+  IconWorld,
+} from '@tabler/icons-react'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import dayjs from 'dayjs'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AdaptiveSelect } from '@/components/AdaptiveSelect'
-import { InterfaceColorInput } from '@/components/common/InterfaceColorInput'
 import LazySlider from '@/components/common/LazySlider'
 import { languageNameMap, languages } from '@/i18n/locales'
 import {
@@ -75,94 +82,13 @@ export function RouteComponent() {
     ...storedInterfaceColors,
     brand: resolveInterfaceBrandColor(storedInterfaceColors.brand, realTheme),
   }
-  const [isCreatingInterfaceColorPreset, setIsCreatingInterfaceColorPreset] = useState(false)
   const [isEditingInterfaceColorPresets, setIsEditingInterfaceColorPresets] = useState(false)
-  const [editingPresetId, setEditingPresetId] = useState<string | null>(null)
-  const [presetLabel, setPresetLabel] = useState('')
-
-  const updateCurrentInterfaceColors = (updater: (colors: InterfaceThemeColors) => InterfaceThemeColors) => {
-    setSettings((draft) => {
-      draft.interfaceColors ??= getDefaultInterfaceColors()
-      draft.interfaceColors[realTheme] = updater(draft.interfaceColors[realTheme])
-    })
-  }
-
-  const setInterfaceColor = (key: keyof InterfaceThemeColors, value: string) => {
-    updateCurrentInterfaceColors((colors) => ({ ...colors, [key]: value }))
-  }
-
-  const resetInterfaceColors = () => {
-    updateCurrentInterfaceColors(() => getDefaultInterfaceColors()[realTheme])
-  }
 
   const applyInterfacePreset = (preset: InterfaceColorPreset) => {
-    setSettings((draft) => {
-      draft.interfaceColors = resolveInterfaceBrandColors(preset.colors)
-      draft.interfaceFontFamily = preset.fontFamily ?? DEFAULT_INTERFACE_FONT_FAMILY
+    setSettings({
+      interfaceColors: resolveInterfaceBrandColors(preset.colors),
+      interfaceFontFamily: preset.fontFamily ?? DEFAULT_INTERFACE_FONT_FAMILY,
     })
-  }
-
-  const saveInterfaceColorPreset = () => {
-    const label = presetLabel.trim()
-    if (!label) return
-
-    setSettings((draft) => {
-      const currentColors = resolveInterfaceBrandColors(draft.interfaceColors ?? getDefaultInterfaceColors())
-      draft.interfaceColorPresets ??= []
-      draft.interfaceColorPresets.push({
-        id: crypto.randomUUID(),
-        label,
-        fontFamily: interfaceFontFamily,
-        colors: {
-          light: { ...currentColors.light },
-          dark: { ...currentColors.dark },
-        },
-      })
-    })
-    setIsCreatingInterfaceColorPreset(false)
-    setPresetLabel('')
-  }
-
-  const deleteInterfaceColorPreset = (presetId: string) => {
-    setSettings((draft) => {
-      draft.interfaceColorPresets = (draft.interfaceColorPresets ?? []).filter((preset) => preset.id !== presetId)
-    })
-    if (editingPresetId === presetId) cancelEditingInterfaceColorPreset()
-  }
-
-  const startEditingInterfaceColorPreset = (preset: InterfaceColorPreset) => {
-    applyInterfacePreset(preset)
-    setIsCreatingInterfaceColorPreset(false)
-    setEditingPresetId(preset.id)
-    setPresetLabel(preset.label)
-  }
-
-  const cancelEditingInterfaceColorPreset = () => {
-    setEditingPresetId(null)
-    setPresetLabel('')
-  }
-
-  const saveEditedInterfaceColorPreset = () => {
-    const label = presetLabel.trim()
-    if (!editingPresetId || !label) return
-
-    setSettings((draft) => {
-      const colors = resolveInterfaceBrandColors(draft.interfaceColors ?? getDefaultInterfaceColors())
-      draft.interfaceColorPresets = (draft.interfaceColorPresets ?? []).map((preset) =>
-        preset.id === editingPresetId
-          ? {
-              ...preset,
-              label,
-              fontFamily: interfaceFontFamily,
-              colors: {
-                light: { ...colors.light },
-                dark: { ...colors.dark },
-              },
-            }
-          : preset
-      )
-    })
-    cancelEditingInterfaceColorPreset()
   }
 
   const colorPresets = [
@@ -178,360 +104,270 @@ export function RouteComponent() {
     })),
   ] satisfies Array<InterfaceColorPreset & { isCustom: boolean }>
 
+  const themeLabel =
+    settings.theme === Theme.Light
+      ? t('Light Mode')
+      : settings.theme === Theme.Dark
+        ? t('Dark Mode')
+        : t('Follow System')
+  const fontFamilyLabel = t(
+    INTERFACE_FONT_FAMILY_OPTIONS.find((option) => option.value === interfaceFontFamily)?.label ?? ''
+  )
+  const activePreset = colorPresets.find(
+    (preset) =>
+      preset.colors[realTheme].brand === currentInterfaceColors.brand && preset.fontFamily === interfaceFontFamily
+  )
+  const colorPresetLabel = activePreset
+    ? activePreset.isCustom
+      ? activePreset.label
+      : t(activePreset.label)
+    : t('Custom')
+
   return (
-    <Stack p="md" gap="xl">
-      <Title order={5}>{t('General Settings')}</Title>
-
-      {/* Display Settings */}
-      <Stack gap="lg" maw={720}>
-        <Title order={5}>{t('Display Settings')}</Title>
-
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+    <Stack p={{ base: 0, sm: 'md' }} gap="lg" className="settings-page mx-auto w-full max-w-[760px]">
+      <MobileSettingGroup title={t('Display Settings')} className="settings-section--primary">
+        <MobileSelectRow
+          icon={<IconWorld size={16} />}
+          label={t('Language')}
+          value={languageNameMap[settings.language]}
+        >
           <AdaptiveSelect
-            comboboxProps={{ withinPortal: true }}
+            aria-label={String(t('Language'))}
+            className="settings-mobile-select-trigger"
             value={settings.language}
-            data={languages.map((language) => ({
-              value: language,
-              label: languageNameMap[language],
-              // style: language === 'ar' ? { fontFamily: 'Cairo, Arial, sans-serif' } : {},
-            }))}
-            label={t('Language')}
-            styles={{
-              label: {
-                fontWeight: 400,
-              },
-            }}
-            onChange={(val) => {
-              if (val) {
-                setSettings({
-                  language: val as Language,
-                })
-              }
-            }}
+            data={languages.map((language) => ({ value: language, label: languageNameMap[language] }))}
+            onChange={(val) => val && setSettings({ language: val as Language })}
           />
+        </MobileSelectRow>
+        <MobileSelectRow icon={<IconPalette size={16} />} label={t('Font Family')} value={fontFamilyLabel}>
           <AdaptiveSelect
-            comboboxProps={{ withinPortal: true, withArrow: true }}
-            label={t('Font Family')}
-            styles={{
-              label: {
-                fontWeight: 400,
-              },
-            }}
-            data={INTERFACE_FONT_FAMILY_OPTIONS.map((option) => ({
-              value: option.value,
-              label: t(option.label),
-            }))}
+            aria-label={String(t('Font Family'))}
+            className="settings-mobile-select-trigger"
+            data={INTERFACE_FONT_FAMILY_OPTIONS.map((option) => ({ value: option.value, label: t(option.label) }))}
             value={interfaceFontFamily}
-            onChange={(val) => {
-              if (val) {
-                setSettings({ interfaceFontFamily: val as typeof interfaceFontFamily })
-              }
-            }}
+            onChange={(val) => val && setSettings({ interfaceFontFamily: val as typeof interfaceFontFamily })}
           />
+        </MobileSelectRow>
+        <MobileSelectRow icon={<IconAdjustmentsHorizontal size={16} />} label={t('Theme')} value={themeLabel}>
           <AdaptiveSelect
-            comboboxProps={{ withinPortal: true, withArrow: true }}
-            label={t('Theme')}
-            styles={{
-              label: {
-                fontWeight: 400,
-              },
-            }}
+            aria-label={String(t('Theme'))}
+            className="settings-mobile-select-trigger"
             data={[
               { value: `${Theme.System}`, label: t('Follow System') },
               { value: `${Theme.Light}`, label: t('Light Mode') },
               { value: `${Theme.Dark}`, label: t('Dark Mode') },
             ]}
             value={`${settings.theme}`}
-            onChange={(val) => {
-              if (val) {
-                setSettings({
-                  theme: parseInt(val),
-                })
-              }
-            }}
+            onChange={(val) => val && setSettings({ theme: parseInt(val) })}
           />
-        </SimpleGrid>
-
-        <Stack gap="md">
-          <Stack gap="xxs">
-            <Flex align="center" gap={2}>
-              <Text size="sm">{t('Color Presets')}</Text>
-              <ActionIcon
-                variant={isEditingInterfaceColorPresets ? 'light' : 'subtle'}
-                size="sm"
-                aria-label={isEditingInterfaceColorPresets ? t('Save') : t('Edit')}
-                disabled={
-                  isEditingInterfaceColorPresets &&
-                  Boolean(editingPresetId || isCreatingInterfaceColorPreset) &&
-                  !presetLabel.trim()
-                }
-                onClick={() => {
-                  if (isEditingInterfaceColorPresets) {
-                    if (editingPresetId) {
-                      saveEditedInterfaceColorPreset()
-                    } else if (isCreatingInterfaceColorPreset) {
-                      saveInterfaceColorPreset()
-                    } else {
-                      cancelEditingInterfaceColorPreset()
-                    }
-                  } else {
-                    setIsCreatingInterfaceColorPreset(false)
-                  }
-                  setIsEditingInterfaceColorPresets((value) => !value)
-                }}
-              >
-                {isEditingInterfaceColorPresets ? <IconCheck size={14} /> : <IconPencil size={14} />}
-              </ActionIcon>
-            </Flex>
-            <Flex
-              columnGap="xs"
-              rowGap={isEditingInterfaceColorPresets ? 12 : 'xs'}
-              py={isEditingInterfaceColorPresets ? 5 : 0}
-              wrap="wrap"
-            >
+        </MobileSelectRow>
+        <MobileSelectRow icon={<IconPalette size={16} />} label={t('Color Presets')} value={colorPresetLabel}>
+          <ActionIcon
+            variant={isEditingInterfaceColorPresets ? 'light' : 'subtle'}
+            size="sm"
+            aria-label={String(t('Color Presets'))}
+            onClick={() => setIsEditingInterfaceColorPresets((value) => !value)}
+          >
+            {isEditingInterfaceColorPresets ? <IconCheck size={14} /> : <IconPencil size={14} />}
+          </ActionIcon>
+        </MobileSelectRow>
+        {isEditingInterfaceColorPresets && (
+          <Box className="settings-inline-detail">
+            <Flex gap="xs" wrap="wrap">
               {colorPresets.map((preset) => (
-                <Box key={preset.id} pos="relative">
-                  <Badge
-                    component="button"
-                    type="button"
-                    className={presetBadgeButtonClassName}
-                    variant="filled"
-                    style={{
-                      backgroundColor: withColorOpacity(preset.colors[realTheme].brand, 0.6),
-                      cursor: 'pointer',
-                      height: 30,
-                      maxWidth: 160,
-                    }}
-                    onClick={() => {
-                      if (isEditingInterfaceColorPresets && preset.isCustom) {
-                        startEditingInterfaceColorPreset(preset)
-                      } else {
-                        applyInterfacePreset(preset)
-                      }
-                    }}
-                  >
-                    {preset.isCustom ? preset.label : t(preset.label)}
-                  </Badge>
-                  {isEditingInterfaceColorPresets && preset.isCustom && (
-                    <ActionIcon
-                      pos="absolute"
-                      top={-5}
-                      right={-5}
-                      variant="filled"
-                      color="red"
-                      size={16}
-                      radius="xl"
-                      aria-label={t('Delete')}
-                      onClick={() => deleteInterfaceColorPreset(preset.id)}
-                    >
-                      <IconTrash size={10} />
-                    </ActionIcon>
-                  )}
-                </Box>
-              ))}
-              {!isCreatingInterfaceColorPreset && (
                 <Badge
+                  key={preset.id}
                   component="button"
                   type="button"
                   className={presetBadgeButtonClassName}
-                  circle
-                  variant="outline"
-                  aria-label={t('New Preset')}
-                  style={{ cursor: 'pointer', height: 30, width: 30 }}
-                  styles={{ label: { display: 'flex', width: '100%', justifyContent: 'center' } }}
-                  onClick={() => {
-                    cancelEditingInterfaceColorPreset()
-                    setPresetLabel(`Custom Preset ${(settings.interfaceColorPresets?.length ?? 0) + 1}`)
-                    setIsCreatingInterfaceColorPreset(true)
-                  }}
+                  variant="filled"
+                  style={{ backgroundColor: withColorOpacity(preset.colors[realTheme].brand, 0.6), cursor: 'pointer' }}
+                  onClick={() => applyInterfacePreset(preset)}
                 >
-                  <IconPlus size={14} />
+                  {preset.isCustom ? preset.label : t(preset.label)}
                 </Badge>
-              )}
+              ))}
             </Flex>
-          </Stack>
-          {(isCreatingInterfaceColorPreset || editingPresetId) && (
-            <Stack gap="md">
-              <TextInput
-                autoFocus
-                label={t('Name')}
-                value={presetLabel}
-                onChange={(event) => setPresetLabel(event.currentTarget.value)}
-              />
-              <SimpleGrid cols={2} spacing="md">
-                <Stack gap="md">
-                  <InterfaceColorInput
-                    label={t('Primary Background')}
-                    value={currentInterfaceColors.backgroundPrimary}
-                    onCommit={(value) => setInterfaceColor('backgroundPrimary', value)}
-                  />
-                  <InterfaceColorInput
-                    label={t('Secondary Background')}
-                    value={currentInterfaceColors.backgroundSecondary}
-                    onCommit={(value) => setInterfaceColor('backgroundSecondary', value)}
-                  />
-                </Stack>
-                <Stack gap="md">
-                  <InterfaceColorInput
-                    label={t('Tertiary Background')}
-                    value={currentInterfaceColors.backgroundTertiary}
-                    onCommit={(value) => setInterfaceColor('backgroundTertiary', value)}
-                  />
-                  <InterfaceColorInput
-                    label={t('Brand Color')}
-                    value={currentInterfaceColors.brand}
-                    isColorAllowed={isInterfaceBrandColorAllowed}
-                    onCommit={(value) => setInterfaceColor('brand', value)}
-                  />
-                </Stack>
-              </SimpleGrid>
-              <SimpleGrid cols={2} spacing="md">
-                <Button variant="outline" onClick={resetInterfaceColors}>
-                  {t('Reset Colors')}
-                </Button>
-                <Button
-                  leftSection={<IconDeviceFloppy size={14} />}
-                  disabled={!presetLabel.trim()}
-                  onClick={editingPresetId ? saveEditedInterfaceColorPreset : saveInterfaceColorPreset}
-                >
-                  {editingPresetId ? t('Save') : t('Save Preset')}
-                </Button>
-              </SimpleGrid>
-            </Stack>
-          )}
-        </Stack>
-
-        {/* Font Size */}
-        <Stack>
-          <Text>{t('Font Size')}</Text>
-          <LazySlider
-            step={1}
-            min={10}
-            max={22}
-            maw={720}
-            marks={[
-              {
-                value: 14,
-              },
-            ]}
-            value={settings.fontSize}
-            onChange={(val) =>
-              setSettings({
-                fontSize: val,
-              })
-            }
-          />
-        </Stack>
-
-        {/* Startup Page */}
-        <Stack>
-          <Text>{t('Startup Page')}</Text>
+          </Box>
+        )}
+      </MobileSettingGroup>
+      <MobileSettingGroup title={t('Interface')}>
+        <Link to="/settings/font-size" className="settings-data-entry no-underline">
+          <Flex align="center" gap="sm" className="w-full">
+            <Box className="settings-row-icon flex shrink-0 items-center">
+              <IconAdjustmentsHorizontal size={16} />
+            </Box>
+            <Box className="min-w-0 flex-1">
+              <Text size="sm" fw={500}>
+                {t('Font Size')}
+              </Text>
+              <Text size="xs" c="chatbox-tertiary" className="settings-data-entry__summary">
+                {settings.fontSize}px
+              </Text>
+            </Box>
+            <IconChevronRight size={18} className="settings-row-chevron shrink-0" />
+          </Flex>
+        </Link>
+        <MobileSettingField icon={<IconHome size={16} />} label={t('Startup Page')} inline>
           <Radio.Group
+            aria-label={String(t('Startup Page'))}
             value={settings.startupPage}
-            defaultValue="home"
-            onChange={(val) => {
-              if (val === 'home' || val === 'session') setSettings({ startupPage: val })
-            }}
+            onChange={(val) => (val === 'home' || val === 'session') && setSettings({ startupPage: val })}
           >
-            <Flex gap="md">
+            <Flex gap="sm" wrap="wrap" className="settings-mobile-radio-group">
               <Radio label={t('Home Page')} value="home" />
               <Radio label={t('Last Session')} value="session" />
             </Flex>
           </Radio.Group>
-        </Stack>
-      </Stack>
-
-      <Divider />
-
-      {/* Network Proxy */}
-      <Stack gap="xs">
-        <Title order={5}>{t('Network Proxy')}</Title>
-        <TextInput
-          maw={320}
-          placeholder="socks5://127.0.0.1:6153"
-          value={settings.proxy}
-          onChange={(e) =>
-            setSettings({
-              proxy: e.currentTarget.value,
-            })
-          }
-        />
-      </Stack>
-
-      <Divider />
-
-      {/* Data Recovery */}
-      <DataRecoverySection />
-
-      <Divider />
-
-      {/* import and export data */}
-      <ImportExportDataSection />
-
-      <Divider />
-
-      {/* Export Logs */}
-      <ExportLogsSection />
-
-      <Divider />
-
-      {/* Local diagnostics and optional product analytics */}
-      <Stack gap="md">
-        <Stack gap="xxs">
-          <Title order={5}>{t('Diagnostic Logs')}</Title>
-          <Text c="chatbox-tertiary">
-            {t('Error diagnostics are stored only on this device and are never uploaded to Chatbox.')}
+        </MobileSettingField>
+        {platform.type === 'mobile' && (
+          <MobileSettingField
+            icon={<IconDeviceMobileVibration size={16} />}
+            label={t('Haptic feedback during generation')}
+            inline
+          >
+            <Switch
+              aria-label={String(t('Haptic feedback during generation'))}
+              checked={settings.enableHapticFeedback !== false}
+              onChange={(e) => setSettings({ enableHapticFeedback: e.currentTarget.checked })}
+            />
+          </MobileSettingField>
+        )}
+      </MobileSettingGroup>
+      <MobileSettingGroup title={t('Network Proxy')} className="settings-section--compact">
+        <MobileSettingField icon={<IconWorld size={16} />} label={t('Network Proxy')} inline>
+          <Text size="sm" c="chatbox-tertiary" className="settings-mobile-summary">
+            {settings.proxy || t('Not configured')}
           </Text>
-        </Stack>
-
-        <Checkbox
-          label={t('Enable optional anonymous usage analytics')}
-          checked={settings.allowReportingAndTracking}
-          onChange={(e) => setSettings({ allowReportingAndTracking: e.target.checked })}
-        />
-      </Stack>
-
-      {/* others */}
+          <TextInput
+            aria-label={String(t('Network Proxy'))}
+            className="settings-mobile-proxy-input"
+            placeholder="socks5://127.0.0.1:6153"
+            value={settings.proxy}
+            onChange={(e) => setSettings({ proxy: e.currentTarget.value })}
+          />
+        </MobileSettingField>
+      </MobileSettingGroup>
+      <MobileSettingGroup title={t('Data')} className="settings-section--compact">
+        <Link to="/settings/data" className="settings-data-entry no-underline">
+          <Flex align="center" gap="sm" className="w-full">
+            <Box className="settings-row-icon flex shrink-0 items-center">
+              <IconDeviceFloppy size={16} />
+            </Box>
+            <Box className="min-w-0 flex-1">
+              <Text size="sm" fw={500}>
+                {t('Data')}
+              </Text>
+              <Text size="xs" c="chatbox-tertiary" className="settings-data-entry__summary">
+                {t('Manage recovery, backup, and diagnostic data')}
+              </Text>
+            </Box>
+            <IconChevronRight size={18} className="settings-row-chevron shrink-0" />
+          </Flex>
+        </Link>
+      </MobileSettingGroup>
       {platform.type === 'desktop' && (
-        <>
-          <Divider />
-
-          <Stack gap="xl">
+        <MobileSettingGroup title={t('System')} className="settings-section--compact">
+          <Stack gap="sm">
             <Switch
               label={t('Launch at system startup')}
               checked={settings.autoLaunch}
-              onChange={(e) =>
-                setSettings({
-                  autoLaunch: e.currentTarget.checked,
-                })
-              }
+              onChange={(e) => setSettings({ autoLaunch: e.currentTarget.checked })}
             />
             <Switch
               label={t('Automatic updates')}
               checked={settings.autoUpdate}
-              onChange={(e) =>
-                setSettings({
-                  autoUpdate: e.currentTarget.checked,
-                })
-              }
+              onChange={(e) => setSettings({ autoUpdate: e.currentTarget.checked })}
             />
             <Switch
               label={t('Beta updates')}
               checked={settings.betaUpdate}
-              onChange={(e) =>
-                setSettings({
-                  betaUpdate: e.currentTarget.checked,
-                })
-              }
+              onChange={(e) => setSettings({ betaUpdate: e.currentTarget.checked })}
             />
           </Stack>
-        </>
+        </MobileSettingGroup>
       )}
     </Stack>
   )
 }
+const MobileSelectRow = ({
+  icon,
+  label,
+  value,
+  children,
+}: {
+  icon: ReactNode
+  label: string
+  value: string
+  children: ReactNode
+}) => (
+  <MobileSettingField icon={icon} label={label} inline>
+    <Text size="sm" c="chatbox-tertiary" className="settings-mobile-summary">
+      {value}
+    </Text>
+    <Box className="settings-mobile-control">{children}</Box>
+  </MobileSettingField>
+)
+const MobileSettingGroup = ({
+  title,
+  children,
+  className,
+}: {
+  title: string
+  children: ReactNode
+  className?: string
+}) => (
+  <Box component="section" className={`settings-section w-full ${className ?? ''}`}>
+    <Stack gap="xs">
+      <Text size="sm" fw={600} c="chatbox-tertiary" className="settings-section-title">
+        {title}
+      </Text>
+      <Stack gap={0} className="settings-section-list">
+        {children}
+      </Stack>
+    </Stack>
+  </Box>
+)
 
-const DataRecoverySection = () => {
+const MobileSettingField = ({
+  icon,
+  label,
+  children,
+  inline = false,
+  variant,
+  compactData = false,
+}: {
+  icon: ReactNode
+  label: string
+  children: ReactNode
+  inline?: boolean
+  variant?: 'data'
+  compactData?: boolean
+}) => (
+  <Box
+    className={`settings-row ${variant === 'data' ? 'settings-row--data' : ''} ${compactData ? 'settings-row--data-compact' : ''} border-b border-solid border-chatbox-border-primary last:border-b-0`}
+  >
+    <Flex
+      align={inline ? 'center' : 'flex-start'}
+      justify="space-between"
+      gap="md"
+      wrap={inline ? 'wrap' : undefined}
+      className={variant === 'data' ? 'settings-data-row' : undefined}
+    >
+      <Flex align="center" gap="sm" className="min-w-0">
+        <Box className="settings-row-icon flex shrink-0 items-center">
+          {icon}
+        </Box>
+        <Text size="sm" fw={500}>
+          {label}
+        </Text>
+      </Flex>
+      <Box className={inline ? 'flex min-w-0 flex-1 items-center justify-end gap-3' : 'w-full'}>{children}</Box>
+    </Flex>
+  </Box>
+)
+
+export const DataRecoverySection = ({ showTitle = true }: { showTitle?: boolean }) => {
   const { t } = useTranslation()
   const [isRecovering, setIsRecovering] = useState(false)
   const [recoveryResult, setRecoveryResult] = useState<{
@@ -559,12 +395,18 @@ const DataRecoverySection = () => {
 
   return (
     <Stack gap="md">
-      <Stack gap="xxs">
-        <Title order={5}>{t('Data Recovery')}</Title>
+      {showTitle ? (
+        <Stack gap="xxs">
+          <Title order={5}>{t('Data Recovery')}</Title>
+          <Text c="chatbox-tertiary">
+            {t('If conversations are missing from the list, use this feature to scan and recover them from storage')}
+          </Text>
+        </Stack>
+      ) : (
         <Text c="chatbox-tertiary">
           {t('If conversations are missing from the list, use this feature to scan and recover them from storage')}
         </Text>
-      </Stack>
+      )}
       <Button className="self-start" onClick={handleRecover} disabled={isRecovering} loading={isRecovering}>
         {isRecovering ? t('Recovering...') : t('Recover Conversation List')}
       </Button>
@@ -600,7 +442,7 @@ const DataRecoverySection = () => {
   )
 }
 
-const ImportExportDataSection = () => {
+export const ImportExportDataSection = () => {
   const { t } = useTranslation()
 
   const formatBackupWarning = (warning: BackupWarning) => {
@@ -990,14 +832,14 @@ const ImportExportDataSection = () => {
   )
 }
 
-enum ExportDataItem {
+export enum ExportDataItem {
   Setting = 'setting',
   Key = 'key',
   Conversations = 'conversations',
   Copilot = 'copilot',
 }
 
-const ExportLogsSection = () => {
+export const ExportLogsSection = ({ showTitle = true }: { showTitle?: boolean }) => {
   const { t } = useTranslation()
   const [isExporting, setIsExporting] = useState(false)
   const [exportResult, setExportResult] = useState<{
@@ -1038,14 +880,22 @@ const ExportLogsSection = () => {
 
   return (
     <Stack gap="md">
-      <Stack gap="xxs">
-        <Title order={5}>{t('Diagnostic Logs')}</Title>
+      {showTitle ? (
+        <Stack gap="xxs">
+          <Title order={5}>{t('Diagnostic Logs')}</Title>
+          <Text c="chatbox-tertiary">
+            {t(
+              'Export application logs for troubleshooting. These logs may be requested by support to help diagnose issues.'
+            )}
+          </Text>
+        </Stack>
+      ) : (
         <Text c="chatbox-tertiary">
           {t(
             'Export application logs for troubleshooting. These logs may be requested by support to help diagnose issues.'
           )}
         </Text>
-      </Stack>
+      )}
       <Flex gap="md">
         <Button variant="primary" onClick={handleExportLogs} disabled={isExporting} loading={isExporting}>
           {isExporting ? t('Exporting...') : t('Export Logs')}

@@ -18,9 +18,63 @@ import { initLogAtom, migrationProcessAtom } from './stores/atoms/utilAtoms'
 import * as migration from './stores/migration'
 import { getMigrationErrorContext } from './stores/migration-error'
 import queryClient from './stores/queryClient'
-import { CHATBOX_BUILD_TARGET } from './variables'
+import { CHATBOX_BUILD_PLATFORM, CHATBOX_BUILD_TARGET } from './variables'
 
 const log = getLogger('index')
+
+if (CHATBOX_BUILD_TARGET === 'mobile_app') {
+  document.documentElement.dataset.chatboxPlatform = CHATBOX_BUILD_PLATFORM
+}
+
+function installAndroidOverscrollFeedback() {
+  if (CHATBOX_BUILD_TARGET !== 'mobile_app' || CHATBOX_BUILD_PLATFORM !== 'android') {
+    return
+  }
+
+  let active: { element: HTMLElement; startY: number; startScrollTop: number; offset: number } | null = null
+  const getSurface = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return null
+    const surface = target.closest('.mobile-overscroll-surface')
+    return surface instanceof HTMLElement ? surface : null
+  }
+  const reset = () => {
+    if (!active) return
+    active.element.classList.remove('mobile-overscroll-active')
+    active.element.style.transform = ''
+    active = null
+  }
+
+  const onTouchStart = (event: TouchEvent) => {
+    const touch = event.touches[0]
+    const element = getSurface(event.target)
+    if (!touch || !element) return
+    active = { element, startY: touch.clientY, startScrollTop: element.scrollTop, offset: 0 }
+  }
+  const onTouchMove = (event: TouchEvent) => {
+    if (!active) return
+    const touch = event.touches[0]
+    if (!touch) return
+    const { element, startY, startScrollTop } = active
+    const delta = touch.clientY - startY
+    const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
+    const atTop = startScrollTop <= 1 && delta > 0
+    const atBottom = startScrollTop >= maxScrollTop - 1 && delta < 0
+    if (!atTop && !atBottom) return
+    const distance = Math.abs(delta)
+    const resistance = 1 / (1 + distance / 220)
+    const offset = (atTop ? 1 : -1) * Math.min(88, distance * 0.4 * resistance)
+    active.offset = offset
+    element.classList.add('mobile-overscroll-active')
+    element.style.transform = `translate3d(0, ${offset}px, 0)`
+  }
+
+  document.addEventListener('touchstart', onTouchStart, { passive: true })
+  document.addEventListener('touchmove', onTouchMove, { passive: true })
+  document.addEventListener('touchend', reset, { passive: true })
+  document.addEventListener('touchcancel', reset, { passive: true })
+}
+
+installAndroidOverscrollFeedback()
 
 // 按需加载 polyfill
 import './setup/load_polyfill'
@@ -77,7 +131,6 @@ async function initializeApp() {
       tags: migrationErrorContext ? { configVersion: migrationErrorContext.configVersion } : undefined,
     })
   }
-
 }
 
 function scheduleDeferredStartupTasks() {

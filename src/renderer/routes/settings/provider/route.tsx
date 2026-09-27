@@ -142,12 +142,18 @@ export function RouteComponent() {
   }
 
   return (
-    <Flex h="100%" w="100%">
+    <Flex h="100%" w="100%" mih={0}>
       {(!isSmallScreen || routerState.location.pathname === '/settings/provider') && (
         <ProviderList providers={providers} onAddProvider={handleOpenSpotlight} />
       )}
       {!(isSmallScreen && routerState.location.pathname === '/settings/provider') && (
-        <Box key={routerState.location.pathname} flex="1 1 75%" p="md" className="settings-route-content overflow-auto">
+        <Box
+          key={routerState.location.pathname}
+          flex="1 1 75%"
+          mih={0}
+          p="md"
+          className="settings-route-content mobile-overscroll-surface overflow-auto"
+        >
           <Outlet />
         </Box>
       )}

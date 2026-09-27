@@ -23,6 +23,7 @@ type MineruBatchUploadData = {
 
 type MineruExtractResult = {
   data_id?: string
+  file_name?: string
   state?: string
   full_zip_url?: string
   err_msg?: string
@@ -172,6 +173,7 @@ function normalizeExtractResults(extractResult: MineruBatchResultData['extract_r
 async function pollTaskResult(
   batchId: string,
   dataId: string,
+  fileName: string,
   apiToken: string,
   signal: AbortSignal | undefined,
   transport: MineruTransport
@@ -193,7 +195,16 @@ async function pollTaskResult(
       throw new Error(getApiErrorMessage(payload, 'mineru_status_failed'))
     }
 
-    const result = normalizeExtractResults(payload.data?.extract_result).find((entry) => entry.data_id === dataId)
+    const extractResults = normalizeExtractResults(payload.data?.extract_result)
+    // MinerU's batch status response may omit data_id and identify the entry
+    // by file_name instead. This client submits one file per batch, so a
+    // single unlabelled result is also unambiguous.
+    const result = extractResults.find(
+      (entry) =>
+        entry.data_id === dataId ||
+        entry.file_name === fileName ||
+        (extractResults.length === 1 && !entry.data_id && !entry.file_name)
+    )
     if (!result) continue
 
     const state = result.state?.toLowerCase()
@@ -257,7 +268,7 @@ export async function parseFileWithMineru(
   const dataId = createDataId(file)
   const { batchId, uploadUrl } = await submitUploadTask(file, normalizedConfig, dataId, signal, transport)
   await uploadFile(file, uploadUrl, signal, transport)
-  const zipUrl = await pollTaskResult(batchId, dataId, apiToken, signal, transport)
+  const zipUrl = await pollTaskResult(batchId, dataId, file.name, apiToken, signal, transport)
   return downloadMarkdown(zipUrl, signal, transport)
 }
 

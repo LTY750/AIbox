@@ -113,6 +113,12 @@ function RouteComponent() {
     () => Boolean(currentSession && builtInTemplateSessionIds.has(currentSession.id) && welcomeCardMode !== 'none'),
     [currentSession, welcomeCardMode]
   )
+  const shouldHideInitialModelName = Boolean(
+    currentSession &&
+      builtInTemplateSessionIds.has(currentSession.id) &&
+      !currentSession.settings?.provider &&
+      !currentSession.settings?.modelId
+  )
   const currentSessionWithDefaultModel = useMemo(() => {
     if (!currentSession || !builtInTemplateSessionIds.has(currentSession.id)) {
       return currentSession
@@ -281,7 +287,7 @@ function RouteComponent() {
         isSmallScreen
           ? {
               ['--mobile-chat-header-height' as string]:
-                'calc(80px + max(env(safe-area-inset-top, 0px), var(--mobile-safe-area-inset-top, 0px)))',
+                'calc(97px + max(env(safe-area-inset-top, 0px), var(--mobile-safe-area-inset-top, 0px)))',
             }
           : undefined
       }
@@ -328,6 +334,7 @@ function RouteComponent() {
             sessionId={currentSession.id}
             sessionType={currentSession.type}
             model={model}
+            hideModelName={shouldHideInitialModelName}
             onStartNewThread={onStartNewThread}
             onRollbackThread={onRollbackThread}
             onSelectModel={onSelectModel}

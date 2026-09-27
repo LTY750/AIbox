@@ -141,6 +141,7 @@ export type InputBoxProps = {
     provider: string
     modelId: string
   }
+  hideModelName?: boolean
   fullWidth?: boolean
   onSelectModel?(provider: string, model: string): void
   onSubmit?(payload: InputBoxPayload): Promise<void>
@@ -228,6 +229,7 @@ const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
       generating = false,
       generatingCount = 0,
       model,
+      hideModelName = false,
       fullWidth = false,
       onSelectModel,
       onSubmit,
@@ -638,6 +640,9 @@ const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
       })
     }, [preprocessedAttachmentStates, setPreConstructedMessage])
     const modelSelectorDisplayText = useMemo(() => {
+      if (hideModelName) {
+        return ''
+      }
       if (!model) {
         return t('Select Model')
       }
@@ -645,7 +650,7 @@ const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
         (m) => m.modelId === model.modelId
       )
       return `${modelInfo?.nickname || model.modelId}`
-    }, [selectedProviderInfo, model, t])
+    }, [hideModelName, selectedProviderInfo, model, t])
 
     // When agent mode is on, block models that don't support agent tools in the model selector.
     const agentModeDisabledMessage = t('This model does not support Agent Mode')
@@ -1960,14 +1965,16 @@ const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
                     }}
                   >
                     <UnstyledButton
-                      aria-label={`${t('Select Model')}: ${modelSelectorDisplayText}`}
+                      aria-label={
+                        hideModelName ? t('Select Model') : `${t('Select Model')}: ${modelSelectorDisplayText}`
+                      }
                       className={cn(
                         'flex min-w-0 max-w-full items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--chatbox-background-tertiary)] transition-colors',
                         isSmallScreen && 'mobile-touch-target',
                         !model && 'animate-pulse bg-blue-500/20'
                       )}
                     >
-                      {!!model && <ProviderImageIcon size={18} provider={model.provider} />}
+                      {!!model && !hideModelName && <ProviderImageIcon size={18} provider={model.provider} />}
                       <Text
                         size="sm"
                         data-testid={TestId.model.selectorTrigger}

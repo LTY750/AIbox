@@ -75,6 +75,8 @@ export function settings(): Settings {
     showModelName: true,
     showMessageTimestamp: false,
     showFirstTokenLatency: false,
+    enableHapticFeedback: true,
+    memoryEnabled: true,
     showAvatar: true,
     messageLayout: 'bubble',
     userAvatarKey: '',

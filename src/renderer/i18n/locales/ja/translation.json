@@ -1322,5 +1322,18 @@
   "Doc2X (PDF)": "Doc2X (PDF)",
   "Doc2X API Key": "Doc2X API Key",
   "Doc2X parse failed": "Doc2X parse failed",
-  "Doc2X converts PDF files to Markdown. Requires an API key. Other Office formats are not supported.": "Doc2X converts PDF files to Markdown. Requires an API key. Other Office formats are not supported."
+  "Doc2X converts PDF files to Markdown. Requires an API key. Other Office formats are not supported.": "Doc2X converts PDF files to Markdown. Requires an API key. Other Office formats are not supported.",
+  "Haptic feedback during generation": "生成中の触覚フィードバック",
+  "Memory": "Memory",
+  "Memories": "記憶",
+  "Enable Memory": "Enable Memory",
+  "Saved memories are added to future conversations as reference context.": "Saved memories are added to future conversations as reference context.",
+  "Add a memory": "Add a memory",
+  "Save a stable fact or preference for future conversations.": "Save a stable fact or preference for future conversations.",
+  "For example: I prefer concise answers in Chinese.": "For example: I prefer concise answers in Chinese.",
+  "Save memory": "Save memory",
+  "Memory operation failed": "Memory operation failed",
+  "No memories saved yet.": "No memories saved yet.",
+  "Delete memory": "Delete memory",
+  "Clear all memories": "Clear all memories"
 }

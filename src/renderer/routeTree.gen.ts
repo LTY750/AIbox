@@ -23,12 +23,15 @@ import { Route as DevIndexImport } from './routes/dev/index'
 import { Route as CopilotsIndexImport } from './routes/copilots/index'
 import { Route as SettingsWebSearchImport } from './routes/settings/web-search'
 import { Route as SettingsSkillsImport } from './routes/settings/skills'
+import { Route as SettingsMemoryImport } from './routes/settings/memory'
 import { Route as SettingsMcpImport } from './routes/settings/mcp'
 import { Route as SettingsKnowledgeBaseImport } from './routes/settings/knowledge-base'
 import { Route as SettingsHotkeysImport } from './routes/settings/hotkeys'
 import { Route as SettingsGeneralImport } from './routes/settings/general'
+import { Route as SettingsFontSizeImport } from './routes/settings/font-size'
 import { Route as SettingsDocumentParserImport } from './routes/settings/document-parser'
 import { Route as SettingsDefaultModelsImport } from './routes/settings/default-models'
+import { Route as SettingsDataImport } from './routes/settings/data'
 import { Route as SettingsChatImport } from './routes/settings/chat'
 import { Route as SettingsArchiveImport } from './routes/settings/archive'
 import { Route as SessionSessionIdImport } from './routes/session/$sessionId'
@@ -119,6 +122,12 @@ const SettingsSkillsRoute = SettingsSkillsImport.update({
   getParentRoute: () => SettingsRouteRoute,
 } as any)
 
+const SettingsMemoryRoute = SettingsMemoryImport.update({
+  id: '/memory',
+  path: '/memory',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
+
 const SettingsMcpRoute = SettingsMcpImport.update({
   id: '/mcp',
   path: '/mcp',
@@ -143,6 +152,12 @@ const SettingsGeneralRoute = SettingsGeneralImport.update({
   getParentRoute: () => SettingsRouteRoute,
 } as any)
 
+const SettingsFontSizeRoute = SettingsFontSizeImport.update({
+  id: '/font-size',
+  path: '/font-size',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
+
 const SettingsDocumentParserRoute = SettingsDocumentParserImport.update({
   id: '/document-parser',
   path: '/document-parser',
@@ -152,6 +167,12 @@ const SettingsDocumentParserRoute = SettingsDocumentParserImport.update({
 const SettingsDefaultModelsRoute = SettingsDefaultModelsImport.update({
   id: '/default-models',
   path: '/default-models',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
+
+const SettingsDataRoute = SettingsDataImport.update({
+  id: '/data',
+  path: '/data',
   getParentRoute: () => SettingsRouteRoute,
 } as any)
 
@@ -371,6 +392,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsChatImport
       parentRoute: typeof SettingsRouteImport
     }
+    '/settings/data': {
+      id: '/settings/data'
+      path: '/data'
+      fullPath: '/settings/data'
+      preLoaderRoute: typeof SettingsDataImport
+      parentRoute: typeof SettingsRouteImport
+    }
     '/settings/default-models': {
       id: '/settings/default-models'
       path: '/default-models'
@@ -383,6 +411,13 @@ declare module '@tanstack/react-router' {
       path: '/document-parser'
       fullPath: '/settings/document-parser'
       preLoaderRoute: typeof SettingsDocumentParserImport
+      parentRoute: typeof SettingsRouteImport
+    }
+    '/settings/font-size': {
+      id: '/settings/font-size'
+      path: '/font-size'
+      fullPath: '/settings/font-size'
+      preLoaderRoute: typeof SettingsFontSizeImport
       parentRoute: typeof SettingsRouteImport
     }
     '/settings/general': {
@@ -411,6 +446,13 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/settings/mcp'
       preLoaderRoute: typeof SettingsMcpImport
+      parentRoute: typeof SettingsRouteImport
+    }
+    '/settings/memory': {
+      id: '/settings/memory'
+      path: '/memory'
+      fullPath: '/settings/memory'
+      preLoaderRoute: typeof SettingsMemoryImport
       parentRoute: typeof SettingsRouteImport
     }
     '/settings/skills': {
@@ -549,12 +591,15 @@ interface SettingsRouteRouteChildren {
   SettingsProviderRouteRoute: typeof SettingsProviderRouteRouteWithChildren
   SettingsArchiveRoute: typeof SettingsArchiveRoute
   SettingsChatRoute: typeof SettingsChatRoute
+  SettingsDataRoute: typeof SettingsDataRoute
   SettingsDefaultModelsRoute: typeof SettingsDefaultModelsRoute
   SettingsDocumentParserRoute: typeof SettingsDocumentParserRoute
+  SettingsFontSizeRoute: typeof SettingsFontSizeRoute
   SettingsGeneralRoute: typeof SettingsGeneralRoute
   SettingsHotkeysRoute: typeof SettingsHotkeysRoute
   SettingsKnowledgeBaseRoute: typeof SettingsKnowledgeBaseRoute
   SettingsMcpRoute: typeof SettingsMcpRoute
+  SettingsMemoryRoute: typeof SettingsMemoryRoute
   SettingsSkillsRoute: typeof SettingsSkillsRoute
   SettingsWebSearchRoute: typeof SettingsWebSearchRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -564,12 +609,15 @@ const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
   SettingsProviderRouteRoute: SettingsProviderRouteRouteWithChildren,
   SettingsArchiveRoute: SettingsArchiveRoute,
   SettingsChatRoute: SettingsChatRoute,
+  SettingsDataRoute: SettingsDataRoute,
   SettingsDefaultModelsRoute: SettingsDefaultModelsRoute,
   SettingsDocumentParserRoute: SettingsDocumentParserRoute,
+  SettingsFontSizeRoute: SettingsFontSizeRoute,
   SettingsGeneralRoute: SettingsGeneralRoute,
   SettingsHotkeysRoute: SettingsHotkeysRoute,
   SettingsKnowledgeBaseRoute: SettingsKnowledgeBaseRoute,
   SettingsMcpRoute: SettingsMcpRoute,
+  SettingsMemoryRoute: SettingsMemoryRoute,
   SettingsSkillsRoute: SettingsSkillsRoute,
   SettingsWebSearchRoute: SettingsWebSearchRoute,
   SettingsIndexRoute: SettingsIndexRoute,
@@ -597,12 +645,15 @@ export interface FileRoutesByFullPath {
   '/session/$sessionId': typeof SessionSessionIdRoute
   '/settings/archive': typeof SettingsArchiveRoute
   '/settings/chat': typeof SettingsChatRoute
+  '/settings/data': typeof SettingsDataRoute
   '/settings/default-models': typeof SettingsDefaultModelsRoute
   '/settings/document-parser': typeof SettingsDocumentParserRoute
+  '/settings/font-size': typeof SettingsFontSizeRoute
   '/settings/general': typeof SettingsGeneralRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/knowledge-base': typeof SettingsKnowledgeBaseRoute
   '/settings/mcp': typeof SettingsMcpRoute
+  '/settings/memory': typeof SettingsMemoryRoute
   '/settings/skills': typeof SettingsSkillsRoute
   '/settings/web-search': typeof SettingsWebSearchRoute
   '/copilots/': typeof CopilotsIndexRoute
@@ -629,12 +680,15 @@ export interface FileRoutesByTo {
   '/session/$sessionId': typeof SessionSessionIdRoute
   '/settings/archive': typeof SettingsArchiveRoute
   '/settings/chat': typeof SettingsChatRoute
+  '/settings/data': typeof SettingsDataRoute
   '/settings/default-models': typeof SettingsDefaultModelsRoute
   '/settings/document-parser': typeof SettingsDocumentParserRoute
+  '/settings/font-size': typeof SettingsFontSizeRoute
   '/settings/general': typeof SettingsGeneralRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/knowledge-base': typeof SettingsKnowledgeBaseRoute
   '/settings/mcp': typeof SettingsMcpRoute
+  '/settings/memory': typeof SettingsMemoryRoute
   '/settings/skills': typeof SettingsSkillsRoute
   '/settings/web-search': typeof SettingsWebSearchRoute
   '/copilots': typeof CopilotsIndexRoute
@@ -666,12 +720,15 @@ export interface FileRoutesById {
   '/session/$sessionId': typeof SessionSessionIdRoute
   '/settings/archive': typeof SettingsArchiveRoute
   '/settings/chat': typeof SettingsChatRoute
+  '/settings/data': typeof SettingsDataRoute
   '/settings/default-models': typeof SettingsDefaultModelsRoute
   '/settings/document-parser': typeof SettingsDocumentParserRoute
+  '/settings/font-size': typeof SettingsFontSizeRoute
   '/settings/general': typeof SettingsGeneralRoute
   '/settings/hotkeys': typeof SettingsHotkeysRoute
   '/settings/knowledge-base': typeof SettingsKnowledgeBaseRoute
   '/settings/mcp': typeof SettingsMcpRoute
+  '/settings/memory': typeof SettingsMemoryRoute
   '/settings/skills': typeof SettingsSkillsRoute
   '/settings/web-search': typeof SettingsWebSearchRoute
   '/copilots/': typeof CopilotsIndexRoute
@@ -704,12 +761,15 @@ export interface FileRouteTypes {
     | '/session/$sessionId'
     | '/settings/archive'
     | '/settings/chat'
+    | '/settings/data'
     | '/settings/default-models'
     | '/settings/document-parser'
+    | '/settings/font-size'
     | '/settings/general'
     | '/settings/hotkeys'
     | '/settings/knowledge-base'
     | '/settings/mcp'
+    | '/settings/memory'
     | '/settings/skills'
     | '/settings/web-search'
     | '/copilots/'
@@ -735,12 +795,15 @@ export interface FileRouteTypes {
     | '/session/$sessionId'
     | '/settings/archive'
     | '/settings/chat'
+    | '/settings/data'
     | '/settings/default-models'
     | '/settings/document-parser'
+    | '/settings/font-size'
     | '/settings/general'
     | '/settings/hotkeys'
     | '/settings/knowledge-base'
     | '/settings/mcp'
+    | '/settings/memory'
     | '/settings/skills'
     | '/settings/web-search'
     | '/copilots'
@@ -770,12 +833,15 @@ export interface FileRouteTypes {
     | '/session/$sessionId'
     | '/settings/archive'
     | '/settings/chat'
+    | '/settings/data'
     | '/settings/default-models'
     | '/settings/document-parser'
+    | '/settings/font-size'
     | '/settings/general'
     | '/settings/hotkeys'
     | '/settings/knowledge-base'
     | '/settings/mcp'
+    | '/settings/memory'
     | '/settings/skills'
     | '/settings/web-search'
     | '/copilots/'
@@ -860,12 +926,15 @@ export const routeTree = rootRoute
         "/settings/provider",
         "/settings/archive",
         "/settings/chat",
+        "/settings/data",
         "/settings/default-models",
         "/settings/document-parser",
+        "/settings/font-size",
         "/settings/general",
         "/settings/hotkeys",
         "/settings/knowledge-base",
         "/settings/mcp",
+        "/settings/memory",
         "/settings/skills",
         "/settings/web-search",
         "/settings/"
@@ -926,12 +995,20 @@ export const routeTree = rootRoute
       "filePath": "settings/chat.tsx",
       "parent": "/settings"
     },
+    "/settings/data": {
+      "filePath": "settings/data.tsx",
+      "parent": "/settings"
+    },
     "/settings/default-models": {
       "filePath": "settings/default-models.tsx",
       "parent": "/settings"
     },
     "/settings/document-parser": {
       "filePath": "settings/document-parser.tsx",
+      "parent": "/settings"
+    },
+    "/settings/font-size": {
+      "filePath": "settings/font-size.tsx",
       "parent": "/settings"
     },
     "/settings/general": {
@@ -948,6 +1025,10 @@ export const routeTree = rootRoute
     },
     "/settings/mcp": {
       "filePath": "settings/mcp.tsx",
+      "parent": "/settings"
+    },
+    "/settings/memory": {
+      "filePath": "settings/memory.tsx",
       "parent": "/settings"
     },
     "/settings/skills": {

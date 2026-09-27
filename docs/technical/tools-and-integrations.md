@@ -40,7 +40,7 @@ MinerU 是可选的第三方云端文档解析器，桌面端和 Android 均可�
 
 1. 向 `POST https://mineru.net/api/v4/file-urls/batch` 申请任务和一次性签名上传 URL。默认使用推荐的 `vlm` 模型；HTML 文件自动使用 `MinerU-HTML`，并启用公式、表格识别。
 2. 对签名 URL 执行 `PUT` 上传原始文件。签名上传不要求额外的 `Content-Type`；Android 通过 Capacitor 原生 HTTP bridge 发送二进制，桌面/Web 使用 `fetch`。
-3. 轮询 `GET /api/v4/extract-results/batch/{batch_id}`，直到对应 `data_id` 的状态为 `done` 或 `failed`。客户端最多等待 5 分钟。
+3. 轮询 `GET /api/v4/extract-results/batch/{batch_id}`，直到对应文件的状态为 `done` 或 `failed`。客户端优先按 `data_id` 匹配，也兼容 MinerU 返回的 `file_name` 或单文件无标识结果，最多等待 5 分钟。
 4. 下载 `full_zip_url`，使用受限 ZIP 读取器在内存中提取 `full.md`（兼容根目录和嵌套目录；找不到时回退到 ZIP 中的其他 Markdown 文件），提取出的文本写入附件缓存。
 
 单文件限制遵循 MinerU 文档：最大 200 MB、最多 200 页。Token 在 Android 设置中写入 Android Keystore，SQLite 设置快照和备份只保存脱敏结构；桌面端仍由现有知识库 IPC 控制器保存和调用。解析失败、超时、上传失败和结果为空都会转换为稳定的文件预处理错误，不把 ZIP 或上游响应原文注入模型上下文。

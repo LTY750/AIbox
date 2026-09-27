@@ -91,6 +91,36 @@ describe('parseFileWithMineru', () => {
     expect(transport.mock.calls[3]?.[2]).toBe('arraybuffer')
   })
 
+  it('matches status results identified by file_name when data_id is omitted', async () => {
+    const transport = vi.fn<MineruTransport>((url, _init, responseType) => {
+      if (url === `${MINERU_API_ORIGIN}/file-urls/batch`) {
+        return resolved(
+          jsonResponse({ code: 0, data: { batch_id: 'batch-file-name', file_urls: ['https://oss/upload'] } })
+        )
+      }
+      if (url === 'https://oss/upload') return resolved(new Response(null, { status: 200 }))
+      if (url === `${MINERU_API_ORIGIN}/extract-results/batch/batch-file-name`) {
+        return resolved(
+          jsonResponse({
+            code: 0,
+            data: {
+              extract_result: [{ file_name: 'file-name.pdf', state: 'done', full_zip_url: 'https://oss/result' }],
+            },
+          })
+        )
+      }
+      if (url === 'https://oss/result' && responseType === 'arraybuffer') {
+        return resolved(zipResponse({ 'full.md': strToU8('parsed by file name') }))
+      }
+      throw new Error(`Unexpected MinerU request: ${url}`)
+    })
+
+    const file = new File(['content'], 'file-name.pdf', { type: 'application/pdf' })
+    await expect(parseFileWithMineru(file, { apiToken: 'token' }, undefined, transport)).resolves.toBe(
+      'parsed by file name'
+    )
+  })
+
   it('accepts a root full.md when the result archive has no nested output directory', async () => {
     let dataId = ''
     const transport = vi.fn<MineruTransport>((url, init, responseType) => {

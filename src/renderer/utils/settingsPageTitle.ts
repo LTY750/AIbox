@@ -9,6 +9,7 @@ const SETTINGS_SECTION_LABELS: Record<string, string> = {
   chat: 'Chat Settings',
   archive: 'Archived Chats',
   hotkeys: 'Keyboard Shortcuts',
+  memory: 'Memories',
   general: 'General Settings',
 }
 

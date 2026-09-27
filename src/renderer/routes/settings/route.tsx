@@ -2,6 +2,7 @@ import { ActionIcon, Box, Flex, Stack, Text } from '@mantine/core'
 import { SystemProviders } from '@shared/defaults'
 import {
   IconAdjustmentsHorizontal,
+  IconBrain,
   IconArchive,
   IconBook,
   IconBox,
@@ -18,7 +19,7 @@ import {
 } from '@tabler/icons-react'
 import { createFileRoute, Link, Outlet, useCanGoBack, useRouter, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Toaster } from 'sonner'
 import Divider from '@/components/common/Divider'
@@ -26,6 +27,7 @@ import { ScalableIcon } from '@/components/common/ScalableIcon'
 import Page from '@/components/layout/Page'
 import { useIsSmallScreen } from '@/hooks/useScreenChange'
 import platform from '@/platform'
+import { hideMobileKeyboard } from '@/platform/mobile_keyboard'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { featureFlags } from '@/utils/feature-flags'
 import { getSettingsPageTitle } from '@/utils/settingsPageTitle'
@@ -99,6 +101,11 @@ const ITEMS = [
         },
       ]),
   {
+    key: 'memory',
+    label: 'Memories',
+    icon: <IconBrain className="w-full h-full" />,
+  },
+  {
     key: 'general',
     label: 'General Settings',
     icon: <IconAdjustmentsHorizontal className="w-full h-full" />,
@@ -118,7 +125,18 @@ export function RouteComponent() {
   const customProviders = useSettingsStore((state) => state.customProviders)
   const providers = useMemo(() => [...SystemProviders(), ...(customProviders || [])], [customProviders])
   const title = useMemo(() => getSettingsPageTitle(pathname, t, providers), [pathname, providers, t])
+  const navigatingBackPath = useRef<string | null>(null)
 
+  const handleBack = async () => {
+    if (navigatingBackPath.current === pathname) {
+      return
+    }
+    navigatingBackPath.current = pathname
+    if (platform.type === 'mobile') {
+      await hideMobileKeyboard()
+    }
+    router.history.back()
+  }
   return (
     <Page
       title={title}
@@ -130,7 +148,7 @@ export function RouteComponent() {
             size={28}
             color="chatbox-secondary"
             mr="sm"
-            onClick={() => router.history.back()}
+            onClick={() => void handleBack()}
           >
             <IconChevronLeft />
           </ActionIcon>
@@ -156,7 +174,7 @@ export function SettingsRoot() {
           gap={isSmallScreen ? 0 : 'xs'}
           maw={isSmallScreen ? undefined : 256}
           className={clsx(
-            'border-solid border-0 border-r overflow-auto border-chatbox-border-primary',
+            'mobile-overscroll-surface border-solid border-0 border-r overflow-auto border-chatbox-border-primary',
             isSmallScreen ? 'w-full border-r-0 settings-nav-content' : 'flex-[1_0_auto]'
           )}
         >
@@ -236,7 +254,14 @@ export function SettingsRoot() {
         </Stack>
       )}
       {!(isSmallScreen && routerState.location.pathname === '/settings') && (
-        <Box key={routerState.location.pathname} flex="1 1 80%" className="settings-route-content overflow-auto">
+        <Box
+          key={routerState.location.pathname}
+          flex="1 1 80%"
+          className={clsx(
+            'settings-route-content mobile-overscroll-surface overflow-auto',
+            routerState.location.pathname.startsWith('/settings/provider') && 'settings-route-content--stable-mobile'
+          )}
+        >
           <Outlet />
         </Box>
       )}
