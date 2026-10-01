@@ -227,42 +227,29 @@ html[data-mobile-keyboard-open="true"] .disclaimer-safe-area {
   isolation: isolate;
 }
 
+/* Keep the blur only above the control row. Android WebView can flicker when
+   backdrop-filter and mask-image are combined over a scrolling virtualized list,
+   so this remains a small, rectangular compositor layer. */
 .mobile-chat-header::before {
   content: "";
   position: absolute;
-  inset: -15px 0 -32px;
+  inset: 0 0 auto;
+  height: calc(8px + max(env(safe-area-inset-top, 0px), var(--mobile-safe-area-inset-top, 0px)));
   z-index: 0;
   pointer-events: none;
   background: linear-gradient(
     to bottom,
-    color-mix(in srgb, var(--chatbox-background-primary) 22%, transparent) 0%,
-    color-mix(in srgb, var(--chatbox-background-primary) 18%, transparent) 34%,
-    color-mix(in srgb, var(--chatbox-background-primary) 11%, transparent) 58%,
-    color-mix(in srgb, var(--chatbox-background-primary) 5%, transparent) 76%,
+    color-mix(in srgb, var(--chatbox-background-primary) 28%, transparent) 0%,
+    color-mix(in srgb, var(--chatbox-background-primary) 22%, transparent) 35%,
+    color-mix(in srgb, var(--chatbox-background-primary) 12%, transparent) 70%,
+    color-mix(in srgb, var(--chatbox-background-primary) 4%, transparent) 90%,
     transparent 100%
   );
-  -webkit-backdrop-filter: blur(16px) saturate(1.04);
-  backdrop-filter: blur(16px) saturate(1.04);
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    #000 0%,
-    #000 38%,
-    rgba(0, 0, 0, 0.86) 52%,
-    rgba(0, 0, 0, 0.56) 70%,
-    rgba(0, 0, 0, 0.2) 86%,
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    #000 0%,
-    #000 38%,
-    rgba(0, 0, 0, 0.86) 52%,
-    rgba(0, 0, 0, 0.56) 70%,
-    rgba(0, 0, 0, 0.2) 86%,
-    transparent 100%
-  );
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  will-change: backdrop-filter;
 }
 .mobile-chat-header-controls {
   position: relative;
@@ -281,13 +268,13 @@ html[data-mobile-keyboard-open="true"] .disclaimer-safe-area {
 
 .mobile-chat-floating-button,
 .mobile-chat-action-pill {
-  background-color: color-mix(in srgb, var(--chatbox-background-primary) 60%, transparent) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(1.12);
-  backdrop-filter: blur(18px) saturate(1.12);
-  box-shadow: 0 4px 18px color-mix(in srgb, var(--chatbox-tint-primary) 12%, transparent);
-  transition:
-    background-color 180ms ease,
-    box-shadow 180ms ease;
+  background-color: color-mix(in srgb, var(--chatbox-background-primary) 56%, transparent) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.10);
+  backdrop-filter: blur(18px) saturate(1.10);
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  will-change: backdrop-filter;
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--chatbox-tint-primary) 5%, transparent);
 }
 
 .mobile-chat-floating-button {
@@ -328,6 +315,8 @@ html[data-mobile-keyboard-open="true"] .disclaimer-safe-area {
   line-height: 0 !important;
   margin-bottom: 16px !important;
   padding: 0 !important;
+  width: 36px !important;
+  height: 36px !important;
 }
 
 .mobile-chat-send-button svg {
@@ -355,6 +344,24 @@ html[data-mobile-keyboard-open="true"] .disclaimer-safe-area {
 
 .mobile-drawer-bottom-inset {
   padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--mobile-safe-area-inset-bottom, 0px));
+}
+
+/* Keep input drawers above the Android IME while preserving their normal
+   bottom safe-area inset when the keyboard is closed. */
+.mobile-adaptive-modal-content {
+  max-height: min(85vh, calc(100dvh - 1rem));
+  padding-bottom: 0.5rem;
+}
+
+/* Vaul keeps a drawer bottom anchored to the WebView viewport. With Android
+   adjustResize the viewport itself may remain full height, so explicitly move
+   input drawers above the reported IME frame. */
+html[data-mobile-keyboard-open="true"] .mobile-adaptive-modal {
+  bottom: var(--mobile-keyboard-height, 0px) !important;
+}
+
+html[data-mobile-keyboard-open="true"] .mobile-adaptive-modal-content {
+  max-height: calc(100dvh - var(--mobile-keyboard-height, 0px) - 1rem);
 }
 
 /* Keep the compact visual rhythm while giving coarse pointers a larger hit area. */
