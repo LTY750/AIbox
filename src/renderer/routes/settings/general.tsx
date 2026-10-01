@@ -9,6 +9,7 @@ import {
   FileButton,
   Flex,
   Radio,
+  SegmentedControl,
   Stack,
   Switch,
   Text,
@@ -30,7 +31,6 @@ import { formatFileSize } from '@shared/utils'
 import { getBackupFilename } from '@shared/utils/backup'
 import {
   IconAdjustmentsHorizontal,
-  IconCheck,
   IconChevronRight,
   IconDeviceFloppy,
   IconDeviceMobileVibration,
@@ -45,7 +45,8 @@ import dayjs from 'dayjs'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AdaptiveSelect } from '@/components/AdaptiveSelect'
-import LazySlider from '@/components/common/LazySlider'
+import { AdaptiveModal } from '@/components/common/AdaptiveModal'
+import { SettingsSection } from '@/components/settings/SettingsSection'
 import { languageNameMap, languages } from '@/i18n/locales'
 import {
   type BackupExportItem,
@@ -83,6 +84,8 @@ export function RouteComponent() {
     brand: resolveInterfaceBrandColor(storedInterfaceColors.brand, realTheme),
   }
   const [isEditingInterfaceColorPresets, setIsEditingInterfaceColorPresets] = useState(false)
+  const [isEditingProxy, setIsEditingProxy] = useState(false)
+  const [draftProxy, setDraftProxy] = useState(settings.proxy ?? '')
 
   const applyInterfacePreset = (preset: InterfaceColorPreset) => {
     setSettings({
@@ -124,10 +127,15 @@ export function RouteComponent() {
     : t('Custom')
 
   return (
-    <Stack p={{ base: 0, sm: 'md' }} gap="lg" className="settings-page mx-auto w-full max-w-[760px]">
-      <MobileSettingGroup title={t('Display Settings')} className="settings-section--primary">
+    <Stack
+      p={{ base: 0, sm: 'md' }}
+      gap="lg"
+      className="settings-page settings-mobile-page mx-auto w-full max-w-[760px]"
+    >
+      <MobileSettingGroup title={t('Display and Typography')} className="settings-section--primary">
         <MobileSelectRow
           icon={<IconWorld size={16} />}
+          iconClassName="settings-row-icon--display"
           label={t('Language')}
           value={languageNameMap[settings.language]}
         >
@@ -139,7 +147,12 @@ export function RouteComponent() {
             onChange={(val) => val && setSettings({ language: val as Language })}
           />
         </MobileSelectRow>
-        <MobileSelectRow icon={<IconPalette size={16} />} label={t('Font Family')} value={fontFamilyLabel}>
+        <MobileSelectRow
+          icon={<IconPalette size={16} />}
+          iconClassName="settings-row-icon--display-secondary"
+          label={t('Font Family')}
+          value={fontFamilyLabel}
+        >
           <AdaptiveSelect
             aria-label={String(t('Font Family'))}
             className="settings-mobile-select-trigger"
@@ -148,7 +161,12 @@ export function RouteComponent() {
             onChange={(val) => val && setSettings({ interfaceFontFamily: val as typeof interfaceFontFamily })}
           />
         </MobileSelectRow>
-        <MobileSelectRow icon={<IconAdjustmentsHorizontal size={16} />} label={t('Theme')} value={themeLabel}>
+        <MobileSelectRow
+          icon={<IconAdjustmentsHorizontal size={16} />}
+          iconClassName="settings-row-icon--display-secondary"
+          label={t('Theme')}
+          value={themeLabel}
+        >
           <AdaptiveSelect
             aria-label={String(t('Theme'))}
             className="settings-mobile-select-trigger"
@@ -161,16 +179,18 @@ export function RouteComponent() {
             onChange={(val) => val && setSettings({ theme: parseInt(val) })}
           />
         </MobileSelectRow>
-        <MobileSelectRow icon={<IconPalette size={16} />} label={t('Color Presets')} value={colorPresetLabel}>
-          <ActionIcon
-            variant={isEditingInterfaceColorPresets ? 'light' : 'subtle'}
-            size="sm"
-            aria-label={String(t('Color Presets'))}
-            onClick={() => setIsEditingInterfaceColorPresets((value) => !value)}
-          >
-            {isEditingInterfaceColorPresets ? <IconCheck size={14} /> : <IconPencil size={14} />}
-          </ActionIcon>
-        </MobileSelectRow>
+        <MobileSettingField
+          icon={<IconPalette size={16} />}
+          iconClassName="settings-row-icon--accent"
+          label={t('Color Presets')}
+          inline
+          className="settings-row--interactive"
+          onClick={() => setIsEditingInterfaceColorPresets((value) => !value)}
+        >
+          <Text size="sm" c="chatbox-tertiary" className="settings-mobile-summary">
+            {colorPresetLabel}
+          </Text>
+        </MobileSettingField>
         {isEditingInterfaceColorPresets && (
           <Box className="settings-inline-detail">
             <Flex gap="xs" wrap="wrap">
@@ -192,9 +212,9 @@ export function RouteComponent() {
         )}
       </MobileSettingGroup>
       <MobileSettingGroup title={t('Interface')}>
-        <Link to="/settings/font-size" className="settings-data-entry no-underline">
+        <Link to="/settings/font-size" className="settings-row settings-data-entry no-underline">
           <Flex align="center" gap="sm" className="w-full">
-            <Box className="settings-row-icon flex shrink-0 items-center">
+            <Box className="settings-row-icon settings-row-icon--display flex shrink-0 items-center">
               <IconAdjustmentsHorizontal size={16} />
             </Box>
             <Box className="min-w-0 flex-1">
@@ -208,48 +228,124 @@ export function RouteComponent() {
             <IconChevronRight size={18} className="settings-row-chevron shrink-0" />
           </Flex>
         </Link>
-        <MobileSettingField icon={<IconHome size={16} />} label={t('Startup Page')} inline>
-          <Radio.Group
+        <MobileSettingField
+          icon={<IconHome size={16} />}
+          iconClassName="settings-row-icon--behavior"
+          label={t('Startup Page')}
+          inline
+        >
+          <SegmentedControl
             aria-label={String(t('Startup Page'))}
+            className="settings-mobile-segmented"
             value={settings.startupPage}
             onChange={(val) => (val === 'home' || val === 'session') && setSettings({ startupPage: val })}
-          >
-            <Flex gap="sm" wrap="wrap" className="settings-mobile-radio-group">
-              <Radio label={t('Home Page')} value="home" />
-              <Radio label={t('Last Session')} value="session" />
-            </Flex>
-          </Radio.Group>
-        </MobileSettingField>
-        {platform.type === 'mobile' && (
-          <MobileSettingField
-            icon={<IconDeviceMobileVibration size={16} />}
-            label={t('Haptic feedback during generation')}
-            inline
-          >
-            <Switch
-              aria-label={String(t('Haptic feedback during generation'))}
-              checked={settings.enableHapticFeedback !== false}
-              onChange={(e) => setSettings({ enableHapticFeedback: e.currentTarget.checked })}
-            />
-          </MobileSettingField>
-        )}
-      </MobileSettingGroup>
-      <MobileSettingGroup title={t('Network Proxy')} className="settings-section--compact">
-        <MobileSettingField icon={<IconWorld size={16} />} label={t('Network Proxy')} inline>
-          <Text size="sm" c="chatbox-tertiary" className="settings-mobile-summary">
-            {settings.proxy || t('Not configured')}
-          </Text>
-          <TextInput
-            aria-label={String(t('Network Proxy'))}
-            className="settings-mobile-proxy-input"
-            placeholder="socks5://127.0.0.1:6153"
-            value={settings.proxy}
-            onChange={(e) => setSettings({ proxy: e.currentTarget.value })}
+            data={[
+              { label: t('Home Page'), value: 'home' },
+              { label: t('Last Session'), value: 'session' },
+            ]}
           />
         </MobileSettingField>
+        {platform.type === 'mobile' && (
+          <>
+            <MobileSettingField
+              icon={<IconDeviceMobileVibration size={16} />}
+              iconClassName="settings-row-icon--behavior"
+              label={t('Haptic feedback during generation')}
+              inline
+            >
+              <Switch
+                aria-label={String(t('Haptic feedback during generation'))}
+                checked={settings.enableHapticFeedback !== false}
+                onChange={(e) => setSettings({ enableHapticFeedback: e.currentTarget.checked })}
+              />
+            </MobileSettingField>
+            {settings.enableHapticFeedback !== false && (
+              <MobileSettingField
+                icon={<IconDeviceMobileVibration size={16} />}
+                iconClassName="settings-row-icon--behavior"
+                label={t('Vibration intensity')}
+                inline
+              >
+                <Radio.Group
+                  aria-label={String(t('Vibration intensity'))}
+                  value={settings.hapticIntensity || 'medium'}
+                  onChange={(val) =>
+                    (val === 'light' || val === 'medium' || val === 'strong') && setSettings({ hapticIntensity: val })
+                  }
+                >
+                  <Flex gap="sm" wrap="wrap" className="settings-mobile-radio-group">
+                    <Radio label={t('Light')} value="light" />
+                    <Radio label={t('Medium')} value="medium" />
+                    <Radio label={t('Strong')} value="strong" />
+                  </Flex>
+                </Radio.Group>
+              </MobileSettingField>
+            )}
+          </>
+        )}
       </MobileSettingGroup>
-      <MobileSettingGroup title={t('Data')} className="settings-section--compact">
-        <Link to="/settings/data" className="settings-data-entry no-underline">
+      <MobileSettingGroup title={t('Network Proxy')}>
+        <MobileSettingField
+          icon={<IconWorld size={16} />}
+          label={t('Network Proxy')}
+          inline
+          iconClassName="settings-row-icon--network"
+        >
+          <Text size="sm" c="chatbox-tertiary" className="settings-mobile-summary">
+            {settings.proxy ? t('Configured') : t('Not configured')}
+          </Text>
+          <ActionIcon
+            variant="subtle"
+            size="lg"
+            aria-label={String(t('Edit'))}
+            onClick={() => {
+              setDraftProxy(settings.proxy ?? '')
+              setIsEditingProxy(true)
+            }}
+          >
+            <IconPencil size={18} />
+          </ActionIcon>
+        </MobileSettingField>
+      </MobileSettingGroup>
+      <AdaptiveModal
+        opened={isEditingProxy}
+        onClose={() => setIsEditingProxy(false)}
+        title={t('Network Proxy')}
+        size="md"
+      >
+        <Stack gap="sm">
+          <TextInput
+            autoFocus
+            aria-label={String(t('Proxy Address'))}
+            label={t('Proxy Address')}
+            placeholder="socks5://127.0.0.1:6153"
+            value={draftProxy}
+            onChange={(e) => setDraftProxy(e.currentTarget.value)}
+          />
+          {platform.type === 'mobile' && (
+            <Alert color="yellow" variant="light">
+              {t(
+                'Android currently sends requests through its native network transport and does not apply this proxy setting.'
+              )}
+            </Alert>
+          )}
+          <AdaptiveModal.Actions>
+            <Button variant="default" onClick={() => setIsEditingProxy(false)}>
+              {t('Cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                setSettings({ proxy: draftProxy.trim() || undefined })
+                setIsEditingProxy(false)
+              }}
+            >
+              {t('Save')}
+            </Button>
+          </AdaptiveModal.Actions>
+        </Stack>
+      </AdaptiveModal>
+      <MobileSettingGroup title={t('Data')}>
+        <Link to="/settings/data" className="settings-row settings-data-entry no-underline">
           <Flex align="center" gap="sm" className="w-full">
             <Box className="settings-row-icon flex shrink-0 items-center">
               <IconDeviceFloppy size={16} />
@@ -267,7 +363,7 @@ export function RouteComponent() {
         </Link>
       </MobileSettingGroup>
       {platform.type === 'desktop' && (
-        <MobileSettingGroup title={t('System')} className="settings-section--compact">
+        <MobileSettingGroup title={t('System')}>
           <Stack gap="sm">
             <Switch
               label={t('Launch at system startup')}
@@ -292,42 +388,26 @@ export function RouteComponent() {
 }
 const MobileSelectRow = ({
   icon,
+  iconClassName,
   label,
   value,
   children,
 }: {
   icon: ReactNode
+  iconClassName?: string
   label: string
   value: string
   children: ReactNode
 }) => (
-  <MobileSettingField icon={icon} label={label} inline>
+  <MobileSettingField icon={icon} iconClassName={iconClassName} label={label} inline>
     <Text size="sm" c="chatbox-tertiary" className="settings-mobile-summary">
       {value}
     </Text>
+    <IconChevronRight size={18} className="settings-row-chevron shrink-0" aria-hidden="true" />
     <Box className="settings-mobile-control">{children}</Box>
   </MobileSettingField>
 )
-const MobileSettingGroup = ({
-  title,
-  children,
-  className,
-}: {
-  title: string
-  children: ReactNode
-  className?: string
-}) => (
-  <Box component="section" className={`settings-section w-full ${className ?? ''}`}>
-    <Stack gap="xs">
-      <Text size="sm" fw={600} c="chatbox-tertiary" className="settings-section-title">
-        {title}
-      </Text>
-      <Stack gap={0} className="settings-section-list">
-        {children}
-      </Stack>
-    </Stack>
-  </Box>
-)
+const MobileSettingGroup = SettingsSection
 
 const MobileSettingField = ({
   icon,
@@ -336,6 +416,9 @@ const MobileSettingField = ({
   inline = false,
   variant,
   compactData = false,
+  iconClassName,
+  className,
+  onClick,
 }: {
   icon: ReactNode
   label: string
@@ -343,9 +426,25 @@ const MobileSettingField = ({
   inline?: boolean
   variant?: 'data'
   compactData?: boolean
+  iconClassName?: string
+  className?: string
+  onClick?: () => void
 }) => (
   <Box
-    className={`settings-row ${variant === 'data' ? 'settings-row--data' : ''} ${compactData ? 'settings-row--data-compact' : ''} border-b border-solid border-chatbox-border-primary last:border-b-0`}
+    className={`settings-row ${variant === 'data' ? 'settings-row--data' : ''} ${compactData ? 'settings-row--data-compact' : ''} ${className ?? ''} border-b border-solid border-chatbox-border-primary last:border-b-0`}
+    onClick={onClick}
+    role={onClick ? 'button' : undefined}
+    tabIndex={onClick ? 0 : undefined}
+    onKeyDown={
+      onClick
+        ? (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              onClick()
+            }
+          }
+        : undefined
+    }
   >
     <Flex
       align={inline ? 'center' : 'flex-start'}
@@ -355,9 +454,7 @@ const MobileSettingField = ({
       className={variant === 'data' ? 'settings-data-row' : undefined}
     >
       <Flex align="center" gap="sm" className="min-w-0">
-        <Box className="settings-row-icon flex shrink-0 items-center">
-          {icon}
-        </Box>
+        <Box className={`settings-row-icon flex shrink-0 items-center ${iconClassName ?? ''}`}>{icon}</Box>
         <Text size="sm" fw={500}>
           {label}
         </Text>
