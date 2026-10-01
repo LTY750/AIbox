@@ -1,7 +1,7 @@
 {
   "name": "aibox-mobile",
   "productName": "AIbox Mobile",
-  "version": "0.0.6",
+  "version": "0.0.8",
   "engines": {
     "node": ">=24.15.0 <25.0.0",
     "pnpm": "10.33.0"
