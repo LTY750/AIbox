@@ -19,6 +19,7 @@ import { AdaptiveModal } from '@/components/common/AdaptiveModal'
 import { AssistantAvatar } from '@/components/common/Avatar'
 import LazyNumberInput from '@/components/common/LazyNumberInput'
 import MaxContextMessageCountSlider from '@/components/common/MaxContextMessageCountSlider'
+import ModelParameterInfo from '@/components/common/ModelParameterInfo'
 import { ScalableIcon } from '@/components/common/ScalableIcon'
 import SliderWithInput from '@/components/common/SliderWithInput'
 import { handleImageInputAndSave, ImageInStorage } from '@/components/Image'
@@ -268,16 +269,7 @@ const SessionSettingsModal = NiceModal.create(
                 wrap="wrap"
                 className="p-sm border border-solid border-chatbox-border-primary rounded-lg"
               >
-                <Flex align="center" gap="xxs">
-                  <Text>{t('Background Image')}</Text>
-                  <Tooltip
-                    label={t('Support jpg or png file smaller than 5MB. Overrides global background when set.')}
-                    withArrow
-                    offset={4}
-                  >
-                    <ScalableIcon icon={IconInfoCircle} size={20} className="text-chatbox-tint-tertiary" />
-                  </Tooltip>
-                </Flex>
+                <Text>{t('Background Image')}</Text>
 
                 <div className="flex-1" />
 
@@ -374,17 +366,7 @@ export function ChatConfig({
           <Text size="sm" fw="600">
             {t('Temperature')}
           </Text>
-          <Tooltip
-            label={t(
-              'Modify the creativity of AI responses; the higher the value, the more random and intriguing the answers become, while a lower value ensures greater stability and reliability.'
-            )}
-            withArrow={true}
-            maw={320}
-            className="!whitespace-normal"
-            zIndex={3000}
-          >
-            <ScalableIcon icon={IconInfoCircle} size={20} className="text-chatbox-tint-tertiary" />
-          </Tooltip>
+          <ModelParameterInfo parameter="temperature" />
         </Flex>
 
         <SliderWithInput value={settings?.temperature} onChange={(v) => onSettingsChange({ temperature: v })} max={2} />
@@ -395,17 +377,7 @@ export function ChatConfig({
           <Text size="sm" fw="600">
             Top P
           </Text>
-          <Tooltip
-            label={t(
-              'The topP parameter controls the diversity of AI responses: lower values make the output more focused and predictable, while higher values allow for more varied and creative replies.'
-            )}
-            withArrow={true}
-            maw={320}
-            className="!whitespace-normal"
-            zIndex={3000}
-          >
-            <ScalableIcon icon={IconInfoCircle} size={20} className="text-chatbox-tint-tertiary" />
-          </Tooltip>
+          <ModelParameterInfo parameter="topP" />
         </Flex>
 
         <SliderWithInput value={settings?.topP} onChange={(v) => onSettingsChange({ topP: v })} max={1} />

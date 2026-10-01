@@ -2,7 +2,7 @@ import NiceModal from '@ebay/nice-modal-react'
 import { Box, Button, Skeleton } from '@mantine/core'
 import type { ModelProvider } from '@shared/types'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useStore } from 'zustand'
 import { JK_PAGE_NAMES } from '@/analytics/jk-events'
@@ -140,7 +140,6 @@ function RouteComponent() {
   )
 
   const messageListRef = useRef<MessageListRef>(null)
-  const [isMessageListScrolling, setIsMessageListScrolling] = useState(false)
 
   const goHome = useCallback(() => {
     navigate({ to: '/', replace: true })
@@ -292,7 +291,7 @@ function RouteComponent() {
           : undefined
       }
     >
-      <Header session={currentSession} frosted={generatingMessages.length > 0 || isMessageListScrolling} />
+      <Header session={currentSession} onMobileHeaderClick={() => messageListRef.current?.scrollToTop('smooth')} />
 
       {/* MessageList 设置 key，确保每个 session 对应新的 MessageList 实例 */}
       <div className="relative min-h-0 flex-1">
@@ -300,7 +299,6 @@ function RouteComponent() {
           ref={messageListRef}
           key={`message-list${currentSessionId}`}
           currentSession={currentSession}
-          onScrollActivityChange={setIsMessageListScrolling}
           className={!isSmallScreen ? 'pt-[2px]' : undefined}
         />
       </div>

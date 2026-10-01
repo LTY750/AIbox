@@ -31,27 +31,72 @@ function installAndroidOverscrollFeedback() {
     return
   }
 
-  let active: { element: HTMLElement; startY: number; startScrollTop: number; offset: number } | null = null
+  type Edge = 'top' | 'bottom'
+  type Gesture = {
+    element: HTMLElement
+    startY: number
+    startScrollTop: number
+    offset: number
+    edge: Edge | null
+    touchEnded: boolean
+    pendingFling: boolean
+  }
+
+  let active: Gesture | null = null
+  let cleanupTimer: ReturnType<typeof setTimeout> | null = null
   const getSurface = (target: EventTarget | null) => {
     if (!(target instanceof Element)) return null
     const surface = target.closest('.mobile-overscroll-surface')
     return surface instanceof HTMLElement ? surface : null
   }
+  const clearCleanupTimer = () => {
+    if (cleanupTimer) {
+      clearTimeout(cleanupTimer)
+      cleanupTimer = null
+    }
+  }
   const reset = () => {
+    clearCleanupTimer()
     if (!active) return
     active.element.classList.remove('mobile-overscroll-active')
     active.element.style.transform = ''
     active = null
   }
+  const animateBack = (gesture: Gesture) => {
+    requestAnimationFrame(() => {
+      if (active === gesture) gesture.element.style.transform = ''
+    })
+    clearCleanupTimer()
+    cleanupTimer = setTimeout(() => {
+      if (active === gesture) reset()
+    }, 700)
+  }
+  const playEdgeFeedback = (gesture: Gesture, edge: Edge, distance: number) => {
+    gesture.edge = edge
+    gesture.pendingFling = false
+    gesture.offset = edge === 'top' ? distance : -distance
+    gesture.element.classList.add('mobile-overscroll-active')
+    gesture.element.style.transform = `translate3d(0, ${gesture.offset}px, 0)`
+    animateBack(gesture)
+  }
 
   const onTouchStart = (event: TouchEvent) => {
+    clearCleanupTimer()
     const touch = event.touches[0]
     const element = getSurface(event.target)
     if (!touch || !element) return
-    active = { element, startY: touch.clientY, startScrollTop: element.scrollTop, offset: 0 }
+    active = {
+      element,
+      startY: touch.clientY,
+      startScrollTop: element.scrollTop,
+      offset: 0,
+      edge: null,
+      touchEnded: false,
+      pendingFling: false,
+    }
   }
   const onTouchMove = (event: TouchEvent) => {
-    if (!active) return
+    if (!active || active.touchEnded) return
     const touch = event.touches[0]
     if (!touch) return
     const { element, startY, startScrollTop } = active
@@ -59,19 +104,55 @@ function installAndroidOverscrollFeedback() {
     const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
     const atTop = startScrollTop <= 1 && delta > 0
     const atBottom = startScrollTop >= maxScrollTop - 1 && delta < 0
+    const edge: Edge | null = delta > 0 ? 'top' : delta < 0 ? 'bottom' : null
+    active.edge = edge
     if (!atTop && !atBottom) return
     const distance = Math.abs(delta)
     const resistance = 1 / (1 + distance / 220)
-    const offset = (atTop ? 1 : -1) * Math.min(88, distance * 0.4 * resistance)
+    const activeEdge: Edge = atTop ? 'top' : 'bottom'
+    const offset = (activeEdge === 'top' ? 1 : -1) * Math.min(88, distance * 0.4 * resistance)
+    active.edge = activeEdge
     active.offset = offset
+    active.pendingFling = false
     element.classList.add('mobile-overscroll-active')
     element.style.transform = `translate3d(0, ${offset}px, 0)`
+  }
+  const onTouchEnd = () => {
+    if (!active) return
+    active.touchEnded = true
+    if (active.offset !== 0) {
+      animateBack(active)
+      return
+    }
+    const maxScrollTop = Math.max(0, active.element.scrollHeight - active.element.clientHeight)
+    const reachedEdge =
+      active.edge === 'top'
+        ? active.element.scrollTop <= 1
+        : active.edge === 'bottom'
+          ? active.element.scrollTop >= maxScrollTop - 1
+          : false
+    if (active.edge && reachedEdge) {
+      playEdgeFeedback(active, active.edge, 52)
+      return
+    }
+    active.pendingFling = active.edge !== null
+    clearCleanupTimer()
+    cleanupTimer = setTimeout(reset, 900)
+  }
+  const onScroll = (event: Event) => {
+    if (!active || !active.touchEnded || !active.pendingFling || event.target !== active.element) return
+    const { element, edge } = active
+    if (!edge) return
+    const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
+    const reachedEdge = edge === 'top' ? element.scrollTop <= 1 : element.scrollTop >= maxScrollTop - 1
+    if (reachedEdge) playEdgeFeedback(active, edge, 52)
   }
 
   document.addEventListener('touchstart', onTouchStart, { passive: true })
   document.addEventListener('touchmove', onTouchMove, { passive: true })
-  document.addEventListener('touchend', reset, { passive: true })
+  document.addEventListener('touchend', onTouchEnd, { passive: true })
   document.addEventListener('touchcancel', reset, { passive: true })
+  document.addEventListener('scroll', onScroll, { passive: true, capture: true })
 }
 
 installAndroidOverscrollFeedback()
