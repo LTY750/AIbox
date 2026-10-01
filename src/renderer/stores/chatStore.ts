@@ -477,8 +477,12 @@ function cleanupDeletedSessionRuntimeState(id: string) {
   clearScrollPositionCache(id)
   delete sessionUpdateQueues[id]
   // Remove persisted download artifacts so deleted session references do not leak files on disk.
-  platform.sandboxReset?.({ sessionId: id }).catch(() => {})
-  platform.sandboxRemoveArtifacts?.({ sessionId: id }).catch(() => {})
+  platform.sandboxReset?.({ sessionId: id }).catch(() => {
+    // Intentionally ignore - sandbox cleanup is best-effort for already-deleted session
+  })
+  platform.sandboxRemoveArtifacts?.({ sessionId: id }).catch(() => {
+    // Intentionally ignore - artifact cleanup is best-effort for already-deleted session
+  })
 }
 
 export async function deleteSession(id: string) {

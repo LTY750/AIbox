@@ -675,9 +675,10 @@ export async function orchestrateGeneration(
   const persistInterval = 2000
   let lastPersistTimestamp = Date.now()
   const generationHapticsEnabled = platform.type === 'mobile' && globalSettings.enableHapticFeedback !== false
+  const hapticIntensity = globalSettings.hapticIntensity || 'medium'
   const notifyGenerationHaptic = (event: Parameters<typeof triggerHaptic>[0]) => {
     if (generationHapticsEnabled) {
-      void triggerHaptic(event)
+      void triggerHaptic(event, hapticIntensity)
     }
   }
 
@@ -758,7 +759,10 @@ export async function orchestrateGeneration(
     () => persistStreamingMessage(sessionId, targetMsg),
     () => controller.abort(Date.now())
   )
-  const streamingHaptics = createStreamingHapticController({ enabled: generationHapticsEnabled })
+  const streamingHaptics = createStreamingHapticController({
+    enabled: generationHapticsEnabled,
+    intensity: hapticIntensity
+  })
 
   try {
     const dependencies = await createModelDependencies()
@@ -1003,7 +1007,9 @@ export async function orchestrateGeneration(
       // No-op when the stream is already exhausted. The aborted path skips this and closes
       // via the awaited drain below, which also holds the generation lock until settle.
       if (!abortedMidStream) {
-        await streamIterator.return?.(undefined)?.catch(() => {})
+        await streamIterator.return?.(undefined)?.catch(() => {
+          // Intentionally ignore - stream iterator cleanup is best-effort during abort
+        })
       }
     }
 
