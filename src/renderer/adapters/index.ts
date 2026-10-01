@@ -42,6 +42,9 @@ interface ApiRequestClient {
       signal?: AbortSignal
       retry?: number
       useProxy?: boolean
+      connectTimeout?: number
+      readTimeout?: number
+      disableRedirects?: boolean
       responseType?: ApiRequestOptions['responseType']
     }
   ): Promise<Response>
@@ -52,6 +55,9 @@ interface ApiRequestClient {
       signal?: AbortSignal
       retry?: number
       useProxy?: boolean
+      connectTimeout?: number
+      readTimeout?: number
+      disableRedirects?: boolean
       responseType?: ApiRequestOptions['responseType']
     }
   ): Promise<Response>
@@ -67,28 +73,6 @@ function headersToRecord(headers?: HeadersInit): Record<string, string> {
     result[key] = value
   })
   return result
-}
-
-function isStreamingRequest(url: string, init?: RequestInit): boolean {
-  if ((init?.method || 'GET').toUpperCase() !== 'POST') return false
-
-  const headers = new Headers(init?.headers)
-  if (headers.get('accept')?.toLowerCase().includes('text/event-stream')) return true
-
-  try {
-    const parsedUrl = new URL(url)
-    if (parsedUrl.searchParams.get('alt')?.toLowerCase() === 'sse') return true
-    if (parsedUrl.pathname.toLowerCase().includes('streamgeneratecontent')) return true
-  } catch {
-    // A malformed URL will be handled by the request implementation.
-  }
-
-  if (typeof init?.body !== 'string') return false
-  try {
-    return JSON.parse(init.body).stream === true
-  } catch {
-    return false
-  }
 }
 
 export interface CreateModelDependenciesOptions {
@@ -143,21 +127,30 @@ function createRequestAdapter(
 ): RequestAdapter {
   const afetch = createAfetch(platformInfo)
   return {
-      fetchWithOptions: (
+    fetchWithOptions: (
       url: string,
       init?: RequestInit,
       options?: { retry?: number; parseChatboxRemoteError?: boolean }
     ): Promise<Response> => {
-      // Some provider SDKs (notably Chatbox AI) inject their own fetch function
-      // instead of using apiRequest. Route their Android SSE requests through the
-      // native stream transport as well, so background execution is consistent.
-      if (platformInfo.type === 'mobile' && isStreamingRequest(url, init)) {
-        return apiRequestClient.post(url, headersToRecord(init?.headers), init?.body, {
+      // Provider SDKs can inject their own fetch function. Route every Android
+      // provider request through the native adapter so model discovery and
+      // non-streaming requests use the same transport as chat streams.
+      if (platformInfo.type === 'mobile') {
+        const method = (init?.method || 'GET').toUpperCase()
+        const requestOptions = {
           signal: init?.signal || undefined,
-          retry: options?.retry ?? 0,
+          // Native provider POSTs are never retried implicitly: they may be
+          // billable even when the response fails before reaching the renderer.
+          retry: options?.retry ?? (method === 'GET' ? undefined : 0),
           // On mobile this selects Capacitor/native HTTP; it does not rewrite the URL.
           useProxy: true,
-        })
+        }
+        if (method === 'POST') {
+          return apiRequestClient.post(url, headersToRecord(init?.headers), init?.body, requestOptions)
+        }
+        if (method === 'GET') {
+          return apiRequestClient.get(url, headersToRecord(init?.headers), requestOptions)
+        }
       }
       return afetch(url, init, options || {})
     },
@@ -167,6 +160,9 @@ function createRequestAdapter(
           signal: options.signal,
           retry: options.retry,
           useProxy: options.useProxy,
+          connectTimeout: options.connectTimeout,
+          readTimeout: options.readTimeout,
+          disableRedirects: options.disableRedirects,
           responseType: options.responseType,
         })
       }
@@ -174,6 +170,9 @@ function createRequestAdapter(
         signal: options.signal,
         retry: options.retry,
         useProxy: options.useProxy,
+        connectTimeout: options.connectTimeout,
+        readTimeout: options.readTimeout,
+        disableRedirects: options.disableRedirects,
         responseType: options.responseType,
       })
     },

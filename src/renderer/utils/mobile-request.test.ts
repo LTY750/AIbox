@@ -144,6 +144,33 @@ describe('mobile request transport', () => {
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]))
   })
 
+  test('uses native connection and read timeouts for non-streaming requests', async () => {
+    capacitorRequest.mockResolvedValue({
+      data: '{}',
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+
+    await handleMobileRequest(
+      'https://api.example.com/v1/models',
+      'GET',
+      new Headers(),
+      undefined,
+      undefined,
+      'json',
+      false,
+      false,
+      { connectTimeout: 2500, readTimeout: 7500 }
+    )
+
+    expect(capacitorRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        connectTimeout: 2500,
+        readTimeout: 7500,
+      })
+    )
+  })
+
   test('uses the durable stream transport for Gemini SSE URLs', async () => {
     nativeReadableStream.mockReturnValue(
       new ReadableStream<Uint8Array>({

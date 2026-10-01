@@ -311,4 +311,32 @@ describe('createModel', () => {
       expect.objectContaining({ useProxy: true })
     )
   })
+
+  it('routes mobile provider model discovery through the native request client', async () => {
+    const apiRequestClient = {
+      post: vi.fn(),
+      get: vi.fn().mockResolvedValue(new Response('{}')),
+    }
+    const dependencies = await createModelDependencies({
+      platformInfo: {
+        type: 'mobile',
+        platform: 'android',
+        os: 'android',
+        version: '1.0.0',
+      },
+      apiRequestClient,
+    })
+
+    const result = await dependencies.request.fetchWithOptions('https://api.example.com/v1/models', {
+      method: 'GET',
+      headers: { Authorization: 'Bearer test' },
+    })
+
+    expect(result).toBeInstanceOf(Response)
+    expect(apiRequestClient.get).toHaveBeenCalledWith(
+      'https://api.example.com/v1/models',
+      { authorization: 'Bearer test' },
+      expect.objectContaining({ useProxy: true })
+    )
+  })
 })

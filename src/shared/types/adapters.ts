@@ -9,6 +9,9 @@ export interface ApiRequestOptions {
   useProxy?: boolean
   signal?: AbortSignal
   retry?: number
+  connectTimeout?: number
+  readTimeout?: number
+  disableRedirects?: boolean
   responseType?: 'text' | 'json' | 'blob' | 'arraybuffer'
 }
 

@@ -10,16 +10,26 @@ interface RequestOptions {
   signal?: AbortSignal
   retry?: number
   useProxy?: boolean
+  connectTimeout?: number
+  readTimeout?: number
+  disableRedirects?: boolean
   responseType?: 'text' | 'json' | 'blob' | 'arraybuffer'
 }
 
-async function retryRequest<T>(fn: () => Promise<T>, retry: number, url: string): Promise<T> {
+function isAbortError(error: unknown, signal?: AbortSignal): boolean {
+  return signal?.aborted === true || (error instanceof DOMException && error.name === 'AbortError')
+}
+
+async function retryRequest<T>(fn: () => Promise<T>, retry: number, url: string, signal?: AbortSignal): Promise<T> {
   let requestError: BaseError | null = null
 
   for (let i = 0; i <= retry; i++) {
     try {
       return await fn()
     } catch (e) {
+      if (isAbortError(e, signal)) {
+        throw e
+      }
       // 对 ApiError（通常代表 4xx/业务错误）不重试
       if (e instanceof ApiError) {
         throw e
@@ -27,11 +37,33 @@ async function retryRequest<T>(fn: () => Promise<T>, retry: number, url: string)
       let origin = 'unknown'
       try {
         origin = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost').origin
-      } catch {}
+      } catch {
+        // Intentionally ignore - origin will remain 'unknown' for error context
+      }
       requestError = e instanceof BaseError ? e : new NetworkError((e as Error).message, origin)
 
       if (i < retry) {
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        const delay = Math.min(4_000, 500 * 2 ** i)
+        await new Promise<void>((resolve, reject) => {
+          const onAbort = () => {
+            signal?.removeEventListener('abort', onAbort)
+            reject(new DOMException('Aborted', 'AbortError'))
+          }
+          if (!signal) {
+            setTimeout(resolve, delay)
+            return
+          }
+          const timeout = setTimeout(() => {
+            signal.removeEventListener('abort', onAbort)
+            resolve()
+          }, delay)
+          if (signal.aborted) {
+            clearTimeout(timeout)
+            onAbort()
+            return
+          }
+          signal.addEventListener('abort', onAbort, { once: true })
+        })
       }
     }
   }
@@ -55,7 +87,18 @@ function buildHeaders(options: RequestOptions, url: string): Headers {
 }
 
 async function doRequest(url: string, options: RequestOptions): Promise<Response> {
-  const { signal, retry = 3, useProxy = false, body, method, responseType } = options
+  const {
+    signal,
+    retry: requestedRetry,
+    useProxy = false,
+    body,
+    method,
+    connectTimeout,
+    readTimeout,
+    disableRedirects,
+    responseType,
+  } = options
+  const retry = requestedRetry ?? (platform.type === 'mobile' && method.toUpperCase() !== 'GET' ? 0 : 3)
   let requestUrl = url
   const headers = buildHeaders(options, url)
 
@@ -66,8 +109,11 @@ async function doRequest(url: string, options: RequestOptions): Promise<Response
   }
 
   const makeRequest = async () => {
-    if (platform.type === 'mobile' && useProxy) {
-      return handleMobileRequest(requestUrl, method, headers, body, signal, responseType)
+    if (platform.type === 'mobile') {
+      return handleMobileRequest(requestUrl, method, headers, body, signal, responseType, false, disableRedirects, {
+        connectTimeout,
+        readTimeout,
+      })
     }
 
     const res = await fetch(requestUrl, { method, headers, body, signal })
@@ -78,25 +124,20 @@ async function doRequest(url: string, options: RequestOptions): Promise<Response
     return res
   }
 
-  return retryRequest(makeRequest, retry, requestUrl)
+  return retryRequest(makeRequest, retry, requestUrl, signal)
 }
 
 export const apiRequest = {
-  async post(
-    url: string,
-    headers: Record<string, string>,
-    body: RequestInit['body'],
-    options?: Partial<RequestOptions>
-  ) {
+  post(url: string, headers: Record<string, string>, body: RequestInit['body'], options?: Partial<RequestOptions>) {
     return doRequest(url, { ...options, method: 'POST', headers, body })
   },
 
-  async get(url: string, headers: Record<string, string>, options?: Partial<RequestOptions>) {
+  get(url: string, headers: Record<string, string>, options?: Partial<RequestOptions>) {
     return doRequest(url, { ...options, method: 'GET', headers })
   },
 }
 
-export async function fetchWithProxy(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+export function fetchWithProxy(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   return doRequest(input.toString(), {
     method: init?.method || 'GET',
     headers: init?.headers,

@@ -4,6 +4,14 @@ import { ApiError } from '../../shared/models/errors'
 
 type MobileResponseType = 'text' | 'json' | 'blob' | 'arraybuffer'
 
+export interface MobileRequestTimeouts {
+  connectTimeout?: number
+  readTimeout?: number
+}
+
+const DEFAULT_CONNECT_TIMEOUT_MS = 15_000
+const DEFAULT_READ_TIMEOUT_MS = 120_000
+
 interface NativeFormDataEntry {
   key: string
   value: string
@@ -149,7 +157,8 @@ export async function handleMobileRequest(
   signal?: AbortSignal,
   responseType?: MobileResponseType,
   waitForStreamMetadata = false,
-  disableRedirects = false
+  disableRedirects = false,
+  timeouts?: MobileRequestTimeouts
 ): Promise<Response> {
   // Fix: Convert Headers to plain object without using .entries()
   const headerObj: Record<string, string> = {}
@@ -234,6 +243,8 @@ export async function handleMobileRequest(
     headers: headerObj,
     data: requestData,
     dataType,
+    connectTimeout: timeouts?.connectTimeout ?? DEFAULT_CONNECT_TIMEOUT_MS,
+    readTimeout: timeouts?.readTimeout ?? DEFAULT_READ_TIMEOUT_MS,
     responseType: responseType || 'text',
     ...(disableRedirects ? { disableRedirects: true } : {}),
   })
