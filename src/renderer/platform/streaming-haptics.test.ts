@@ -27,7 +27,7 @@ describe('createStreamingHapticController', () => {
     controller.consumeTextDelta('Hi')
 
     expect(triggerHapticMock).toHaveBeenCalledTimes(1)
-    expect(triggerHapticMock).toHaveBeenCalledWith('light')
+    expect(triggerHapticMock).toHaveBeenCalledWith('light', 'medium')
   })
 
   it('ignores whitespace until visible text arrives', () => {

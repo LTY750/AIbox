@@ -1,10 +1,11 @@
-import { triggerHaptic } from './haptics'
+import { triggerHaptic, type HapticIntensity } from './haptics'
 
 export const STREAM_HAPTIC_MIN_INTERVAL_MS = 220
 export const STREAM_HAPTIC_CHAR_THRESHOLD = 10
 
 export interface StreamingHapticControllerOptions {
   enabled: boolean
+  intensity?: HapticIntensity
   minIntervalMs?: number
   charThreshold?: number
   now?: () => number
@@ -27,6 +28,7 @@ function countTextUnits(text: string): number {
  */
 export function createStreamingHapticController({
   enabled,
+  intensity = 'medium',
   minIntervalMs = STREAM_HAPTIC_MIN_INTERVAL_MS,
   charThreshold = STREAM_HAPTIC_CHAR_THRESHOLD,
   now = Date.now,
@@ -39,7 +41,7 @@ export function createStreamingHapticController({
     lastPulseAt = timestamp
     pendingTextUnits = 0
     try {
-      void triggerHaptic('light').catch(() => {})
+      void triggerHaptic('light', intensity).catch(() => {})
     } catch {
       // Haptics are optional and must never break stream processing.
     }

@@ -8,7 +8,7 @@ const hapticsMocks = vi.hoisted(() => ({
 
 vi.mock('@capacitor/haptics', () => ({
   Haptics: hapticsMocks,
-  ImpactStyle: { Light: 'LIGHT' },
+  ImpactStyle: { Light: 'LIGHT', Medium: 'MEDIUM', Heavy: 'HEAVY' },
   NotificationType: {
     Error: 'ERROR',
     Success: 'SUCCESS',
@@ -32,8 +32,16 @@ describe('triggerHaptic', () => {
 
     await triggerHaptic('light')
 
-    expect(hapticsMocks.impact).toHaveBeenCalledWith({ style: 'LIGHT' })
+    expect(hapticsMocks.impact).toHaveBeenCalledWith({ style: 'MEDIUM' })
     expect(hapticsMocks.notification).not.toHaveBeenCalled()
+  })
+
+  it('maps configured intensity to the native impact style', async () => {
+    platform.type = 'mobile'
+
+    await triggerHaptic('light', 'strong')
+
+    expect(hapticsMocks.impact).toHaveBeenCalledWith({ style: 'HEAVY' })
   })
 
   it('uses Capacitor notification feedback for terminal generation states', async () => {

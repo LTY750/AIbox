@@ -2,19 +2,26 @@ import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics'
 import platform from '@/platform'
 
 export type HapticEvent = 'light' | 'success' | 'warning' | 'error'
+export type HapticIntensity = 'light' | 'medium' | 'strong'
 
-const fallbackDurations: Record<HapticEvent, number> = {
-  light: 10,
-  success: 20,
-  warning: 15,
-  error: 30,
+const fallbackDurations: Record<HapticEvent, Record<HapticIntensity, number>> = {
+  light: { light: 8, medium: 10, strong: 15 },
+  success: { light: 15, medium: 20, strong: 30 },
+  warning: { light: 12, medium: 15, strong: 22 },
+  error: { light: 20, medium: 30, strong: 40 },
+}
+
+const impactStyles: Record<HapticIntensity, ImpactStyle> = {
+  light: ImpactStyle.Light,
+  medium: ImpactStyle.Medium,
+  strong: ImpactStyle.Heavy,
 }
 
 /**
  * Trigger a lightweight haptic feedback signal without letting haptic
  * failures affect the surrounding user interaction or generation flow.
  */
-export async function triggerHaptic(event: HapticEvent): Promise<void> {
+export async function triggerHaptic(event: HapticEvent, intensity: HapticIntensity = 'medium'): Promise<void> {
   if (platform.type !== 'mobile' && platform.type !== 'web') {
     return
   }
@@ -33,7 +40,7 @@ export async function triggerHaptic(event: HapticEvent): Promise<void> {
         await Haptics.notification({ type: NotificationType.Warning })
         return
       }
-      await Haptics.impact({ style: ImpactStyle.Light })
+      await Haptics.impact({ style: impactStyles[intensity] })
       return
     }
   } catch {
@@ -43,7 +50,7 @@ export async function triggerHaptic(event: HapticEvent): Promise<void> {
 
   if (typeof navigator !== 'undefined') {
     try {
-      navigator.vibrate?.(fallbackDurations[event])
+      navigator.vibrate?.(fallbackDurations[event][intensity])
     } catch {
       // Vibration is an optional enhancement and must never break the caller.
     }
