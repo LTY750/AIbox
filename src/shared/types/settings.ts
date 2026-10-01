@@ -532,6 +532,7 @@ export const SettingsSchema = GlobalSessionSettingsSchema.extend({
   showMessageTimestamp: z.boolean().optional().catch(undefined),
   showFirstTokenLatency: z.boolean().optional().catch(undefined),
   enableHapticFeedback: z.boolean().optional().catch(undefined),
+  hapticIntensity: z.enum(['light', 'medium', 'strong']).optional().catch(undefined),
   memoryEnabled: z.boolean().optional().catch(undefined),
 
   showAvatar: z.boolean().optional().catch(undefined),

@@ -76,6 +76,7 @@ export function settings(): Settings {
     showMessageTimestamp: false,
     showFirstTokenLatency: false,
     enableHapticFeedback: true,
+    hapticIntensity: 'medium',
     memoryEnabled: true,
     showAvatar: true,
     messageLayout: 'bubble',
