@@ -136,7 +136,10 @@ export const qwenPortalOAuthProvider: DeviceCodeOAuthProvider = {
             }
           }
         } else {
-          const payload = (await response.json().catch(() => ({}))) as {
+          const payload = (await response.json().catch(() => {
+            // Intentionally ignore - if JSON parsing fails, return empty object for error handling
+            return {}
+          })) as {
             error?: string
             error_description?: string
           }

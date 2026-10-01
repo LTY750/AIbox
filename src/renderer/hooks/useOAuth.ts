@@ -34,7 +34,9 @@ export function useOAuth(
     return () => {
       mountedRef.current = false
       if (isDesktop) {
-        ;(platform as any).ipc.invoke(OAuthIpcChannels.CANCEL, oauthProviderId).catch(() => {})
+        ;(platform as any).ipc.invoke(OAuthIpcChannels.CANCEL, oauthProviderId).catch(() => {
+          // Intentionally ignore - cleanup on unmount is best-effort
+        })
       }
     }
   }, [isDesktop, oauthProviderId])
