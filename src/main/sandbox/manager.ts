@@ -1046,7 +1046,11 @@ const dirPath = ${JSON.stringify(dirPath)}
 const entries = fs.readdirSync(dirPath, { withFileTypes: true })
 const rows = entries.slice(0, ${SANDBOX_LIST_MAX_ENTRIES}).map((entry) => {
   let size = 0
-  try { size = fs.statSync(path.join(dirPath, entry.name)).size } catch {}
+  try {
+    size = fs.statSync(path.join(dirPath, entry.name)).size
+  } catch {
+    // Intentionally ignore - file may have been deleted or is inaccessible, size remains 0
+  }
   const type = entry.isDirectory() ? 'dir' : entry.isFile() ? 'file' : 'other'
   return type + '\\t' + size + '\\t' + entry.name
 })

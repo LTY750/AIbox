@@ -423,7 +423,9 @@ export default abstract class AbstractAISDKModel implements ModelInterface {
         () => {},
         () => {}
       )
-      await streamIterator.return?.().catch(() => {})
+      await streamIterator.return?.().catch(() => {
+        // Intentionally ignore - stream already aborted, cleanup is best-effort
+      })
     }
   }
 
