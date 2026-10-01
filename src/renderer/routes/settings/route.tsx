@@ -2,10 +2,10 @@ import { ActionIcon, Box, Flex, Stack, Text } from '@mantine/core'
 import { SystemProviders } from '@shared/defaults'
 import {
   IconAdjustmentsHorizontal,
-  IconBrain,
   IconArchive,
   IconBook,
   IconBox,
+  IconBrain,
   IconCategory,
   IconChevronLeft,
   IconChevronRight,
@@ -17,9 +17,9 @@ import {
   IconWand,
   IconWorldWww,
 } from '@tabler/icons-react'
-import { createFileRoute, Link, Outlet, useCanGoBack, useRouter, useRouterState } from '@tanstack/react-router'
+import { createFileRoute, Link, Outlet, useRouter, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Toaster } from 'sonner'
 import Divider from '@/components/common/Divider'
@@ -27,9 +27,11 @@ import { ScalableIcon } from '@/components/common/ScalableIcon'
 import Page from '@/components/layout/Page'
 import { useIsSmallScreen } from '@/hooks/useScreenChange'
 import platform from '@/platform'
+import { useMobileBackHandler } from '@/platform/mobile_back_navigation'
 import { hideMobileKeyboard } from '@/platform/mobile_keyboard'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { featureFlags } from '@/utils/feature-flags'
+import { getSettingsBackPath } from '@/utils/settings-navigation'
 import { getSettingsPageTitle } from '@/utils/settingsPageTitle'
 
 const ITEMS = [
@@ -119,29 +121,34 @@ export const Route = createFileRoute('/settings')({
 export function RouteComponent() {
   const { t } = useTranslation()
   const router = useRouter()
-  const canGoBack = useCanGoBack()
   const isSmallScreen = useIsSmallScreen()
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const customProviders = useSettingsStore((state) => state.customProviders)
   const providers = useMemo(() => [...SystemProviders(), ...(customProviders || [])], [customProviders])
   const title = useMemo(() => getSettingsPageTitle(pathname, t, providers), [pathname, providers, t])
-  const navigatingBackPath = useRef<string | null>(null)
-
   const handleBack = async () => {
-    if (navigatingBackPath.current === pathname) {
-      return
+    try {
+      if (platform.type === 'mobile') {
+        await hideMobileKeyboard()
+      }
+    } finally {
+      await router.navigate({ to: getSettingsBackPath(pathname), replace: true })
     }
-    navigatingBackPath.current = pathname
-    if (platform.type === 'mobile') {
-      await hideMobileKeyboard()
-    }
-    router.history.back()
   }
+
+  useMobileBackHandler(
+    () => {
+      void handleBack()
+      return true
+    },
+    platform.type === 'mobile',
+    10
+  )
   return (
     <Page
       title={title}
       left={
-        isSmallScreen && canGoBack ? (
+        isSmallScreen ? (
           <ActionIcon
             className="controls"
             variant="subtle"

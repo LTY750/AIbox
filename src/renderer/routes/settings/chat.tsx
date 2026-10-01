@@ -10,6 +10,7 @@ import { AssistantAvatar, UserAvatar } from '@/components/common/Avatar'
 import { Divider } from '@/components/common/Divider'
 import MaxContextMessageCountSlider from '@/components/common/MaxContextMessageCountSlider'
 import { MessageLayoutSelector } from '@/components/common/MessageLayoutPreview'
+import ModelParameterInfo from '@/components/common/ModelParameterInfo'
 import { ScalableIcon } from '@/components/common/ScalableIcon'
 import SliderWithInput from '@/components/common/SliderWithInput'
 import { handleImageInputAndSave, ImageInStorage } from '@/components/Image'
@@ -173,17 +174,7 @@ export function RouteComponent() {
         <Stack gap="xxs">
           <Flex align="center" gap="xs">
             <Text size="sm">{t('Temperature')}</Text>
-            <Tooltip
-              label={t(
-                'Modify the creativity of AI responses; the higher the value, the more random and intriguing the answers become, while a lower value ensures greater stability and reliability.'
-              )}
-              withArrow={true}
-              maw={320}
-              className="!whitespace-normal"
-              zIndex={3000}
-            >
-              <ScalableIcon icon={IconInfoCircle} size={20} className="text-chatbox-tint-tertiary" />
-            </Tooltip>
+            <ModelParameterInfo parameter="temperature" />
           </Flex>
 
           <SliderWithInput value={settings?.temperature} onChange={(v) => setSettings({ temperature: v })} max={2} />
@@ -193,17 +184,7 @@ export function RouteComponent() {
         <Stack gap="xxs">
           <Flex align="center" gap="xs">
             <Text size="sm">Top P</Text>
-            <Tooltip
-              label={t(
-                'The topP parameter controls the diversity of AI responses: lower values make the output more focused and predictable, while higher values allow for more varied and creative replies.'
-              )}
-              withArrow={true}
-              maw={320}
-              className="!whitespace-normal"
-              zIndex={3000}
-            >
-              <ScalableIcon icon={IconInfoCircle} size={20} className="text-chatbox-tint-tertiary" />
-            </Tooltip>
+            <ModelParameterInfo parameter="topP" />
           </Flex>
 
           <SliderWithInput value={settings?.topP} onChange={(v) => setSettings({ topP: v })} max={1} />

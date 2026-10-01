@@ -290,6 +290,11 @@ export function RouteComponent() {
           label={t('Network Proxy')}
           inline
           iconClassName="settings-row-icon--network"
+          className="settings-row--interactive"
+          onClick={() => {
+            setDraftProxy(settings.proxy ?? '')
+            setIsEditingProxy(true)
+          }}
         >
           <Text size="sm" c="chatbox-tertiary" className="settings-mobile-summary">
             {settings.proxy ? t('Configured') : t('Not configured')}
@@ -399,7 +404,7 @@ const MobileSelectRow = ({
   value: string
   children: ReactNode
 }) => (
-  <MobileSettingField icon={icon} iconClassName={iconClassName} label={label} inline>
+  <MobileSettingField icon={icon} iconClassName={iconClassName} label={label} inline className="settings-row--select">
     <Text size="sm" c="chatbox-tertiary" className="settings-mobile-summary">
       {value}
     </Text>

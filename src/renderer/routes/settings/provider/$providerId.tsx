@@ -791,20 +791,22 @@ function ProviderSettings({ providerId }: { providerId: string }) {
               )}
             </Stack>
 
-            <Switch
-              label={t('Improve Network Compatibility')}
-              checked={providerSettings?.useProxy || false}
-              onChange={(e) =>
-                setProviderSettings({
-                  useProxy: e.currentTarget.checked,
-                })
-              }
-            />
+            {platform.type !== 'mobile' && (
+              <Switch
+                label={t('Improve Network Compatibility')}
+                checked={providerSettings?.useProxy || false}
+                onChange={(e) =>
+                  setProviderSettings({
+                    useProxy: e.currentTarget.checked,
+                  })
+                }
+              />
+            )}
           </>
         )}
 
         {/* useProxy for Ollama */}
-        {baseInfo.id === ModelProviderEnum.Ollama && (
+        {baseInfo.id === ModelProviderEnum.Ollama && platform.type !== 'mobile' && (
           <Switch
             label={t('Improve Network Compatibility')}
             checked={providerSettings?.useProxy || false}
