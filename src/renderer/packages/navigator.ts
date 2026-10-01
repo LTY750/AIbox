@@ -3,10 +3,14 @@ import copyToClipboardFallback from 'copy-to-clipboard'
 export function copyToClipboard(text: string) {
   try {
     navigator?.clipboard?.writeText(text)
-  } catch {}
+  } catch {
+    // Intentionally ignore - fallback will be attempted below
+  }
   try {
     copyToClipboardFallback(text)
-  } catch {}
+  } catch {
+    // Intentionally ignore - clipboard failure is non-critical
+  }
 }
 
 const ua = navigator.userAgent

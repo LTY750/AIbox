@@ -64,7 +64,9 @@ abstract class WebSearch {
     if (typeof body === 'string' && contentType?.includes('application/json')) {
       try {
         body = JSON.parse(body)
-      } catch {}
+      } catch {
+        // Intentionally ignore - body is not JSON, will be sent as-is
+      }
     }
     const data = await this.fetch(url, {
       method: (init?.method ?? 'GET') as FetchOptions['method'],

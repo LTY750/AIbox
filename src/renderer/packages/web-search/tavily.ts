@@ -53,7 +53,9 @@ export class TavilySearch extends WebSearch {
     try {
       const hostname = new URL(resultUrl).hostname
       if (hostname) fallbackTitle = hostname
-    } catch {}
+    } catch {
+      // Intentionally ignore - URL parsing failed, fallbackTitle remains undefined
+    }
 
     return {
       url: resultUrl,
