@@ -1,22 +1,12 @@
 import NiceModal from '@ebay/nice-modal-react'
-import { Button, Flex, Stack, Transition } from '@mantine/core'
-import { useThrottledCallback } from '@mantine/hooks'
+import { Stack, Transition } from '@mantine/core'
 import type { Session, Message as SessionMessage, SessionThreadBrief } from '@shared/types'
-import {
-  IconArrowBarToUp,
-  IconArrowUp,
-  IconListTree,
-  IconMessagePlus,
-  IconPencil,
-  IconSwitch3,
-  IconTrash,
-} from '@tabler/icons-react'
+import { IconListTree, IconMessagePlus, IconPencil, IconSwitch3, IconTrash } from '@tabler/icons-react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import {
   type FC,
   forwardRef,
   memo,
-  type UIEventHandler,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -44,7 +34,6 @@ import { useUIStore } from '@/stores/uiStore'
 import ActionMenu from '../ActionMenu'
 
 import { ErrorBoundary } from '../common/ErrorBoundary'
-import { ScalableIcon } from '../common/ScalableIcon'
 import { BlockCodeCollapsedStateProvider } from '../Markdown'
 import ForkGroup from './ForkGroup'
 import ForkMarkerMessage from './ForkMarkerMessage'
@@ -89,7 +78,6 @@ export interface MessageListRef {
 export interface MessageListProps {
   className?: string
   currentSession: Session
-  onScrollActivityChange?: (active: boolean) => void
 }
 
 const MessageList = forwardRef<MessageListRef, MessageListProps>((props, ref) => {
@@ -214,51 +202,38 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>((props, ref) =>
 
   const handleScrollToPrev = useCallback(() => {
     smoothFollowOutput.pause()
-    if (messageListRef?.current && virtuoso?.current) {
+    if (messageListRef.current && virtuoso.current) {
       const containerRect = messageListRef.current.getBoundingClientRect()
       for (let i = 0; i < renderItems.length; i++) {
-        // 此处原本判断 role 的逻辑已在 renderItems 中处理
         const msgElement = messageListRef.current.querySelector(
           `[data-testid="virtuoso-item-list"] > [data-index="${i}"]`
         )
-        if (msgElement) {
-          const rect = msgElement.getBoundingClientRect()
-          // 找到第一个出现在可视区域顶部的元素，滚动到上一条用户消息
-          // +2 tolerance: smooth scroll + virtuoso height estimation can leave
-          // the previous element's bottom a sub-pixel into the viewport,
-          // causing the anchor to land one item too early.
-          if (rect.bottom > containerRect.top + 2) {
-            // If the current element's top is scrolled above the viewport and it
-            // contains a user message (e.g. a long assistant response in a group),
-            // scroll to the top of THIS element first to bring the question back.
-            if (rect.top < containerRect.top - 2 && renderItems[i].messages.some(isUserNavigationMessage)) {
-              virtuoso.current.scrollToIndex({
-                index: i,
-                align: 'start',
-                offset: isSmallScreen ? -28 : 0,
-                behavior: 'smooth',
-              })
-              return
-            }
-            for (let j = i - 1; j >= 0; j--) {
-              if (renderItems[j].messages.some(isUserNavigationMessage)) {
-                virtuoso.current.scrollToIndex({
-                  index: j,
-                  align: 'start',
-                  offset: isSmallScreen ? -28 : 0,
-                  behavior: 'smooth',
-                })
-                return
-              }
-            }
-            // 没有上一条用户消息了，滚动到顶部
-            virtuoso.current.scrollToIndex({ index: 0, align: 'start', behavior: 'smooth' })
+        if (!msgElement) {
+          continue
+        }
+
+        const rect = msgElement.getBoundingClientRect()
+        if (rect.bottom <= containerRect.top + 2) {
+          continue
+        }
+
+        if (rect.top < containerRect.top - 2 && renderItems[i].messages.some(isUserNavigationMessage)) {
+          virtuoso.current.scrollToIndex({ index: i, align: 'start', behavior: 'smooth' })
+          return
+        }
+
+        for (let j = i - 1; j >= 0; j--) {
+          if (renderItems[j].messages.some(isUserNavigationMessage)) {
+            virtuoso.current.scrollToIndex({ index: j, align: 'start', behavior: 'smooth' })
             return
           }
         }
+
+        virtuoso.current.scrollToIndex({ index: 0, align: 'start', behavior: 'smooth' })
+        return
       }
     }
-  }, [renderItems, isSmallScreen, smoothFollowOutput])
+  }, [renderItems, smoothFollowOutput])
 
   const handleScrollToNext = useCallback(() => {
     smoothFollowOutput.pause()
@@ -289,75 +264,18 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>((props, ref) =>
   }, [renderItems, smoothFollowOutput])
 
   const [atBottom, setAtBottom] = useState(false)
-  const [atTop, setAtTop] = useState(false)
 
-  const [showScrollToPrev, setShowScrollToPrev] = useState(false)
-  const lastScrollTop = useRef<number>()
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const scrollActivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current)
-      }
-      if (scrollActivityTimerRef.current) {
-        clearTimeout(scrollActivityTimerRef.current)
-      }
-      props.onScrollActivityChange?.(false)
-    }
-  }, [props.onScrollActivityChange])
-
-  const notifyScrollActivity = useCallback(() => {
-    if (!isSmallScreen || !props.onScrollActivityChange) {
-      return
-    }
-
-    props.onScrollActivityChange(true)
-    if (scrollActivityTimerRef.current) {
-      clearTimeout(scrollActivityTimerRef.current)
-    }
-    scrollActivityTimerRef.current = setTimeout(() => {
-      props.onScrollActivityChange?.(false)
-      scrollActivityTimerRef.current = null
-    }, 600)
-  }, [isSmallScreen, props.onScrollActivityChange])
-
-  const handleScrollTopThrottled = useThrottledCallback((scrollTop?: number) => {
-    if (typeof scrollTop === 'number' && typeof lastScrollTop.current === 'number') {
-      if (scrollTop > 0 && scrollTop < lastScrollTop.current) {
-        // 是向上滚动
-        setShowScrollToPrev(true)
-        if (timerRef.current) {
-          clearTimeout(timerRef.current)
-          timerRef.current = null
-        }
-        timerRef.current = setTimeout(() => setShowScrollToPrev(false), 3000)
-      } else {
-        setShowScrollToPrev(false)
-        if (timerRef.current) {
-          clearTimeout(timerRef.current)
-          timerRef.current = null
-        }
-      }
-    }
-    lastScrollTop.current = scrollTop
-  }, 256)
-
-  const handleScroll = useCallback<UIEventHandler>(
-    (e) => {
-      notifyScrollActivity()
-      const scrollTop = e.currentTarget.scrollTop
-      const maxScrollTop = e.currentTarget.scrollHeight - e.currentTarget.clientHeight
+  const handleScroll = useCallback(
+    (event: React.UIEvent<HTMLElement>) => {
+      const scrollTop = event.currentTarget.scrollTop
+      const maxScrollTop = event.currentTarget.scrollHeight - event.currentTarget.clientHeight
       if (smoothFollowOutput.handleScroll(scrollTop, maxScrollTop)) {
         setAtBottom(false)
       } else if (smoothFollowOutput.isFollowing()) {
         setAtBottom(true)
       }
-      if (e.currentTarget.scrollHeight - (scrollTop + e.currentTarget.clientHeight) >= 0) {
-        handleScrollTopThrottled(scrollTop)
-      }
     },
-    [handleScrollTopThrottled, notifyScrollActivity, smoothFollowOutput]
+    [smoothFollowOutput]
   )
   // message navigation handlers end
 
@@ -552,7 +470,6 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>((props, ref) =>
                 </div>
               )
             }}
-            atTopStateChange={setAtTop}
             atBottomStateChange={(nextAtBottom) => {
               smoothFollowOutput.handleAtBottomChange(nextAtBottom)
               setAtBottom(nextAtBottom || smoothFollowOutput.isFollowing())
@@ -573,45 +490,9 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>((props, ref) =>
               onScrollToNext={handleScrollToNext}
             />
           ) : (
-            <>
-              <Transition mounted={showScrollToPrev && !atTop} transition="fade-down">
-                {(transitionStyle) => (
-                  <Flex
-                    style={transitionStyle}
-                    className="absolute z-10 bottom-1 left-0 right-12 leading-tight bg-chatbox-background-secondary"
-                  >
-                    {[
-                      { text: t('Return to the top'), icon: IconArrowBarToUp, onClick: handleScrollToTop },
-                      {
-                        text: t('Back to previous message'),
-                        icon: IconArrowUp,
-                        onClick: handleScrollToPrev,
-                      },
-                    ].map((item, idx) => (
-                      <Button
-                        key={item.text}
-                        variant="transparent"
-                        className={cn('w-1/2', idx === 0 ? 'border-r border-r-chatbox-border-primary' : '')}
-                        classNames={{
-                          section: '!mr-xxs',
-                        }}
-                        size="xs"
-                        h="auto"
-                        py={6}
-                        c="chatbox-tertiary"
-                        onClick={item.onClick}
-                        leftSection={<ScalableIcon icon={item.icon} size={16} />}
-                      >
-                        {item.text}
-                      </Button>
-                    ))}
-                  </Flex>
-                )}
-              </Transition>
-              <Transition mounted={!atBottom} transition="slide-up">
-                {(transitionStyle) => <ScrollToBottomButton onClick={handleScrollToBottom} style={transitionStyle} />}
-              </Transition>
-            </>
+            <Transition mounted={!atBottom} transition="slide-up">
+              {(transitionStyle) => <ScrollToBottomButton onClick={handleScrollToBottom} style={transitionStyle} />}
+            </Transition>
           )}
         </div>
       </BlockCodeCollapsedStateProvider>

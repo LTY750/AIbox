@@ -17,7 +17,9 @@ const shownTracked = new Set<string>()
 function trackDeadLink(action: 'shown' | 'rescue_success' | 'rescue_failed') {
   // Dynamic import keeps this presentation component (and the Markdown SSR path) free of
   // the analytics/settings module graph.
-  void import('@/utils/track').then(({ trackEvent }) => trackEvent('sandbox_dead_link', { action })).catch(() => {})
+  void import('@/utils/track').then(({ trackEvent }) => trackEvent('sandbox_dead_link', { action })).catch(() => {
+    // Intentionally ignore - analytics tracking failure is non-critical
+  })
 }
 
 /**

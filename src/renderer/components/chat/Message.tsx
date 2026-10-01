@@ -275,7 +275,9 @@ const _Message: FC<Props> = (props) => {
             },
           })
         })
-        .catch(() => {})
+        .catch(() => {
+          // Intentionally ignore - message regeneration failure is already handled by UI state
+        })
     },
     [msg.id, sessionId]
   )

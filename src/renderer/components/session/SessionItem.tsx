@@ -14,6 +14,7 @@ import { triggerHaptic } from '@/platform/haptics'
 import { router } from '@/router'
 import { archiveSession, countArchivedSessionsMeta, updateSession as updateSessionStore } from '@/stores/chatStore'
 import { switchCurrentSession } from '@/stores/sessionActions'
+import { settingsStore } from '@/stores/settingsStore'
 import * as toastActions from '@/stores/toastActions'
 import { useUIStore } from '@/stores/uiStore'
 import ActionMenu, { type ActionMenuItemProps } from '../ActionMenu'
@@ -39,7 +40,8 @@ function formatSessionTime(createdAt: number) {
 }
 
 function triggerLongPressHaptic() {
-  void triggerHaptic('light')
+  const intensity = settingsStore.getState().hapticIntensity || 'medium'
+  void triggerHaptic('light', intensity)
 }
 
 export interface Props {

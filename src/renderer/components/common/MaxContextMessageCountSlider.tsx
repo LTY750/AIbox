@@ -1,9 +1,6 @@
 import { Flex, Slider, Stack, type StackProps, Text, TextInput, type TextProps } from '@mantine/core'
-import { IconInfoCircle } from '@tabler/icons-react'
 import { type ChangeEvent, type KeyboardEvent, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AppTooltip as Tooltip } from '@/components/ui/tooltip'
-import { ScalableIcon } from '../common/ScalableIcon'
 
 export function toBeRemoved_getContextMessageCount(
   openaiMaxContextMessageCount: number,
@@ -90,17 +87,6 @@ export default function MaxContextMessageCountSlider({ value, onChange, classNam
         <Text size="sm" fw={'600'} {...labelProps}>
           {t('Max Message Count in Context')}
         </Text>
-        <Tooltip
-          label={t(
-            'Regulate the volume of historical messages sent to the AI, striking a harmonious balance between depth of comprehension and the efficiency of responses.'
-          )}
-          withArrow={true}
-          maw={320}
-          className="!whitespace-normal"
-          zIndex={3000}
-        >
-          <ScalableIcon icon={IconInfoCircle} size={20} className="text-chatbox-tint-tertiary" />
-        </Tooltip>
       </Flex>
       <Flex gap="sm" align="center" className={className}>
         <Slider

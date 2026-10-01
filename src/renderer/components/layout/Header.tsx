@@ -16,7 +16,7 @@ import { getAutoTitleGenerationAction } from './auto-title'
 import Toolbar from './Toolbar'
 import WindowControls from './WindowControls'
 
-export default function Header(props: { session: Session; frosted?: boolean }) {
+export default function Header(props: { session: Session; onMobileHeaderClick?: () => void }) {
   const { t } = useTranslation()
   const showSidebar = useUIStore((s) => s.showSidebar)
   const setShowSidebar = useUIStore((s) => s.setShowSidebar)
@@ -25,7 +25,6 @@ export default function Header(props: { session: Session; frosted?: boolean }) {
   const { needRoomForMacWindowControls } = useNeedRoomForWinControls()
 
   const { session: currentSession } = props
-  const frosted = props.frosted ?? false
 
   useEffect(() => {
     const autoGenerateTitle = settingActions.getAutoGenerateTitle()
@@ -50,10 +49,7 @@ export default function Header(props: { session: Session; frosted?: boolean }) {
 
   if (isSmallScreen) {
     return (
-      <div
-        className={clsx('mobile-chat-header', frosted && 'mobile-chat-header-frosted')}
-        aria-label={currentSession.name}
-      >
+      <div className="mobile-chat-header" aria-label={currentSession.name} onClick={props.onMobileHeaderClick}>
         <div className="mobile-chat-header-controls">
           <ActionIcon
             className={clsx('controls mobile-chat-floating-button mobile-touch-target')}
@@ -61,12 +57,15 @@ export default function Header(props: { session: Session; frosted?: boolean }) {
             size={40}
             color="chatbox-secondary"
             aria-label={t('Chat History')}
-            onClick={() => setShowSidebar(!showSidebar)}
+            onClick={(event) => {
+              event.stopPropagation()
+              setShowSidebar(!showSidebar)
+            }}
           >
             <IconMenu2 size={20} />
           </ActionIcon>
 
-          <Flex align="center" className="mobile-chat-action-pill">
+          <Flex align="center" className="mobile-chat-action-pill" onClick={(event) => event.stopPropagation()}>
             <ActionIcon
               className="controls mobile-chat-floating-action mobile-touch-target"
               variant="subtle"

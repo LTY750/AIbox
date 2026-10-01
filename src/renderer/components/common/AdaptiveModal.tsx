@@ -31,13 +31,13 @@ export function AdaptiveModal({ opened, onClose, onExitTransitionEnd, children, 
         onOpenChange={(open) => !open && onClose()}
         onAnimationEnd={(open) => !open && onExitTransitionEnd?.()}
         noBodyStyles
-        repositionInputs={false}
+        repositionInputs
       >
         <Drawer.Portal>
           <Drawer.Overlay className="fixed inset-0 bg-chatbox-background-mask-overlay" />
-          <Drawer.Content className="flex flex-col h-fit fixed bottom-0 left-0 right-0 outline-none bg-chatbox-background-primary rounded-t-lg">
+          <Drawer.Content className="mobile-adaptive-modal fixed bottom-0 left-0 right-0 flex h-fit flex-col rounded-t-lg bg-chatbox-background-primary outline-none">
             <Drawer.Handle />
-            <Stack gap="md" p="sm" className="max-h-[85vh] overflow-y-auto">
+            <Stack gap="md" p="sm" className="mobile-adaptive-modal-content max-h-[85vh] overflow-y-auto">
               {title && typeof title === 'string' && (
                 <Text size="md" fw={600} className="text-center">
                   {title}
