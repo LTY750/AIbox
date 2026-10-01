@@ -633,6 +633,28 @@ div[data-vaul-drawer] {
   flex: 0 0 auto;
 }
 
+/* Select rows use a transparent full-row trigger on mobile. The Mantine Select
+   itself is visually hidden, so the summary and chevron remain the visible UI. */
+.settings-row--select {
+  position: relative;
+}
+
+.settings-row--select > .mantine-Flex-root {
+  pointer-events: none;
+}
+
+.settings-row--select .settings-mobile-control {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  pointer-events: none;
+}
+
+.settings-row--select .settings-mobile-control > * {
+  pointer-events: auto;
+}
+
 .settings-mobile-select-trigger {
   position: absolute;
   inset: 0;
