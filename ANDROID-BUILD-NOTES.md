@@ -72,6 +72,12 @@ $env:JAVA_HOME = 'C:\Users\LTY\Desktop\chatbox-build-tools\OpenJDK21U-jdk_x64_wi
 $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 $env:GRADLE_USER_HOME = 'C:\Users\LTY\Desktop\AIbox mobile\android\.gradle-local'
 
+# 必须：把临时目录指到工作区内，否则 mobile:sync:android 必定失败（见第五节第 6 条）
+$env:TEMP = 'C:\Users\LTY\Desktop\AIbox mobile\.tmp-esbuild'
+$env:TMP = $env:TEMP
+$env:TMPDIR = $env:TEMP
+New-Item -ItemType Directory -Force -Path $env:TEMP | Out-Null
+
 # 2. 依赖（首次 / 依赖变更时）
 cd 'C:\Users\LTY\Desktop\AIbox mobile'
 pnpm install --frozen-lockfile
@@ -103,6 +109,15 @@ Remove-Item '..\.gradle-local\.tmp\problems-report*.html' -Force -ErrorAction Si
 3. **Gradle native 缓存坏**（`Failed to load native-platform.dll`）：删除 gradle 用户目录的 `native` 缓存（`.gradle-local\native` 或 `%USERPROFILE%\.gradle\native`）后重试。
 4. **依赖慢**：可在 `.npmrc` 加 `registry=https://registry.npmmirror.com`（注意与 `--frozen-lockfile` 偶有 resolved URL 不一致，若报错则去掉镜像）。
 5. **构建必须用 node 24.15+**（2026-08-30 起 `engines` 要求 `>=24.15.0 <25.0.0`，且 `.npmrc` 的 `engine-strict=true` 会让 node 22 直接安装失败）；切换过 node 大版本后，重跑一次 `pnpm install --frozen-lockfile`。
+6. **esbuild 无法在系统 `%TEMP%` 下清理临时文件**（2026-10-01 定位，必现，重试无效）：
+   - 现象：`pnpm run mobile:sync:android` 报
+     `error during build: [vite:define] remove C:\Users\LTY\AppData\Local\Temp\esbuild-<64位hex>: Access is denied.`，
+     并附带 `file: .../pdfjs-dist/legacy/build/pdf.worker.mjs`。
+   - 真实原因：esbuild 会把该 2,360,132 字节的 worker 载荷先写成系统临时文件再删除，删除在系统 `%TEMP%` 下被拒。
+     每次失败都会留下一个**正好 2,360,132 字节**的孤儿文件（曾在 7 小时内累积 12 个，共 27 MB）。
+   - **不是文件锁**：事后立刻手动删除这些孤儿文件是成功的，说明没有句柄占用。
+   - **也不是「临时问题」**：孤儿文件逐次累积，证明每一次重试都失败，不要指望重启或重试能解决。
+   - 规避：按第四节第 1 步把 `TEMP`/`TMP`/`TMPDIR` 指向工作区内目录（如 `.tmp-esbuild`），构建即通过。
 
 ---
 

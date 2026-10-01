@@ -12,6 +12,12 @@ Chatbox 的 AI 供应商（Provider）系统负责对接 30+ 家 AI 模型服务
 - **可扩展性**：新增内置供应商只需 4 个文件改动；用户自建供应商通过 `createCustomProviderModel()` 动态支持。
 - **关注点分离**：供应商定义（definition）与模型实现（model class）解耦，分别位于 `definitions/` 和 `definitions/models/`。
 
+### Android 网络传输
+
+Android 模型提供方的请求统一通过 Capacitor 原生 HTTP 适配器发送，包含聊天、模型列表、图片和文件请求；SSE 聊天流继续使用持久化原生流插件。Provider 设置中的 `useProxy` 只保留用于历史配置兼容，在 Android 上不再决定请求是否走原生传输，也不会把请求地址改写为 Chatbox 中转服务。
+
+普通原生请求默认使用 15 秒连接超时和 120 秒读取超时。Android 上非 GET 请求默认不自动重试，以避免网络错误发生在服务端处理之后造成重复计费；需要重试的安全请求必须由调用方显式指定。流式请求不使用普通 HTTP 超时策略，断线恢复由持久化流状态和 sequence 重放机制负责。
+
 关于此架构选型的决策记录，参见 [关键决策 #2：Registry 模式](./key-decisions.md)。
 
 ## 注册表架构
