@@ -41,6 +41,10 @@ export async function hideMobileKeyboard(): Promise<void> {
     if (timeout) {
       clearTimeout(timeout)
     }
-    await removeListener?.()
+    try {
+      await removeListener?.()
+    } catch (error) {
+      console.warn('Failed to remove mobile keyboard listener:', error)
+    }
   }
 }
