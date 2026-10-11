@@ -218,5 +218,27 @@ android-emulator-*.xml
 android-emulator-*.txt
 android-window.xml
 
+# Emulator screenshots and uiautomator UI dumps written to the repo root.
+# The root directory holds configuration and reports, not QA output; tracked
+# root-level files include no .png/.xml, so these stay root-anchored.
+/*.png
+/*.xml
+
+# One-off adb/uiautomator helper scripts and build wrappers kept locally
+/edit.py
+/edit_css.py
+/fix_inject.py
+/inject_mobile.py
+/parse_aibox.py
+/parse_aibox2.py
+/parse_ui.py
+/parse_ui2.py
+/build-and-test.bat
+/commit-changes.bat
+
+# Machine-local Gradle home and build tool caches
+/.gradle-user/
+/.tmp-*/
+
 # npm lockfile; this workspace is managed exclusively by pnpm
 package-lock.json
